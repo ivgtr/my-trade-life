@@ -1,3 +1,5 @@
+export type Timeframe = 1 | 5 | 15
+
 export type VolState = 'high' | 'normal' | 'low'
 export type TimeZone = 'open' | 'morning' | 'lunch' | 'afternoon' | 'close'
 export type RegimeName = 'bullish' | 'bearish' | 'range' | 'turbulent' | 'bubble' | 'crash'

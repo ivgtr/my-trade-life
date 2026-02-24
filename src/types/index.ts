@@ -1,5 +1,6 @@
 export type { Position, TradeResult, UnrealizedPnL, BuyingPowerInfo, DailySummary } from './trading'
 export type {
+  Timeframe,
   VolState, TimeZone, RegimeName,
   TickData, GameTime, MarketEngineConfig,
   DailyCondition, RegimeParams, AnomalyParams,

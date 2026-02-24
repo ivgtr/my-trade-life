@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useCallback } from 'react'
 import { useGameContext } from '../hooks/useGameContext'
 import { useSessionEngine } from '../hooks/useSessionEngine'
 import { useResponsive } from '../hooks/useMediaQuery'
@@ -8,6 +8,7 @@ import TickerTape from '../components/TickerTape'
 import NewsOverlay from '../components/NewsOverlay'
 import { formatCurrency } from '../utils/formatUtils'
 import type { ChartHandle } from '../components/Chart'
+import type { Timeframe } from '../types'
 
 interface SessionScreenProps {
   onEndSession?: (data: { results: unknown; summary: unknown }) => void
@@ -18,6 +19,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   const { isMobile } = useResponsive()
   const chartRef = useRef<ChartHandle | null>(null)
   const [mobileTab, setMobileTab] = useState('chart')
+  const [timeframe, setTimeframe] = useState<Timeframe>(1)
 
   const {
     ticks,
@@ -29,6 +31,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     handleClose,
     handleSpeedChange,
     handleNewsComplete,
+    getTickHistory,
   } = useSessionEngine({ gameState, dispatch, chartRef, onEndSession })
 
   const unrealizedPnL = gameState.unrealizedPnL ?? 0
@@ -37,6 +40,27 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   const availableCash = gameState.availableCash ?? gameState.balance
   const creditMargin = gameState.creditMargin ?? availableCash * (maxLeverage - 1)
   const buyingPower = gameState.buyingPower ?? availableCash * maxLeverage
+
+  const handleTimeframeChange = useCallback((tf: Timeframe) => {
+    setTimeframe(tf)
+    chartRef.current?.setTimeframe(tf, getTickHistory())
+  }, [getTickHistory])
+
+  const timeframeButtons = (
+    <div className="flex gap-1">
+      {([1, 5, 15] as const).map((tf) => (
+        <button
+          key={tf}
+          className={`sm:py-1.5 sm:px-3 py-1 px-2 border-none rounded cursor-pointer font-mono sm:text-[13px] text-xs ${
+            timeframe === tf ? 'bg-accent text-white' : 'bg-bg-button text-text-primary'
+          }`}
+          onClick={() => handleTimeframeChange(tf)}
+        >
+          {tf}分
+        </button>
+      ))}
+    </div>
+  )
 
   const speedButtons = (
     <div className="flex gap-1">
@@ -65,7 +89,10 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
         <div className="flex justify-between items-center px-2.5 py-1.5 bg-bg-panel border-b border-bg-elevated text-xs shrink-0 flex-wrap gap-1">
           <div className="flex justify-between items-center w-full">
             <span className="text-base font-bold">{gameTime}</span>
-            {speedButtons}
+            <div className="flex gap-2">
+              {timeframeButtons}
+              {speedButtons}
+            </div>
           </div>
           <div className="flex justify-between items-center w-full text-xs">
             <span>余力: {formatCurrency(buyingPower)}</span>
@@ -132,7 +159,10 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
         <span className={unrealizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
           含み: {formatCurrency(unrealizedPnL)}
         </span>
-        {speedButtons}
+        <div className="flex gap-2">
+          {timeframeButtons}
+          {speedButtons}
+        </div>
       </div>
 
       <div className="flex flex-row flex-1 overflow-hidden min-h-0">

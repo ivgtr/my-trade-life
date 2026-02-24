@@ -1,6 +1,7 @@
 import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { createChart, CandlestickSeries } from 'lightweight-charts'
-import type { TickData } from '../types'
+import type { CandlestickData, UTCTimestamp } from 'lightweight-charts'
+import type { TickData, Timeframe } from '../types'
 
 interface ChartProps {
   autoSize?: boolean
@@ -10,7 +11,36 @@ interface ChartProps {
 
 export interface ChartHandle {
   updateTick: (tickData: TickData) => void
+  setTimeframe: (tf: Timeframe, history: TickData[]) => void
   reset: () => void
+}
+
+function formatGameTime(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return `${String(h).padStart(2, '0')}:${String(Math.floor(m)).padStart(2, '0')}`
+}
+
+function buildBarsFromHistory(history: TickData[], tf: Timeframe): CandlestickData[] {
+  const bars = new Map<number, CandlestickData>()
+  for (const tick of history) {
+    const barTime = Math.floor(tick.timestamp / tf) * tf
+    const existing = bars.get(barTime)
+    if (existing) {
+      existing.high = Math.max(existing.high, tick.price)
+      existing.low = Math.min(existing.low, tick.price)
+      existing.close = tick.price
+    } else {
+      bars.set(barTime, {
+        time: barTime as UTCTimestamp,
+        open: tick.price,
+        high: tick.price,
+        low: tick.price,
+        close: tick.price,
+      })
+    }
+  }
+  return Array.from(bars.values())
 }
 
 const CHART_OPTIONS = {
@@ -23,12 +53,16 @@ const CHART_OPTIONS = {
     horzLines: { color: '#2a2a3e' },
   },
   crosshair: {
-    mode: 0,
+    mode: 0 as const,
+  },
+  localization: {
+    timeFormatter: (time: number) => formatGameTime(time),
   },
   timeScale: {
     timeVisible: true,
     secondsVisible: false,
     borderColor: '#2a2a3e',
+    tickMarkFormatter: (time: number) => formatGameTime(time),
   },
   rightPriceScale: {
     borderColor: '#2a2a3e',
@@ -39,14 +73,16 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null)
   const seriesRef = useRef<ReturnType<ReturnType<typeof createChart>['addSeries']> | null>(null)
-  const currentBarRef = useRef<{ open: number; high: number; low: number; close: number; time: number } | null>(null)
+  const currentBarRef = useRef<CandlestickData | null>(null)
+  const timeframeRef = useRef<Timeframe>(1)
 
   useImperativeHandle(ref, () => ({
     updateTick(tickData: TickData) {
       if (!seriesRef.current) return
 
       const { price, timestamp } = tickData
-      const barTime = Math.floor(timestamp)
+      const tf = timeframeRef.current
+      const barTime = (Math.floor(timestamp / tf) * tf) as UTCTimestamp
 
       if (!currentBarRef.current || currentBarRef.current.time !== barTime) {
         currentBarRef.current = {
@@ -62,7 +98,15 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
         currentBarRef.current.close = price
       }
 
-      seriesRef.current.update({ ...currentBarRef.current } as any)
+      seriesRef.current.update({ ...currentBarRef.current })
+    },
+
+    setTimeframe(tf: Timeframe, history: TickData[]) {
+      timeframeRef.current = tf
+      if (!seriesRef.current) return
+      const bars = buildBarsFromHistory(history, tf)
+      seriesRef.current.setData(bars)
+      currentBarRef.current = bars.length > 0 ? { ...bars[bars.length - 1] } : null
     },
 
     reset() {

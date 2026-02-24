@@ -25,6 +25,7 @@ interface UseSessionEngineReturn {
   handleClose: (positionId: string) => void
   handleSpeedChange: (newSpeed: number) => void
   handleNewsComplete: () => void
+  getTickHistory: () => TickData[]
 }
 
 export function useSessionEngine({
@@ -35,6 +36,7 @@ export function useSessionEngine({
 }: UseSessionEngineConfig): UseSessionEngineReturn {
   const marketEngineRef = useRef<MarketEngine | null>(null)
   const tradingEngineRef = useRef<TradingEngine | null>(null)
+  const tickHistoryRef = useRef<TickData[]>([])
   const [ticks, setTicks] = useState<TickData[]>([])
   const [gameTime, setGameTime] = useState('09:00')
   const [activeNews, setActiveNews] = useState<NewsEvent | null>(null)
@@ -69,6 +71,7 @@ export function useSessionEngine({
       anomalyParams,
       speed,
       onTick: (tickData) => {
+        tickHistoryRef.current.push(tickData)
         chartRef.current?.updateTick(tickData)
         setTicks((prev) => [...prev.slice(-99), tickData])
 
@@ -156,6 +159,8 @@ export function useSessionEngine({
     setActiveNews(null)
   }, [])
 
+  const getTickHistory = useCallback(() => tickHistoryRef.current, [])
+
   return {
     ticks,
     gameTime,
@@ -166,5 +171,6 @@ export function useSessionEngine({
     handleClose,
     handleSpeedChange,
     handleNewsComplete,
+    getTickHistory,
   }
 }
