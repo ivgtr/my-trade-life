@@ -1,6 +1,13 @@
 import { gaussRandom } from '../utils/mathUtils'
-import { TICK_INTERVAL, PRICE_MOVE, MOMENTUM, VOL_TRANSITION, TIME_OF_DAY } from './marketParams'
-import type { VolState, TimeZone, TickData, GameTime, MarketEngineConfig, RegimeParams, AnomalyParams } from '../types/market'
+import {
+  TICK_INTERVAL, PRICE_MOVE, MOMENTUM, VOL_TRANSITION, TIME_OF_DAY,
+  INTRADAY_SCENARIOS, SCENARIO_REGIME_BIAS, MEAN_REVERSION, EXTREME_EVENT,
+} from './marketParams'
+import type {
+  VolState, TimeZone, TickData, GameTime, MarketEngineConfig,
+  RegimeParams, AnomalyParams, RegimeName,
+  IntradayScenario, IntradayPhaseEntry, ExtremeEventState,
+} from '../types/market'
 
 /** 通常時間帯の圧縮レート（ゲーム内分/ms） — 3分セッション用 */
 const NORMAL_RATE = 330 / 174750
@@ -24,6 +31,7 @@ export class MarketEngine {
   #onTick: (tick: TickData) => void
   #onSessionEnd: () => void
   #currentPrice: number
+  #openPrice: number
   #momentum: number
   #volState: VolState
   #speed: number
@@ -33,6 +41,8 @@ export class MarketEngine {
   #paused: boolean
   #running: boolean
   #lastTickRealTime: number
+  #intradayScenario: IntradayScenario
+  #extremeEvent: ExtremeEventState | null
 
   constructor(config: MarketEngineConfig) {
     this.#regimeParams = config.regimeParams
@@ -40,6 +50,7 @@ export class MarketEngine {
     this.#onTick = config.onTick
     this.#onSessionEnd = config.onSessionEnd
     this.#currentPrice = config.openPrice
+    this.#openPrice = config.openPrice
     this.#momentum = 0
     this.#volState = 'normal'
     this.#speed = config.speed
@@ -49,6 +60,8 @@ export class MarketEngine {
     this.#paused = false
     this.#running = false
     this.#lastTickRealTime = 0
+    this.#intradayScenario = this.#selectScenario(config.regimeParams.regime)
+    this.#extremeEvent = null
   }
 
   /** エンジンを開始する。 */
@@ -166,18 +179,23 @@ export class MarketEngine {
 
   /**
    * 価格変動モデル。
-   * ドリフト・ショック・ファットテール・外部力・モメンタムを合算。
+   * シナリオフェーズ・ドリフト・ショック・ファットテール・外部力・
+   * モメンタム・平均回帰力・極端イベントを合算。
    */
   #updatePrice(): void {
     const timeZone = this.#getTimeZone(this.#gameTime)
     const todParams = TIME_OF_DAY[timeZone]
+    const phase = this.#getCurrentPhase()
 
-    // ドリフト
-    const drift = (this.#regimeParams.drift + this.#anomalyParams.driftBias) * this.#currentPrice
+    // ドリフト: フェーズのdriftOverrideがあれば上書き
+    const driftRate = phase.driftOverride ??
+      (this.#regimeParams.drift + this.#anomalyParams.driftBias)
+    const drift = driftRate * this.#currentPrice
 
-    // ショック
+    // ショック: phase.volMultも乗算
     const shock = gaussRandom() * PRICE_MOVE.sd *
-      this.#regimeParams.volMult * this.#anomalyParams.volBias * todParams.volMult
+      this.#regimeParams.volMult * this.#anomalyParams.volBias *
+      todParams.volMult * phase.volMult
 
     // ファットテール
     let fatTail = 0
@@ -193,8 +211,15 @@ export class MarketEngine {
       this.#externalForce = 0
     }
 
+    // 平均回帰力
+    const meanRevForce = this.#calcMeanReversionForce(phase.meanRevStrength)
+
+    // 極端イベント
+    const extremeForce = this.#processExtremeEvent()
+
     // 合算
-    const totalChange = drift + shock + fatTail + externalEffect + this.#momentum
+    const totalChange = drift + shock + fatTail + externalEffect +
+      this.#momentum + meanRevForce + extremeForce
     let newPrice = this.#currentPrice + totalChange
 
     // 10円刻み丸め、最小10円
@@ -204,6 +229,93 @@ export class MarketEngine {
     // モメンタム更新
     this.#momentum = this.#momentum * MOMENTUM.decay + (shock + fatTail) * (1 - MOMENTUM.decay)
     this.#momentum = Math.max(-MOMENTUM.maxAbs, Math.min(MOMENTUM.maxAbs, this.#momentum))
+  }
+
+  /** 重み付きランダムでセッション内シナリオを選択する。 */
+  #selectScenario(regime: RegimeName): IntradayScenario {
+    const biasTable = SCENARIO_REGIME_BIAS[regime]
+    const weighted = INTRADAY_SCENARIOS.map(s => ({
+      scenario: s,
+      w: s.weight * (biasTable[s.name] ?? 1.0),
+    }))
+    const totalWeight = weighted.reduce((sum, { w }) => sum + w, 0)
+    let rand = Math.random() * totalWeight
+    for (const { scenario, w } of weighted) {
+      rand -= w
+      if (rand <= 0) return scenario
+    }
+    return weighted[weighted.length - 1].scenario
+  }
+
+  /** 現在のゲーム内時刻に対応するフェーズを返す。 */
+  #getCurrentPhase(): IntradayPhaseEntry {
+    const phases = this.#intradayScenario.phases
+    let current = phases[0]
+    for (const phase of phases) {
+      if (this.#gameTime >= phase.startMinute) {
+        current = phase
+      } else {
+        break
+      }
+    }
+    return current
+  }
+
+  /** 始値からの乖離に応じた平均回帰力を計算する。 */
+  #calcMeanReversionForce(meanRevStrength: number): number {
+    if (meanRevStrength === 0) return 0
+    const deviation = (this.#currentPrice - this.#openPrice) / this.#openPrice
+    const absDeviation = Math.abs(deviation)
+    if (absDeviation <= MEAN_REVERSION.threshold) return 0
+    const excess = absDeviation - MEAN_REVERSION.threshold
+    const sign = deviation > 0 ? -1 : 1
+    const force = sign * MEAN_REVERSION.scale * this.#currentPrice * excess * meanRevStrength
+    return Math.max(-MEAN_REVERSION.maxForce, Math.min(MEAN_REVERSION.maxForce, force))
+  }
+
+  /** 極端イベント（フラッシュクラッシュ/メルトアップ）の状態遷移と力を計算する。 */
+  #processExtremeEvent(): number {
+    if (this.#extremeEvent === null) {
+      if (Math.random() < EXTREME_EVENT.triggerProb) {
+        const isCrash = Math.random() < 0.5
+        const duration = EXTREME_EVENT.activeDurationMin +
+          Math.floor(Math.random() * (EXTREME_EVENT.activeDurationMax - EXTREME_EVENT.activeDurationMin + 1))
+        this.#extremeEvent = {
+          type: isCrash ? 'crash' : 'meltup',
+          phase: 'active',
+          ticksRemaining: duration,
+          force: isCrash ? EXTREME_EVENT.crashForce : EXTREME_EVENT.meltUpForce,
+          totalDisplacement: 0,
+        }
+      }
+      return 0
+    }
+
+    const event = this.#extremeEvent
+
+    if (event.phase === 'active') {
+      const jitter = 0.7 + Math.random() * 0.6
+      const force = event.force * jitter
+      event.totalDisplacement += force
+      event.ticksRemaining--
+      if (event.ticksRemaining <= 0) {
+        const recoveryDuration = EXTREME_EVENT.recoveryDurationMin +
+          Math.floor(Math.random() * (EXTREME_EVENT.recoveryDurationMax - EXTREME_EVENT.recoveryDurationMin + 1))
+        event.phase = 'recovery'
+        event.force = -(event.totalDisplacement * EXTREME_EVENT.recoveryRatio) / recoveryDuration
+        event.ticksRemaining = recoveryDuration
+      }
+      return force
+    }
+
+    // recovery phase
+    const jitter = 0.8 + Math.random() * 0.4
+    const force = event.force * jitter
+    event.ticksRemaining--
+    if (event.ticksRemaining <= 0) {
+      this.#extremeEvent = null
+    }
+    return force
   }
 
   /**

@@ -51,6 +51,22 @@ export default function ReportScreen({ onNext }: ReportScreenProps) {
         </div>
       </div>
 
+      {gameState.positions.length > 0 && (
+        <div className="bg-bg-panel p-4 rounded-lg w-80 mb-4">
+          <div className="text-sm text-text-secondary mb-2">持ち越しポジション</div>
+          <div className="flex justify-between mb-1.5 text-sm">
+            <span className="text-text-secondary">ポジション数</span>
+            <span>{gameState.positions.length}件</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-text-secondary">含み損益</span>
+            <span className={gameState.unrealizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
+              {formatCurrency(gameState.unrealizedPnL)}
+            </span>
+          </div>
+        </div>
+      )}
+
       {gameState.previewEvent && (
         <div className="bg-warning/15 text-warning p-2.5 rounded-md text-[13px] text-center mb-4 w-80 border border-warning/30">
           ⚠ 明日は高インパクトイベントあり

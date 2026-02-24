@@ -3,6 +3,15 @@ import type { Position, TradeResult, UnrealizedPnL, BuyingPowerInfo, DailySummar
 interface TradingEngineConfig {
   balance: number
   maxLeverage: number
+  existingPositions?: Position[]
+}
+
+export interface MarginCallResult {
+  triggered: boolean
+  ratio: number
+  results: TradeResult[]
+  totalPnl: number
+  newBalance: number
 }
 
 interface TradingEngineState {
@@ -22,11 +31,16 @@ export class TradingEngine {
   #positions: Map<string, Position>
   #closedTrades: TradeResult[]
 
-  constructor({ balance, maxLeverage }: TradingEngineConfig) {
+  constructor({ balance, maxLeverage, existingPositions }: TradingEngineConfig) {
     this.#balance = balance
     this.#maxLeverage = maxLeverage
     this.#positions = new Map()
     this.#closedTrades = []
+    if (existingPositions) {
+      for (const pos of existingPositions) {
+        this.#positions.set(pos.id, { ...pos })
+      }
+    }
   }
 
   /** 証拠金を計算する（ETF信用取引: 株数 × 価格 / 信用倍率） */
@@ -181,6 +195,30 @@ export class TradingEngine {
   /** 保有ポジション一覧を返す */
   getPositions(): Position[] {
     return [...this.#positions.values()].map((p) => ({ ...p }))
+  }
+
+  /** 証拠金維持率を返す（equity / totalRequiredMargin） */
+  getMaintenanceRatio(currentPrice: number): number {
+    if (this.#positions.size === 0) return Infinity
+    let totalMargin = 0
+    let unrealizedPnL = 0
+    for (const pos of this.#positions.values()) {
+      totalMargin += pos.margin
+      unrealizedPnL += this.#calcPnL(pos.direction, pos.entryPrice, currentPrice, pos.shares)
+    }
+    const equity = this.#balance + totalMargin + unrealizedPnL
+    return totalMargin > 0 ? equity / totalMargin : Infinity
+  }
+
+  /** マージンコールを判定・実行する。閾値未満なら全ポジション強制決済 */
+  executeMarginCall(currentPrice: number, threshold: number): MarginCallResult {
+    const ratio = this.getMaintenanceRatio(currentPrice)
+    if (ratio >= threshold) {
+      return { triggered: false, ratio, results: [], totalPnl: 0, newBalance: this.#balance }
+    }
+    const results = this.forceCloseAll(currentPrice)
+    const totalPnl = results.reduce((sum, r) => sum + r.pnl, 0)
+    return { triggered: true, ratio, results, totalPnl, newBalance: this.#balance }
   }
 
   /** 状態をシリアライズして返す。復元用。 */

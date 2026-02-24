@@ -1,4 +1,5 @@
 import { useGameContext } from '../hooks/useGameContext'
+import { formatCurrency, formatPercent } from '../utils/formatUtils'
 
 interface MorningScreenProps {
   onStartSession?: () => void
@@ -34,6 +35,11 @@ export default function MorningScreen({ onStartSession }: MorningScreenProps) {
   const dailyCondition = gameState.dailyCondition
   const previewEvent = gameState.previewEvent
   const anomaly = gameState.anomalyInfo
+  const gapResult = gameState.gapResult
+  const marginCallTriggered = gameState.marginCallTriggered
+  const marginCallPnL = gameState.marginCallPnL ?? 0
+  const positions = gameState.positions
+  const maintenanceRatio = gameState.maintenanceRatio
 
   const handleEnter = () => {
     if (onStartSession) onStartSession()
@@ -68,6 +74,61 @@ export default function MorningScreen({ onStartSession }: MorningScreenProps) {
           </div>
         )}
       </div>
+
+      {gapResult && gapResult.gapAmount !== 0 && (
+        <div className="bg-bg-panel p-4 rounded-lg w-80 mb-4">
+          <div className="text-sm text-text-secondary mb-2">寄り付きギャップ</div>
+          <div className="flex justify-between mb-1.5 text-sm">
+            <span className="text-text-secondary">前日終値</span>
+            <span>{formatCurrency(gapResult.openPrice - gapResult.gapAmount)}</span>
+          </div>
+          <div className="flex justify-between mb-1.5 text-sm">
+            <span className="text-text-secondary">本日始値</span>
+            <span>{formatCurrency(gapResult.openPrice)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-text-secondary">ギャップ</span>
+            <span className={gapResult.isGapUp ? 'text-profit' : 'text-loss'}>
+              {gapResult.gapAmount > 0 ? '+' : ''}{formatCurrency(gapResult.gapAmount)} ({formatPercent(Math.abs(gapResult.gapPercent))})
+            </span>
+          </div>
+        </div>
+      )}
+
+      {marginCallTriggered && (
+        <div className="bg-loss/15 text-loss p-4 rounded-lg w-80 mb-4 border border-loss/30">
+          <div className="font-bold mb-2">マージンコール発動</div>
+          <div className="text-sm mb-1">証拠金維持率が閾値を下回りました。</div>
+          <div className="text-sm">全ポジションを強制決済しました。</div>
+          <div className="text-sm mt-2">
+            決済損益: <span className={marginCallPnL >= 0 ? 'text-profit' : 'text-loss'}>{formatCurrency(marginCallPnL)}</span>
+          </div>
+        </div>
+      )}
+
+      {!marginCallTriggered && positions.length > 0 && (
+        <div className="bg-bg-panel p-4 rounded-lg w-80 mb-4">
+          <div className="text-sm text-text-secondary mb-2">持ち越しポジション</div>
+          <div className="flex justify-between mb-1.5 text-sm">
+            <span className="text-text-secondary">ポジション数</span>
+            <span>{positions.length}件</span>
+          </div>
+          <div className="flex justify-between mb-1.5 text-sm">
+            <span className="text-text-secondary">含み損益</span>
+            <span className={gameState.unrealizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
+              {formatCurrency(gameState.unrealizedPnL)}
+            </span>
+          </div>
+          {maintenanceRatio != null && maintenanceRatio !== Infinity && (
+            <div className="flex justify-between text-sm">
+              <span className="text-text-secondary">維持率</span>
+              <span className={maintenanceRatio < 1.0 ? 'text-loss' : 'text-text-primary'}>
+                {formatPercent(maintenanceRatio)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       {previewEvent && (
         <div className="bg-warning/15 text-warning p-2.5 rounded-md text-[13px] text-center mb-4 w-80 border border-warning/30">

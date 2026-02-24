@@ -1,5 +1,5 @@
 import type { Position } from './trading'
-import type { Timeframe, DailyCondition, RegimeParams, AnomalyParams, MonthPreview, YearPreviewEntry } from './market'
+import type { Timeframe, DailyCondition, RegimeParams, AnomalyParams, MonthPreview, YearPreviewEntry, GapResult } from './market'
 import type { DayHistoryEntry, MonthlyStats, YearlyStats } from './calendar'
 import type { PreviewEvent, WeekendNews } from './news'
 
@@ -61,6 +61,11 @@ export interface GameState {
   availableCash?: number
   creditMargin?: number
   buyingPower?: number
+  // オーバーナイト・ギャップ・マージンコール関連
+  gapResult?: GapResult | null
+  marginCallTriggered?: boolean
+  marginCallPnL?: number
+  maintenanceRatio?: number | null
   // LOAD_GAME で復元される追加フィールド
   year?: number
   debt?: number
@@ -131,4 +136,8 @@ export interface TickUpdatePayload {
   monthPreview?: MonthPreview
   yearlyStats?: YearlyStats
   yearPreview?: YearPreviewEntry[]
+  gapResult?: GapResult | null
+  marginCallTriggered?: boolean
+  marginCallPnL?: number
+  maintenanceRatio?: number | null
 }

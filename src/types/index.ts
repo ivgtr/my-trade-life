@@ -4,7 +4,7 @@ export type {
   VolState, TimeZone, RegimeName,
   TickData, GameTime, MarketEngineConfig,
   DailyCondition, RegimeParams, AnomalyParams,
-  MonthPreview, YearPreviewEntry,
+  MonthPreview, YearPreviewEntry, GapResult,
 } from './market'
 export type {
   GamePhase, GameState, GameAction, ActionType,

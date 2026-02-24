@@ -59,3 +59,34 @@ export interface YearPreviewEntry {
   drift: number
   volMult: number
 }
+
+export interface GapResult {
+  openPrice: number
+  gapAmount: number
+  gapPercent: number
+  isGapUp: boolean
+}
+
+/** セッション内シナリオの1フェーズ */
+export interface IntradayPhaseEntry {
+  startMinute: number
+  driftOverride: number | null
+  volMult: number
+  meanRevStrength: number
+}
+
+/** セッション内シナリオ定義 */
+export interface IntradayScenario {
+  name: string
+  weight: number
+  phases: IntradayPhaseEntry[]
+}
+
+/** 極端イベント（フラッシュクラッシュ/メルトアップ）の状態 */
+export interface ExtremeEventState {
+  type: 'crash' | 'meltup'
+  phase: 'active' | 'recovery'
+  ticksRemaining: number
+  force: number
+  totalDisplacement: number
+}

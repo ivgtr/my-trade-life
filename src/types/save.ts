@@ -1,3 +1,5 @@
+import type { Position } from './trading'
+
 export interface ImportResult {
   success: boolean
   data: SaveData | null
@@ -26,6 +28,10 @@ export interface SaveProgress {
   currentDate?: string
   startDate?: string
   history?: Array<Record<string, unknown>>
+  // オーバーナイト持ち越し用
+  positions?: Position[]
+  currentPrice?: number
+  maxLeverage?: number
 }
 
 export interface SaveStats {

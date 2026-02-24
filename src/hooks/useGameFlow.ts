@@ -5,8 +5,11 @@ import { CalendarSystem } from '../engine/CalendarSystem'
 import { MacroRegimeManager } from '../engine/MacroRegimeManager'
 import { GrowthSystem } from '../engine/GrowthSystem'
 import { NewsSystem } from '../engine/NewsSystem'
+import { TradingEngine } from '../engine/TradingEngine'
+import { calcGap, MARGIN_CALL_THRESHOLD } from '../engine/marketParams'
 import { SaveSystem } from '../systems/SaveSystem'
 import type { GameState } from '../types/game'
+import type { GapResult } from '../types/market'
 import type { SaveData } from '../types/save'
 
 const BILLIONAIRE_THRESHOLD = 1_000_000_000
@@ -126,6 +129,43 @@ export function useGameFlow(): UseGameFlowReturn {
       const anomalyParams = regime?.getAnomalyParams(month)
       const anomalyInfo = regime?.getVisibleAnomalyInfo(month, level)
 
+      // ギャップ計算
+      let openPrice = gameState.currentPrice || 30000
+      let gapResult: GapResult | null = null
+      const prevPreview = gameState.previewEvent ?? null
+
+      if (gameState.currentPrice > 0 && regimeParams) {
+        gapResult = calcGap(gameState.currentPrice, regimeParams.regime, prevPreview)
+        openPrice = gapResult.openPrice
+      }
+
+      // マージンチェック
+      let marginCallTriggered = false
+      let marginCallPnL = 0
+      let maintenanceRatio: number | null = null
+      let updatedUnrealized = 0
+
+      if (gameState.positions.length > 0) {
+        const totalMargin = gameState.positions.reduce((s, p) => s + p.margin, 0)
+        const tempEngine = new TradingEngine({
+          balance: gameState.balance - totalMargin,
+          maxLeverage: gameState.maxLeverage ?? 1,
+          existingPositions: gameState.positions,
+        })
+
+        const mcResult = tempEngine.executeMarginCall(openPrice, MARGIN_CALL_THRESHOLD)
+        maintenanceRatio = mcResult.ratio
+
+        if (mcResult.triggered) {
+          marginCallTriggered = true
+          marginCallPnL = mcResult.totalPnl
+          dispatch({ type: ACTIONS.FORCE_CLOSE_ALL, payload: { totalPnl: mcResult.totalPnl } })
+        } else {
+          const unrealized = tempEngine.recalculateUnrealized(openPrice)
+          updatedUnrealized = unrealized.total
+        }
+      }
+
       const news = newsRef.current
       if (news && regimeParams) news.setRegime(regimeParams.regime)
       const previewEvent = news?.generatePreviewEvent() ?? null
@@ -137,13 +177,17 @@ export function useGameFlow(): UseGameFlowReturn {
       dispatch({
         type: ACTIONS.TICK_UPDATE,
         payload: {
-          currentPrice: gameState.currentPrice || 30000,
-          unrealizedPnL: 0,
+          currentPrice: openPrice,
+          unrealizedPnL: marginCallTriggered ? 0 : updatedUnrealized,
           dailyCondition,
           regimeParams,
           anomalyParams,
           anomalyInfo,
           previewEvent,
+          gapResult,
+          marginCallTriggered,
+          marginCallPnL,
+          maintenanceRatio,
         },
       })
     }
@@ -232,7 +276,7 @@ export function useGameFlow(): UseGameFlowReturn {
     }
 
     function checkTerminalConditions(): boolean {
-      if (gameState.balance <= 0) {
+      if (gameState.balance <= 0 && gameState.positions.length === 0) {
         dispatch({ type: ACTIONS.GAME_OVER })
         return true
       }
@@ -347,6 +391,9 @@ function flattenSaveData(data: SaveData): Partial<GameState> {
     debtLimit: data.progress?.debtLimit ?? 0,
     interestRate: data.progress?.interestRate ?? 0,
     debtCount: data.progress?.debtCount ?? 0,
+    positions: data.progress?.positions ?? [],
+    currentPrice: data.progress?.currentPrice ?? 0,
+    maxLeverage: data.progress?.maxLeverage ?? 1,
     totalTrades: data.stats?.totalTrades ?? 0,
     totalWins: data.stats?.totalWins ?? 0,
     totalPnL: data.stats?.lifetimePnl ?? 0,

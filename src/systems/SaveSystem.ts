@@ -1,4 +1,5 @@
 import type { ImportResult, SaveData, SaveProgress, SaveStats, SaveSettings } from '../types/save'
+import type { Position } from '../types/trading'
 import { generateHash, verifyHash } from '../utils/hashUtils'
 
 const SAVE_KEY = 'daytraderlife_save'
@@ -23,6 +24,9 @@ interface GameStateInput {
   lifetimePnl?: number
   speed?: number
   timeframe?: number
+  positions?: Position[]
+  currentPrice?: number
+  maxLeverage?: number
 }
 
 const DEFAULT_PROGRESS: SaveProgress = {
@@ -126,6 +130,9 @@ function buildSaveData(gameState: GameStateInput): SaveData {
     debtLimit:         gameState.debtLimit ?? 0,
     interestRate:      gameState.interestRate ?? 0,
     debtCount:         gameState.debtCount ?? 0,
+    positions:         gameState.positions ?? [],
+    currentPrice:      gameState.currentPrice ?? 0,
+    maxLeverage:       gameState.maxLeverage ?? 1,
   }
 
   let dailyHistory = gameState.dailyHistory ?? []
@@ -207,7 +214,13 @@ function validateImportData(data: Record<string, unknown>): ImportResult {
 }
 
 function migrateSaveData(data: SaveData): SaveData {
-  const progress: SaveProgress = { ...DEFAULT_PROGRESS, ...(data.progress ?? {}) }
+  const progress: SaveProgress = {
+    ...DEFAULT_PROGRESS,
+    ...(data.progress ?? {}),
+    positions: data.progress?.positions ?? [],
+    currentPrice: data.progress?.currentPrice ?? 0,
+    maxLeverage: data.progress?.maxLeverage ?? 1,
+  }
   const stats: SaveStats = { ...DEFAULT_STATS, ...(data.stats ?? {}) }
   const settings: SaveSettings = { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) }
 

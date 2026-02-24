@@ -4,7 +4,9 @@
  * 値は仕様書 §4, §4.4, §4.6, §12.4 および design.md から抽出。
  */
 
-import type { VolState, TimeZone, RegimeName } from '../types/market'
+import type { VolState, TimeZone, RegimeName, GapResult, IntradayScenario } from '../types/market'
+import type { PreviewEvent } from '../types/news'
+import { gaussRandom } from '../utils/mathUtils'
 
 /** ボラティリティフェーズごとのティック間隔 (ms) */
 export const TICK_INTERVAL = {
@@ -88,3 +90,324 @@ export const MONTHLY_ANOMALY = {
   11: { driftBias:  0.0,    volBias: 1.0, tendency: '' },
   12: { driftBias:  0.0002, volBias: 1.0, tendency: 'クリスマスラリー' },
 } as const satisfies Record<number, { driftBias: number; volBias: number; tendency: string }>
+
+/** レジームごとのオーバーナイトギャップパラメータ */
+export const GAP_PARAMS = {
+  range:     { meanPct: 0.0,    sdPct: 0.003  },
+  bullish:   { meanPct: 0.002,  sdPct: 0.005  },
+  bearish:   { meanPct: -0.002, sdPct: 0.005  },
+  turbulent: { meanPct: 0.0,    sdPct: 0.012  },
+  bubble:    { meanPct: 0.005,  sdPct: 0.010  },
+  crash:     { meanPct: -0.005, sdPct: 0.015  },
+} as const satisfies Record<RegimeName, { meanPct: number; sdPct: number }>
+
+/** ニュースによるギャップへの影響倍率 */
+export const GAP_NEWS_IMPACT_MULT = 0.005
+
+/** マージンコール発動閾値（証拠金維持率） */
+export const MARGIN_CALL_THRESHOLD = 0.50
+
+/** オーバーナイトギャップを計算する */
+export function calcGap(
+  closePrice: number,
+  regime: RegimeName,
+  previewEvent: PreviewEvent | null,
+): GapResult {
+  const params = GAP_PARAMS[regime]
+  let gapPct = params.meanPct + gaussRandom() * params.sdPct
+  if (previewEvent) {
+    gapPct += (Math.random() - 0.5) * 1.2 * GAP_NEWS_IMPACT_MULT
+  }
+  const gapAmount = Math.round(closePrice * gapPct / 10) * 10
+  const openPrice = Math.max(10, closePrice + gapAmount)
+  return {
+    openPrice,
+    gapAmount: openPrice - closePrice,
+    gapPercent: closePrice > 0 ? (openPrice - closePrice) / closePrice : 0,
+    isGapUp: openPrice > closePrice,
+  }
+}
+
+// ─── セッション内シナリオ ───────────────────────────────────
+
+/** 全22シナリオ定義 */
+export const INTRADAY_SCENARIOS: readonly IntradayScenario[] = [
+  // ── 基本パターン (4種) ──
+  {
+    name: 'trend_follow', weight: 15,
+    phases: [
+      { startMinute: 540, driftOverride: null, volMult: 1.0, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'range_bound', weight: 12,
+    phases: [
+      { startMinute: 540, driftOverride: 0.0, volMult: 0.8, meanRevStrength: 0.7 },
+    ],
+  },
+  {
+    name: 'quiet', weight: 6,
+    phases: [
+      { startMinute: 540, driftOverride: 0.0, volMult: 0.3, meanRevStrength: 0.5 },
+    ],
+  },
+  {
+    name: 'volatile_directionless', weight: 6,
+    phases: [
+      { startMinute: 540, driftOverride: 0.0, volMult: 2.0, meanRevStrength: 0.3 },
+    ],
+  },
+
+  // ── 反転パターン — テクニカル分析 (8種) ──
+  {
+    name: 'v_recovery', weight: 8,
+    phases: [
+      { startMinute: 540, driftOverride: -0.0012, volMult: 1.8, meanRevStrength: 0.0 },
+      { startMinute: 630, driftOverride: -0.0008, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 750, driftOverride:  0.0003, volMult: 1.2, meanRevStrength: 0.3 },
+      { startMinute: 810, driftOverride:  0.0015, volMult: 1.8, meanRevStrength: 0.5 },
+      { startMinute: 870, driftOverride:  0.0008, volMult: 1.5, meanRevStrength: 0.3 },
+    ],
+  },
+  {
+    name: 'inverted_v', weight: 8,
+    phases: [
+      { startMinute: 540, driftOverride:  0.0012, volMult: 1.8, meanRevStrength: 0.0 },
+      { startMinute: 630, driftOverride:  0.0008, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 750, driftOverride: -0.0003, volMult: 1.2, meanRevStrength: 0.3 },
+      { startMinute: 810, driftOverride: -0.0015, volMult: 1.8, meanRevStrength: 0.5 },
+      { startMinute: 870, driftOverride: -0.0008, volMult: 1.5, meanRevStrength: 0.3 },
+    ],
+  },
+  {
+    name: 'double_bottom', weight: 6,
+    phases: [
+      { startMinute: 540, driftOverride: -0.0010, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 585, driftOverride:  0.0006, volMult: 1.2, meanRevStrength: 0.2 },
+      { startMinute: 630, driftOverride: -0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 690, driftOverride:  0.0002, volMult: 0.8, meanRevStrength: 0.4 },
+      { startMinute: 750, driftOverride:  0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride:  0.0005, volMult: 1.0, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'double_top', weight: 6,
+    phases: [
+      { startMinute: 540, driftOverride:  0.0010, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 585, driftOverride: -0.0006, volMult: 1.2, meanRevStrength: 0.2 },
+      { startMinute: 630, driftOverride:  0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 690, driftOverride: -0.0002, volMult: 0.8, meanRevStrength: 0.4 },
+      { startMinute: 750, driftOverride: -0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride: -0.0005, volMult: 1.0, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'head_and_shoulders', weight: 4,
+    phases: [
+      { startMinute: 540, driftOverride:  0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 580, driftOverride: -0.0005, volMult: 1.0, meanRevStrength: 0.0 },
+      { startMinute: 615, driftOverride:  0.0012, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 660, driftOverride: -0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 705, driftOverride:  0.0005, volMult: 1.0, meanRevStrength: 0.0 },
+      { startMinute: 750, driftOverride: -0.0004, volMult: 0.8, meanRevStrength: 0.2 },
+      { startMinute: 810, driftOverride: -0.0012, volMult: 1.8, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride: -0.0008, volMult: 1.5, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'inverse_head_and_shoulders', weight: 4,
+    phases: [
+      { startMinute: 540, driftOverride: -0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 580, driftOverride:  0.0005, volMult: 1.0, meanRevStrength: 0.0 },
+      { startMinute: 615, driftOverride: -0.0012, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 660, driftOverride:  0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 705, driftOverride: -0.0005, volMult: 1.0, meanRevStrength: 0.0 },
+      { startMinute: 750, driftOverride:  0.0004, volMult: 0.8, meanRevStrength: 0.2 },
+      { startMinute: 810, driftOverride:  0.0012, volMult: 1.8, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride:  0.0008, volMult: 1.5, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'selling_climax', weight: 5,
+    phases: [
+      { startMinute: 540, driftOverride: -0.0003, volMult: 0.8, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride: -0.0005, volMult: 1.0, meanRevStrength: 0.0 },
+      { startMinute: 660, driftOverride: -0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 750, driftOverride: -0.0020, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 810, driftOverride:  0.0015, volMult: 2.0, meanRevStrength: 0.4 },
+      { startMinute: 870, driftOverride:  0.0008, volMult: 1.5, meanRevStrength: 0.3 },
+    ],
+  },
+  {
+    name: 'parabolic_blowoff', weight: 5,
+    phases: [
+      { startMinute: 540, driftOverride:  0.0003, volMult: 0.8, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride:  0.0005, volMult: 1.0, meanRevStrength: 0.0 },
+      { startMinute: 660, driftOverride:  0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 750, driftOverride:  0.0020, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 810, driftOverride: -0.0015, volMult: 2.0, meanRevStrength: 0.4 },
+      { startMinute: 870, driftOverride: -0.0008, volMult: 1.5, meanRevStrength: 0.3 },
+    ],
+  },
+
+  // ── 継続パターン — テクニカル分析 (4種) ──
+  {
+    name: 'ascending_staircase', weight: 6,
+    phases: [
+      { startMinute: 540, driftOverride:  0.0008, volMult: 1.2, meanRevStrength: 0.0 },
+      { startMinute: 590, driftOverride:  0.0001, volMult: 0.5, meanRevStrength: 0.5 },
+      { startMinute: 640, driftOverride:  0.0008, volMult: 1.2, meanRevStrength: 0.0 },
+      { startMinute: 690, driftOverride:  0.0001, volMult: 0.5, meanRevStrength: 0.5 },
+      { startMinute: 750, driftOverride:  0.0010, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 810, driftOverride:  0.0001, volMult: 0.5, meanRevStrength: 0.5 },
+      { startMinute: 870, driftOverride:  0.0006, volMult: 1.0, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'descending_staircase', weight: 6,
+    phases: [
+      { startMinute: 540, driftOverride: -0.0008, volMult: 1.2, meanRevStrength: 0.0 },
+      { startMinute: 590, driftOverride: -0.0001, volMult: 0.5, meanRevStrength: 0.5 },
+      { startMinute: 640, driftOverride: -0.0008, volMult: 1.2, meanRevStrength: 0.0 },
+      { startMinute: 690, driftOverride: -0.0001, volMult: 0.5, meanRevStrength: 0.5 },
+      { startMinute: 750, driftOverride: -0.0010, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 810, driftOverride: -0.0001, volMult: 0.5, meanRevStrength: 0.5 },
+      { startMinute: 870, driftOverride: -0.0006, volMult: 1.0, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'bull_flag', weight: 5,
+    phases: [
+      { startMinute: 540, driftOverride:  0.0015, volMult: 1.8, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride:  0.0001, volMult: 0.6, meanRevStrength: 0.4 },
+      { startMinute: 720, driftOverride:  0.0002, volMult: 0.5, meanRevStrength: 0.5 },
+      { startMinute: 810, driftOverride:  0.0012, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride:  0.0006, volMult: 1.2, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'bear_flag', weight: 5,
+    phases: [
+      { startMinute: 540, driftOverride: -0.0015, volMult: 1.8, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride: -0.0001, volMult: 0.6, meanRevStrength: 0.4 },
+      { startMinute: 720, driftOverride: -0.0002, volMult: 0.5, meanRevStrength: 0.5 },
+      { startMinute: 810, driftOverride: -0.0012, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride: -0.0006, volMult: 1.2, meanRevStrength: 0.0 },
+    ],
+  },
+
+  // ── 時間帯パターン (4種) ──
+  {
+    name: 'morning_rally_afternoon_sell', weight: 6,
+    phases: [
+      { startMinute: 540, driftOverride:  0.0010, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 630, driftOverride:  0.0005, volMult: 1.0, meanRevStrength: 0.0 },
+      { startMinute: 720, driftOverride:  0.0001, volMult: 0.5, meanRevStrength: 0.2 },
+      { startMinute: 780, driftOverride: -0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride: -0.0010, volMult: 1.5, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'opening_spike_fade', weight: 5,
+    phases: [
+      { startMinute: 540, driftOverride:  0.0020, volMult: 2.0, meanRevStrength: 0.0 },
+      { startMinute: 570, driftOverride:  0.0005, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride: -0.0003, volMult: 1.0, meanRevStrength: 0.0 },
+      { startMinute: 720, driftOverride: -0.0004, volMult: 0.8, meanRevStrength: 0.2 },
+      { startMinute: 810, driftOverride: -0.0005, volMult: 1.0, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride: -0.0003, volMult: 0.8, meanRevStrength: 0.2 },
+    ],
+  },
+  {
+    name: 'late_breakout', weight: 5,
+    phases: [
+      { startMinute: 540, driftOverride:  0.0001, volMult: 0.5, meanRevStrength: 0.6 },
+      { startMinute: 630, driftOverride:  0.0000, volMult: 0.4, meanRevStrength: 0.7 },
+      { startMinute: 750, driftOverride:  0.0001, volMult: 0.4, meanRevStrength: 0.7 },
+      { startMinute: 870, driftOverride: null,     volMult: 2.0, meanRevStrength: 0.0 },
+      { startMinute: 900, driftOverride: null,     volMult: 2.5, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'lunch_reversal', weight: 5,
+    phases: [
+      { startMinute: 540, driftOverride:  0.0010, volMult: 1.3, meanRevStrength: 0.0 },
+      { startMinute: 630, driftOverride:  0.0008, volMult: 1.2, meanRevStrength: 0.0 },
+      { startMinute: 720, driftOverride:  0.0002, volMult: 0.6, meanRevStrength: 0.3 },
+      { startMinute: 780, driftOverride: -0.0010, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride: -0.0008, volMult: 1.3, meanRevStrength: 0.0 },
+    ],
+  },
+
+  // ── 特殊パターン (2種) ──
+  {
+    name: 'dead_cat_bounce', weight: 4,
+    phases: [
+      { startMinute: 540, driftOverride: -0.0015, volMult: 2.0, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride: -0.0010, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 660, driftOverride:  0.0008, volMult: 1.2, meanRevStrength: 0.0 },
+      { startMinute: 750, driftOverride:  0.0003, volMult: 0.8, meanRevStrength: 0.3 },
+      { startMinute: 810, driftOverride: -0.0010, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride: -0.0006, volMult: 1.2, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'cup_and_handle', weight: 4,
+    phases: [
+      { startMinute: 540, driftOverride: -0.0006, volMult: 1.0, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride: -0.0003, volMult: 0.8, meanRevStrength: 0.0 },
+      { startMinute: 660, driftOverride:  0.0002, volMult: 0.6, meanRevStrength: 0.2 },
+      { startMinute: 720, driftOverride:  0.0005, volMult: 0.8, meanRevStrength: 0.0 },
+      { startMinute: 780, driftOverride:  0.0003, volMult: 0.6, meanRevStrength: 0.0 },
+      { startMinute: 810, driftOverride:  0.0001, volMult: 0.4, meanRevStrength: 0.4 },
+      { startMinute: 870, driftOverride:  0.0012, volMult: 1.5, meanRevStrength: 0.0 },
+    ],
+  },
+] as const
+
+/** レジーム別シナリオ出現バイアス（基本weightに乗算） */
+export const SCENARIO_REGIME_BIAS: Record<RegimeName, Record<string, number>> = {
+  bullish: {
+    trend_follow: 2.0, ascending_staircase: 2.0, bull_flag: 2.0,
+    descending_staircase: 0.3, bear_flag: 0.3, dead_cat_bounce: 0.3,
+  },
+  bearish: {
+    trend_follow: 2.0, descending_staircase: 2.0, bear_flag: 2.0,
+    ascending_staircase: 0.3, bull_flag: 0.3, cup_and_handle: 0.3,
+  },
+  range: {
+    range_bound: 2.5, quiet: 2.0, double_bottom: 2.0, double_top: 2.0,
+    trend_follow: 0.3,
+  },
+  turbulent: {
+    volatile_directionless: 2.5, selling_climax: 2.0, head_and_shoulders: 2.0,
+    quiet: 0.2, range_bound: 0.3,
+  },
+  bubble: {
+    parabolic_blowoff: 2.5, ascending_staircase: 2.0, bull_flag: 2.0,
+    bear_flag: 0.3, dead_cat_bounce: 0.3,
+  },
+  crash: {
+    selling_climax: 2.5, dead_cat_bounce: 2.0, descending_staircase: 2.0,
+    bull_flag: 0.2, ascending_staircase: 0.3,
+  },
+}
+
+/** 平均回帰パラメータ */
+export const MEAN_REVERSION = {
+  threshold: 0.005,
+  scale: 0.03,
+  maxForce: 25,
+} as const
+
+/** 極端イベントパラメータ */
+export const EXTREME_EVENT = {
+  triggerProb: 0.0003,
+  crashForce: -80,
+  meltUpForce: 60,
+  activeDurationMin: 8,
+  activeDurationMax: 20,
+  recoveryDurationMin: 12,
+  recoveryDurationMax: 30,
+  recoveryRatio: 0.6,
+} as const
