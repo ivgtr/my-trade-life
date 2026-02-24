@@ -1,5 +1,5 @@
-import { useRef, useCallback } from 'react'
-import { useGameContext } from '../state/GameContext'
+import { useRef, useCallback, useEffect } from 'react'
+import { useGameContext } from './useGameContext'
 import { ACTIONS } from '../state/actions'
 import { CalendarSystem } from '../engine/CalendarSystem'
 import { MacroRegimeManager } from '../engine/MacroRegimeManager'
@@ -92,6 +92,8 @@ export function useGameFlow(): UseGameFlowReturn {
     dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
   }, [dispatch])
 
+  const advanceFromCalendarRef = useRef<() => void>(() => {})
+
   const advanceFromCalendar = useCallback(() => {
     const cal = calendarRef.current
     if (!cal) return
@@ -155,9 +157,13 @@ export function useGameFlow(): UseGameFlowReturn {
         },
       })
     } else {
-      advanceFromCalendar()
+      advanceFromCalendarRef.current()
     }
   }, [dispatch, gameState.currentPrice, gameState.level])
+
+  useEffect(() => {
+    advanceFromCalendarRef.current = advanceFromCalendar
+  }, [advanceFromCalendar])
 
   const enterSession = useCallback(() => {
     dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'session' } })

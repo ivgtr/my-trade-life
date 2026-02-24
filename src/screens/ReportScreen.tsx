@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react'
-import { useGameContext } from '../state/GameContext'
-import { AudioSystem } from '../systems/AudioSystem'
+import { useState } from 'react'
+import { useGameContext } from '../hooks/useGameContext'
 import { formatCurrency, formatPercent } from '../utils/formatUtils'
-import MilestoneOverlay, { MILESTONE_TABLE } from '../components/MilestoneOverlay'
+import MilestoneOverlay from '../components/MilestoneOverlay'
 
 interface ReportScreenProps {
   onNext?: () => void
@@ -11,28 +10,11 @@ interface ReportScreenProps {
 export default function ReportScreen({ onNext }: ReportScreenProps) {
   const { gameState } = useGameContext()
   const [milestone, setMilestone] = useState<{ threshold: number; message: string; duration: number } | null>(null)
-  const [leveledUp, setLeveledUp] = useState(false)
 
   const sessionPnL = gameState.sessionPnL ?? 0
   const sessionTrades = gameState.sessionTrades ?? 0
   const sessionWins = gameState.sessionWins ?? 0
   const winRate = sessionTrades > 0 ? sessionWins / sessionTrades : 0
-
-  useEffect(() => {
-    if ((gameState as any)._justLeveledUp) {
-      setLeveledUp(true)
-      AudioSystem.playSE('levelup')
-    }
-
-    const balance = gameState.balance
-    const passedMilestones = (gameState as any)._passedMilestones ?? []
-    for (const ms of MILESTONE_TABLE) {
-      if (balance >= ms.threshold && !passedMilestones.includes(ms.threshold)) {
-        setMilestone(ms)
-        break
-      }
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNext = () => {
     if (onNext) onNext()
@@ -68,12 +50,6 @@ export default function ReportScreen({ onNext }: ReportScreenProps) {
           <span>{gameState.exp ?? 0} EXP</span>
         </div>
       </div>
-
-      {leveledUp && (
-        <div className="bg-accent/20 text-accent-light p-3 rounded-lg text-center mb-4 w-80 text-base font-bold border border-accent/40">
-          ✨ Level Up! Lv.{gameState.level} に到達！
-        </div>
-      )}
 
       {gameState.previewEvent && (
         <div className="bg-warning/15 text-warning p-2.5 rounded-md text-[13px] text-center mb-4 w-80 border border-warning/30">

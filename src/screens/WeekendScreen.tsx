@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { useGameContext } from '../state/GameContext'
+import { useGameContext } from '../hooks/useGameContext'
 import { formatCurrency, formatPercent } from '../utils/formatUtils'
 
 interface WeekendScreenProps {
@@ -8,7 +7,6 @@ interface WeekendScreenProps {
 
 export default function WeekendScreen({ onNext }: WeekendScreenProps) {
   const { gameState } = useGameContext()
-  const [weekendNews, setWeekendNews] = useState<any[]>([])
 
   const history = gameState.dailyHistory ?? []
   const weekHistory = history.slice(-5)
@@ -17,9 +15,7 @@ export default function WeekendScreen({ onNext }: WeekendScreenProps) {
   const weekWins = weekHistory.reduce((sum, d) => sum + (d.wins ?? 0), 0)
   const weekWinRate = weekTrades > 0 ? weekWins / weekTrades : 0
 
-  useEffect(() => {
-    setWeekendNews(gameState.weekendNews ?? [])
-  }, [gameState.weekendNews])
+  const weekendNews = gameState.weekendNews ?? []
 
   const handleConfirm = () => {
     if (onNext) onNext()

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useGameContext } from '../state/GameContext'
+import { useState } from 'react'
+import { useGameContext } from '../hooks/useGameContext'
 import { ACTIONS } from '../state/actions'
 import { ConfigManager } from '../systems/ConfigManager'
 import { AudioSystem } from '../systems/AudioSystem'
@@ -7,10 +7,6 @@ import { AudioSystem } from '../systems/AudioSystem'
 export default function ConfigScreen() {
   const { dispatch } = useGameContext()
   const [config, setConfig] = useState(() => ConfigManager.load())
-
-  useEffect(() => {
-    setConfig(ConfigManager.load())
-  }, [])
 
   const handleBGMVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = Number(e.target.value)
