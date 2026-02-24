@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { AudioSystem } from '../systems/AudioSystem'
+import { useResponsive } from '../hooks/useMediaQuery'
 
 /** 前兆フェーズの実時間（ms） */
 const PREMONITION_DURATION = 1500
@@ -82,6 +83,7 @@ export default function NewsOverlay({ newsEvent, onComplete }) {
   const [phase, setPhase] = useState('idle')
   const timerRef = useRef(null)
   const eventIdRef = useRef(null)
+  const { isMobile } = useResponsive()
 
   useEffect(() => {
     injectShakeStyle()
@@ -142,6 +144,7 @@ export default function NewsOverlay({ newsEvent, onComplete }) {
           <span
             style={{
               ...tickerTextBase,
+              fontSize: isMobile ? '18px' : '28px',
               animation: `newsTickerScroll ${TICKER_DURATION}ms linear`,
             }}
           >

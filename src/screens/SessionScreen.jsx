@@ -5,70 +5,128 @@ import { MarketEngine } from '../engine/MarketEngine'
 import { TradingEngine } from '../engine/TradingEngine'
 import { NewsSystem } from '../engine/NewsSystem'
 import { AudioSystem } from '../systems/AudioSystem'
+import { useResponsive } from '../hooks/useMediaQuery'
 import Chart from '../components/Chart'
 import TradePanel from '../components/TradePanel'
 import TickerTape from '../components/TickerTape'
 import NewsOverlay from '../components/NewsOverlay'
 import { formatCurrency } from '../utils/formatUtils'
 
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    minHeight: '100vh',
-    backgroundColor: '#0a0a1a',
-    color: '#e0e0e0',
-    fontFamily: 'monospace',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '8px 16px',
-    backgroundColor: '#1a1a2e',
-    borderBottom: '1px solid #2a2a3e',
-    fontSize: '14px',
-  },
-  main: {
-    display: 'flex',
-    flex: 1,
-    gap: '8px',
-    padding: '8px',
-  },
-  chartArea: {
-    flex: 1,
-    minWidth: 0,
-  },
-  sidebar: {
-    width: '280px',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  speedButton: {
-    padding: '6px 12px',
-    backgroundColor: '#3a3a4e',
-    color: '#e0e0e0',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '13px',
-  },
-  speedActive: {
-    backgroundColor: '#6366f1',
-    color: '#fff',
-  },
-  timeDisplay: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-  },
+function getStyles(isMobile) {
+  return {
+    container: {
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100dvh',
+      overflow: 'hidden',
+      backgroundColor: '#0a0a1a',
+      color: '#e0e0e0',
+      fontFamily: 'monospace',
+    },
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: isMobile ? '6px 10px' : '8px 16px',
+      backgroundColor: '#1a1a2e',
+      borderBottom: '1px solid #2a2a3e',
+      fontSize: isMobile ? '12px' : '14px',
+      flexShrink: 0,
+      flexWrap: isMobile ? 'wrap' : 'nowrap',
+      gap: isMobile ? '4px' : '0',
+    },
+    headerRow1: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      width: '100%',
+    },
+    headerRow2: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      width: '100%',
+      fontSize: '12px',
+    },
+    main: {
+      display: 'flex',
+      flexDirection: 'row',
+      flex: 1,
+      overflow: 'hidden',
+      minHeight: 0,
+    },
+    tickerColumn: {
+      width: '180px',
+      flexShrink: 0,
+      overflowY: 'auto',
+      overflowX: 'hidden',
+      borderRight: '1px solid #2a2a3e',
+    },
+    chartArea: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: 0,
+      overflow: 'hidden',
+    },
+    tradePanel: {
+      width: '300px',
+      flexShrink: 0,
+      overflowY: 'auto',
+      overflowX: 'hidden',
+      borderLeft: '1px solid #2a2a3e',
+    },
+    /* モバイル用 */
+    tabBar: {
+      display: 'flex',
+      flexShrink: 0,
+      height: '36px',
+      backgroundColor: '#1a1a2e',
+      borderBottom: '1px solid #2a2a3e',
+    },
+    tab: {
+      flex: 1,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '13px',
+      cursor: 'pointer',
+      border: 'none',
+      backgroundColor: 'transparent',
+      color: '#a0a0b0',
+      fontFamily: 'monospace',
+    },
+    tabActive: {
+      color: '#e0e0e0',
+      borderBottom: '2px solid #6366f1',
+    },
+    mobileContent: {
+      flex: 1,
+      minHeight: 0,
+      overflow: 'hidden',
+    },
+    speedButton: {
+      padding: isMobile ? '4px 8px' : '6px 12px',
+      backgroundColor: '#3a3a4e',
+      color: '#e0e0e0',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      fontSize: isMobile ? '12px' : '13px',
+    },
+    speedActive: {
+      backgroundColor: '#6366f1',
+      color: '#fff',
+    },
+    timeDisplay: {
+      fontSize: isMobile ? '16px' : '18px',
+      fontWeight: 'bold',
+    },
+  }
 }
 
-/**
- * セッション画面。チャート・歩み値・トレードパネル・ニュースオーバーレイを統合する。
- */
 export default function SessionScreen({ onEndSession }) {
   const { gameState, dispatch } = useGameContext()
+  const { isMobile } = useResponsive()
   const chartRef = useRef(null)
   const marketEngineRef = useRef(null)
   const tradingEngineRef = useRef(null)
@@ -77,14 +135,15 @@ export default function SessionScreen({ onEndSession }) {
   const [gameTime, setGameTime] = useState('09:00')
   const [activeNews, setActiveNews] = useState(null)
   const [speed, setSpeed] = useState(gameState.speed ?? 1)
+  const [mobileTab, setMobileTab] = useState('chart')
 
-  // セッション開始
+  const styles = getStyles(isMobile)
+
   useEffect(() => {
     const regimeParams = gameState.regimeParams ?? { drift: 0, volMult: 1.0 }
     const anomalyParams = gameState.anomalyParams ?? { driftBias: 0, volBias: 1.0 }
     const openPrice = gameState.currentPrice ?? 30000
 
-    // NewsSystem
     const newsSystem = new NewsSystem({
       currentRegime: regimeParams.regime ?? 'range',
       onNewsTriggered: (event) => {
@@ -95,51 +154,41 @@ export default function SessionScreen({ onEndSession }) {
         }
       },
     })
-    newsSystem.scheduleSessionEvents(600000)
+    newsSystem.scheduleSessionEvents(180000)
     newsSystemRef.current = newsSystem
 
-    // TradingEngine
     const tradingEngine = new TradingEngine({
       balance: gameState.balance,
       maxLeverage: gameState.maxLeverage ?? 1,
     })
     tradingEngineRef.current = tradingEngine
 
-    // MarketEngine
     const marketEngine = new MarketEngine({
       openPrice,
       regimeParams,
       anomalyParams,
       speed,
       onTick: (tickData) => {
-        // Chart更新（React再レンダリング回避）
         chartRef.current?.updateTick(tickData)
-
-        // 歩み値追加
         setTicks((prev) => [...prev.slice(-99), tickData])
 
-        // ゲーム内時刻更新
         const time = marketEngineRef.current?.getCurrentTime()
         if (time) setGameTime(time.formatted)
 
-        // 含み損益再計算
-        tradingEngine.recalculateUnrealized(tickData.price)
+        const { total: unrealizedPnL } = tradingEngine.recalculateUnrealized(tickData.price)
 
-        // state更新
         dispatch({
           type: ACTIONS.TICK_UPDATE,
           payload: {
             currentPrice: tickData.price,
-            unrealizedPnL: tradingEngine.getUnrealizedPnL(),
+            unrealizedPnL,
             positions: tradingEngine.getPositions(),
           },
         })
 
-        // ニュース発動チェック
         newsSystem.checkTriggers(tickData.timestamp)
       },
       onSessionEnd: () => {
-        // 強制決済
         const results = tradingEngine.forceCloseAll(marketEngine.getCurrentTime().totalMinutes)
         const summary = tradingEngine.getDailySummary()
 
@@ -164,22 +213,22 @@ export default function SessionScreen({ onEndSession }) {
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleBuy = useCallback((lots, leverage) => {
+  const handleBuy = useCallback((shares, leverage) => {
     const te = tradingEngineRef.current
     if (!te) return
-    const pos = te.openPosition('LONG', lots, gameState.currentPrice, leverage)
+    const pos = te.openPosition('LONG', shares, gameState.currentPrice, leverage)
     if (pos) {
-      dispatch({ type: ACTIONS.OPEN_POSITION, payload: pos })
+      dispatch({ type: ACTIONS.OPEN_POSITION, payload: { position: pos } })
       AudioSystem.playSE('entry')
     }
   }, [gameState.currentPrice, dispatch])
 
-  const handleSell = useCallback((lots, leverage) => {
+  const handleSell = useCallback((shares, leverage) => {
     const te = tradingEngineRef.current
     if (!te) return
-    const pos = te.openPosition('SHORT', lots, gameState.currentPrice, leverage)
+    const pos = te.openPosition('SHORT', shares, gameState.currentPrice, leverage)
     if (pos) {
-      dispatch({ type: ACTIONS.OPEN_POSITION, payload: pos })
+      dispatch({ type: ACTIONS.OPEN_POSITION, payload: { position: pos } })
       AudioSystem.playSE('entry')
     }
   }, [gameState.currentPrice, dispatch])
@@ -204,42 +253,119 @@ export default function SessionScreen({ onEndSession }) {
     setActiveNews(null)
   }, [])
 
+  const unrealizedPnL = gameState.unrealizedPnL ?? 0
+  const positions = gameState.positions ?? []
+  const leverageOptions = [1, 2, 3, 3.3].filter((l) => l <= (gameState.maxLeverage ?? 1))
+
+  const speedButtons = (
+    <div style={{ display: 'flex', gap: '4px' }}>
+      <button
+        style={{ ...styles.speedButton, ...(speed === 1 ? styles.speedActive : {}) }}
+        onClick={() => handleSpeedChange(1)}
+      >
+        1x
+      </button>
+      <button
+        style={{ ...styles.speedButton, ...(speed === 2 ? styles.speedActive : {}) }}
+        onClick={() => handleSpeedChange(2)}
+      >
+        2x
+      </button>
+    </div>
+  )
+
+  /* ─── モバイルレイアウト ─── */
+  if (isMobile) {
+    return (
+      <div style={styles.container}>
+        {/* ヘッダー2行 */}
+        <div style={styles.header}>
+          <div style={styles.headerRow1}>
+            <span style={styles.timeDisplay}>{gameTime}</span>
+            {speedButtons}
+          </div>
+          <div style={styles.headerRow2}>
+            <span>残高: {formatCurrency(gameState.balance)}</span>
+            <span style={{ color: unrealizedPnL >= 0 ? '#26a69a' : '#ef5350' }}>
+              含み: {formatCurrency(unrealizedPnL)}
+            </span>
+          </div>
+        </div>
+
+        {/* タブバー */}
+        <div style={styles.tabBar}>
+          <button
+            style={{ ...styles.tab, ...(mobileTab === 'chart' ? styles.tabActive : {}) }}
+            onClick={() => setMobileTab('chart')}
+          >
+            チャート
+          </button>
+          <button
+            style={{ ...styles.tab, ...(mobileTab === 'ticker' ? styles.tabActive : {}) }}
+            onClick={() => setMobileTab('ticker')}
+          >
+            歩み値
+          </button>
+        </div>
+
+        {/* メインコンテンツ */}
+        <div style={styles.mobileContent}>
+          {mobileTab === 'chart' ? (
+            <Chart ref={chartRef} autoSize />
+          ) : (
+            <TickerTape ticks={ticks} maxDisplay={50} compact />
+          )}
+        </div>
+
+        {/* ポジション概要 + フッターバー（TradePanel compact） */}
+        <TradePanel
+          balance={gameState.balance}
+          unrealizedPnL={unrealizedPnL}
+          positions={positions}
+          maxLeverage={gameState.maxLeverage ?? 1}
+          unlockedLeverages={leverageOptions}
+          onBuy={handleBuy}
+          onSell={handleSell}
+          onClose={handleClose}
+          compact
+        />
+
+        <NewsOverlay newsEvent={activeNews} onComplete={handleNewsComplete} />
+      </div>
+    )
+  }
+
+  /* ─── PCレイアウト: 3カラム ─── */
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <span style={styles.timeDisplay}>{gameTime}</span>
         <span>残高: {formatCurrency(gameState.balance)}</span>
-        <span style={{ color: (gameState.unrealizedPnL ?? 0) >= 0 ? '#26a69a' : '#ef5350' }}>
-          含み: {formatCurrency(gameState.unrealizedPnL ?? 0)}
+        <span style={{ color: unrealizedPnL >= 0 ? '#26a69a' : '#ef5350' }}>
+          含み: {formatCurrency(unrealizedPnL)}
         </span>
-        <div style={{ display: 'flex', gap: '4px' }}>
-          <button
-            style={{ ...styles.speedButton, ...(speed === 1 ? styles.speedActive : {}) }}
-            onClick={() => handleSpeedChange(1)}
-          >
-            1x
-          </button>
-          <button
-            style={{ ...styles.speedButton, ...(speed === 2 ? styles.speedActive : {}) }}
-            onClick={() => handleSpeedChange(2)}
-          >
-            2x
-          </button>
-        </div>
+        {speedButtons}
       </div>
 
       <div style={styles.main}>
-        <div style={styles.chartArea}>
-          <Chart ref={chartRef} height={360} />
-          <TickerTape ticks={ticks} maxDisplay={30} />
+        {/* 歩み値 左カラム */}
+        <div style={styles.tickerColumn}>
+          <TickerTape ticks={ticks} maxDisplay={50} />
         </div>
-        <div style={styles.sidebar}>
+
+        {/* チャート 中央 */}
+        <div style={styles.chartArea}>
+          <Chart ref={chartRef} autoSize />
+        </div>
+
+        {/* トレードパネル 右カラム */}
+        <div style={styles.tradePanel}>
           <TradePanel
             balance={gameState.balance}
-            unrealizedPnL={gameState.unrealizedPnL ?? 0}
-            positions={gameState.positions ?? []}
+            unrealizedPnL={unrealizedPnL}
+            positions={positions}
             maxLeverage={gameState.maxLeverage ?? 1}
-            unlockedLeverages={[1, 2, 3, 5, 10].filter((l) => l <= (gameState.maxLeverage ?? 1))}
+            unlockedLeverages={leverageOptions}
             onBuy={handleBuy}
             onSell={handleSell}
             onClose={handleClose}
