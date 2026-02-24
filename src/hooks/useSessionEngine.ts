@@ -23,6 +23,7 @@ interface UseSessionEngineReturn {
   handleBuy: (shares: number) => void
   handleSell: (shares: number) => void
   handleClose: (positionId: string) => void
+  handleCloseAll: () => void
   handleSetSLTP: (positionId: string, stopLoss?: number, takeProfit?: number) => void
   handleSpeedChange: (newSpeed: number) => void
   handleNewsComplete: () => void
@@ -60,9 +61,15 @@ export function useSessionEngine({
     })
     newsSystem.scheduleSessionEvents(180000)
 
+    const existingPositions = gameState.positions.length > 0 ? gameState.positions : undefined
+    const totalLockedMargin = existingPositions
+      ? existingPositions.reduce((sum, p) => sum + p.margin, 0)
+      : 0
+
     const tradingEngine = new TradingEngine({
-      balance: gameState.balance,
+      balance: gameState.balance - totalLockedMargin,
       maxLeverage: gameState.maxLeverage ?? 1,
+      existingPositions,
     })
     tradingEngineRef.current = tradingEngine
 
@@ -105,15 +112,14 @@ export function useSessionEngine({
         newsSystem.checkTriggers(tickData.timestamp)
       },
       onSessionEnd: () => {
-        const results = tradingEngine.forceCloseAll(marketEngine.getCurrentTime().totalMinutes)
         const summary = tradingEngine.getDailySummary()
 
         if (onEndSession) {
-          onEndSession({ results, summary })
+          onEndSession({ results: [], summary })
         } else {
           dispatch({
             type: ACTIONS.END_SESSION,
-            payload: { results, summary },
+            payload: { summary },
           })
           dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'report' } })
         }
@@ -163,6 +169,19 @@ export function useSessionEngine({
     }
   }, [gameState.currentPrice, dispatch])
 
+  const handleCloseAll = useCallback(() => {
+    const te = tradingEngineRef.current
+    if (!te) return
+    const results = te.forceCloseAll(gameState.currentPrice)
+    if (results.length === 0) return
+    let totalPnl = 0
+    for (const result of results) {
+      dispatch({ type: ACTIONS.CLOSE_POSITION, payload: result })
+      totalPnl += result.pnl
+    }
+    AudioSystem.playSE(totalPnl >= 0 ? 'profit' : 'loss')
+  }, [gameState.currentPrice, dispatch])
+
   const handleSpeedChange = useCallback((newSpeed: number) => {
     setSpeed(newSpeed)
     marketEngineRef.current?.setSpeed(newSpeed)
@@ -183,6 +202,7 @@ export function useSessionEngine({
     handleBuy,
     handleSell,
     handleClose,
+    handleCloseAll,
     handleSetSLTP,
     handleSpeedChange,
     handleNewsComplete,

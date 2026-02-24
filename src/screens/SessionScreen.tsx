@@ -30,6 +30,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     handleBuy,
     handleSell,
     handleClose,
+    handleCloseAll,
     handleSetSLTP,
     handleSpeedChange,
     handleNewsComplete,
@@ -159,6 +160,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
           onBuy={handleBuy}
           onSell={handleSell}
           onClose={handleClose}
+          onCloseAll={handleCloseAll}
           onSetSLTP={handleSetSLTP}
           compact
         />
@@ -201,6 +203,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
             onBuy={handleBuy}
             onSell={handleSell}
             onClose={handleClose}
+            onCloseAll={handleCloseAll}
             onSetSLTP={handleSetSLTP}
           />
         </div>

@@ -13,6 +13,7 @@ interface TradePanelProps {
   onBuy: (shares: number) => void
   onSell: (shares: number) => void
   onClose: (positionId: string) => void
+  onCloseAll: () => void
   onSetSLTP: (positionId: string, stopLoss?: number, takeProfit?: number) => void
   compact?: boolean
 }
@@ -163,6 +164,7 @@ interface DesktopTradePanelProps {
   onBuy: (shares: number) => void
   onSell: (shares: number) => void
   onClose: (positionId: string) => void
+  onCloseAll: () => void
   onSetSLTP: (positionId: string, stopLoss?: number, takeProfit?: number) => void
 }
 
@@ -179,6 +181,7 @@ function DesktopTradePanel({
   onBuy,
   onSell,
   onClose,
+  onCloseAll,
   onSetSLTP,
 }: DesktopTradePanelProps) {
   const addShares = (amount: number) => setShares((prev) => Math.max(1, prev + amount))
@@ -279,9 +282,19 @@ function DesktopTradePanel({
       {/* ポジション一覧 */}
       {positions && positions.length > 0 && (
         <div>
-          <div className="flex justify-between text-xs text-text-secondary mb-1.5 border-b border-bg-elevated pb-1">
+          <div className="flex justify-between items-center text-xs text-text-secondary mb-1.5 border-b border-bg-elevated pb-1">
             <span>保有ポジション({positions.length})</span>
-            <span className={getPnlClass(totalPositionPnl)}>計 {formatCurrency(totalPositionPnl)}</span>
+            <div className="flex items-center gap-2">
+              <span className={getPnlClass(totalPositionPnl)}>計 {formatCurrency(totalPositionPnl)}</span>
+              {positions.length > 1 && (
+                <button
+                  className="py-0.5 px-2 bg-bg-danger text-loss border border-border-danger rounded text-[11px] cursor-pointer"
+                  onClick={onCloseAll}
+                >
+                  全決済
+                </button>
+              )}
+            </div>
           </div>
           <div className="max-h-[200px] overflow-y-auto">
             {positions.map((pos) => {
@@ -492,6 +505,7 @@ export default function TradePanel({
   onBuy,
   onSell,
   onClose,
+  onCloseAll,
   onSetSLTP,
   compact = false,
 }: TradePanelProps) {
@@ -513,6 +527,7 @@ export default function TradePanel({
         onBuy={onBuy}
         onSell={onSell}
         onClose={onClose}
+        onCloseAll={onCloseAll}
         onSetSLTP={onSetSLTP}
       />
     )
