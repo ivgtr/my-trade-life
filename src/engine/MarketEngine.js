@@ -28,11 +28,11 @@ import { TICK_INTERVAL, PRICE_MOVE, MOMENTUM, VOL_TRANSITION, TIME_OF_DAY } from
  * @property {function(): void} onSessionEnd - セッション終了コールバック
  */
 
-/** 通常時間帯の圧縮レート（ゲーム内分/ms） */
-const NORMAL_RATE = 330 / 582500
+/** 通常時間帯の圧縮レート（ゲーム内分/ms） — 3分セッション用 */
+const NORMAL_RATE = 330 / 174750
 
-/** 昼休みの圧縮レート */
-const LUNCH_RATE = 60 / 17500
+/** 昼休みの圧縮レート — 3分セッション用 */
+const LUNCH_RATE = 60 / 5250
 
 /** 外部イベント力の減衰係数 */
 const FORCE_DECAY = 0.7
