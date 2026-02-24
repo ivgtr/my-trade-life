@@ -14,272 +14,12 @@ interface TradePanelProps {
   compact?: boolean
 }
 
-function getPnlStyle(value: number) {
-  if (value > 0) return { color: '#26a69a' }
-  if (value < 0) return { color: '#ef5350' }
-  return { color: '#a0a0b0' }
+function getPnlClass(value: number) {
+  if (value > 0) return 'text-profit'
+  if (value < 0) return 'text-loss'
+  return 'text-text-secondary'
 }
 
-/* ─── デスクトップスタイル ─── */
-const desktopStyles = {
-  container: {
-    backgroundColor: '#1a1a2e',
-    color: '#e0e0e0',
-    padding: '12px',
-    fontFamily: 'monospace',
-    height: '100%',
-    overflowY: 'auto',
-    overflowX: 'hidden',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '12px',
-    fontSize: '14px',
-  },
-  inputRow: {
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center',
-    marginBottom: '8px',
-  },
-  label: {
-    fontSize: '12px',
-    color: '#a0a0b0',
-    minWidth: '52px',
-  },
-  input: {
-    backgroundColor: '#2a2a3e',
-    color: '#e0e0e0',
-    border: '1px solid #3a3a4e',
-    borderRadius: '4px',
-    padding: '6px 8px',
-    fontSize: '14px',
-    width: '80px',
-    textAlign: 'right',
-  },
-  select: {
-    backgroundColor: '#2a2a3e',
-    color: '#e0e0e0',
-    border: '1px solid #3a3a4e',
-    borderRadius: '4px',
-    padding: '6px 8px',
-    fontSize: '14px',
-  },
-  quickButtonRow: {
-    display: 'flex',
-    gap: '4px',
-    marginBottom: '8px',
-  },
-  quickButton: {
-    padding: '4px 10px',
-    backgroundColor: '#2a2a3e',
-    color: '#e0e0e0',
-    border: '1px solid #3a3a4e',
-    borderRadius: '4px',
-    fontSize: '12px',
-    cursor: 'pointer',
-  },
-  resetButton: {
-    padding: '4px 10px',
-    backgroundColor: '#3a2a2e',
-    color: '#ef5350',
-    border: '1px solid #4a3a3e',
-    borderRadius: '4px',
-    fontSize: '12px',
-    cursor: 'pointer',
-  },
-  buttonRow: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '12px',
-  },
-  buyButton: {
-    flex: 1,
-    padding: '10px',
-    backgroundColor: '#26a69a',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-  },
-  sellButton: {
-    flex: 1,
-    padding: '10px',
-    backgroundColor: '#ef5350',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-  },
-  positionList: {
-    maxHeight: '200px',
-    overflowY: 'auto',
-  },
-  positionItem: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '6px 0',
-    borderBottom: '1px solid #2a2a3e',
-    fontSize: '12px',
-  },
-  closeButton: {
-    padding: '4px 8px',
-    backgroundColor: '#555',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '11px',
-    cursor: 'pointer',
-  },
-  sectionTitle: {
-    fontSize: '12px',
-    color: '#a0a0b0',
-    marginBottom: '6px',
-    borderBottom: '1px solid #2a2a3e',
-    paddingBottom: '4px',
-  },
-} as const
-
-/* ─── モバイルスタイル ─── */
-const mobileStyles = {
-  footerBar: {
-    display: 'flex',
-    gap: '8px',
-    padding: '8px 12px',
-    backgroundColor: '#1a1a2e',
-    borderTop: '1px solid #2a2a3e',
-    flexShrink: 0,
-    height: '56px',
-    alignItems: 'center',
-    fontFamily: 'monospace',
-  },
-  footerButton: {
-    flex: 1,
-    padding: '0',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    minHeight: '44px',
-  },
-  positionSummary: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '6px 12px',
-    backgroundColor: '#1a1a2e',
-    borderTop: '1px solid #2a2a3e',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    color: '#e0e0e0',
-    flexShrink: 0,
-  },
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    zIndex: 900,
-    display: 'flex',
-    alignItems: 'flex-end',
-  },
-  modal: {
-    width: '100%',
-    backgroundColor: '#1a1a2e',
-    borderTopLeftRadius: '16px',
-    borderTopRightRadius: '16px',
-    padding: '20px 16px',
-    fontFamily: 'monospace',
-    color: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    marginBottom: '16px',
-  },
-  modalInputRow: {
-    display: 'flex',
-    gap: '8px',
-    alignItems: 'center',
-    marginBottom: '12px',
-  },
-  modalLabel: {
-    fontSize: '13px',
-    color: '#a0a0b0',
-    minWidth: '60px',
-  },
-  modalInput: {
-    backgroundColor: '#2a2a3e',
-    color: '#e0e0e0',
-    border: '1px solid #3a3a4e',
-    borderRadius: '4px',
-    padding: '10px 12px',
-    fontSize: '16px',
-    flex: 1,
-    textAlign: 'right',
-    minHeight: '44px',
-  },
-  modalSelect: {
-    backgroundColor: '#2a2a3e',
-    color: '#e0e0e0',
-    border: '1px solid #3a3a4e',
-    borderRadius: '4px',
-    padding: '10px 12px',
-    fontSize: '16px',
-    minHeight: '44px',
-  },
-  modalQuickRow: {
-    display: 'flex',
-    gap: '8px',
-    marginBottom: '16px',
-  },
-  modalQuickButton: {
-    flex: 1,
-    padding: '10px 0',
-    backgroundColor: '#2a2a3e',
-    color: '#e0e0e0',
-    border: '1px solid #3a3a4e',
-    borderRadius: '6px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    minHeight: '44px',
-  },
-  modalResetButton: {
-    flex: 1,
-    padding: '10px 0',
-    backgroundColor: '#3a2a2e',
-    color: '#ef5350',
-    border: '1px solid #4a3a3e',
-    borderRadius: '6px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    minHeight: '44px',
-  },
-  modalConfirmButton: {
-    width: '100%',
-    padding: '14px',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '18px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    minHeight: '48px',
-    marginTop: '8px',
-  },
-} as const
-
-/* ─── デスクトップ版 ─── */
 interface DesktopTradePanelProps {
   balance: number
   unrealizedPnL: number
@@ -310,28 +50,28 @@ function DesktopTradePanel({
   const addShares = (amount: number) => setShares((prev) => Math.max(1, prev + amount))
 
   return (
-    <div style={desktopStyles.container}>
-      <div style={desktopStyles.header}>
+    <div className="bg-bg-panel text-text-primary p-3 font-mono h-full overflow-y-auto overflow-x-hidden">
+      <div className="flex justify-between mb-3 text-sm">
         <span>残高: {formatCurrency(balance)}</span>
-        <span style={getPnlStyle(unrealizedPnL)}>
+        <span className={getPnlClass(unrealizedPnL)}>
           含み: {formatCurrency(unrealizedPnL)}
         </span>
       </div>
 
-      <div style={desktopStyles.inputRow}>
-        <span style={desktopStyles.label}>株数</span>
+      <div className="flex gap-2 items-center mb-2">
+        <span className="text-xs text-text-secondary min-w-[52px]">株数</span>
         <input
           type="number"
           min="1"
           value={shares}
           onChange={(e) => setShares(Math.max(1, parseInt(e.target.value, 10) || 1))}
-          style={desktopStyles.input}
+          className="bg-bg-elevated text-text-primary border border-bg-button rounded py-1.5 px-2 text-sm w-20 text-right"
         />
-        <span style={desktopStyles.label}>信用倍率</span>
+        <span className="text-xs text-text-secondary min-w-[52px]">信用倍率</span>
         <select
           value={leverage}
           onChange={(e) => setLeverage(Number(e.target.value))}
-          style={desktopStyles.select}
+          className="bg-bg-elevated text-text-primary border border-bg-button rounded py-1.5 px-2 text-sm"
         >
           {leverageOptions.map((l) => (
             <option key={l} value={l}>{l}x</option>
@@ -339,37 +79,46 @@ function DesktopTradePanel({
         </select>
       </div>
 
-      <div style={desktopStyles.quickButtonRow}>
-        <button style={desktopStyles.quickButton} onClick={() => addShares(1)}>+1</button>
-        <button style={desktopStyles.quickButton} onClick={() => addShares(10)}>+10</button>
-        <button style={desktopStyles.quickButton} onClick={() => addShares(100)}>+100</button>
-        <button style={desktopStyles.resetButton} onClick={() => setShares(1)}>C</button>
+      <div className="flex gap-1 mb-2">
+        <button className="py-1 px-2.5 bg-bg-elevated text-text-primary border border-bg-button rounded text-xs cursor-pointer" onClick={() => addShares(1)}>+1</button>
+        <button className="py-1 px-2.5 bg-bg-elevated text-text-primary border border-bg-button rounded text-xs cursor-pointer" onClick={() => addShares(10)}>+10</button>
+        <button className="py-1 px-2.5 bg-bg-elevated text-text-primary border border-bg-button rounded text-xs cursor-pointer" onClick={() => addShares(100)}>+100</button>
+        <button className="py-1 px-2.5 bg-bg-danger text-loss border border-border-danger rounded text-xs cursor-pointer" onClick={() => setShares(1)}>C</button>
       </div>
 
-      <div style={desktopStyles.buttonRow}>
-        <button style={desktopStyles.buyButton} onClick={() => onBuy(shares, leverage)}>
+      <div className="flex gap-2 mb-3">
+        <button
+          className="flex-1 p-2.5 bg-profit text-white border-none rounded-md text-base font-bold cursor-pointer"
+          onClick={() => onBuy(shares, leverage)}
+        >
           BUY
         </button>
-        <button style={desktopStyles.sellButton} onClick={() => onSell(shares, leverage)}>
+        <button
+          className="flex-1 p-2.5 bg-loss text-white border-none rounded-md text-base font-bold cursor-pointer"
+          onClick={() => onSell(shares, leverage)}
+        >
           SELL
         </button>
       </div>
 
       {positions && positions.length > 0 && (
         <div>
-          <div style={desktopStyles.sectionTitle}>保有ポジション</div>
-          <div style={desktopStyles.positionList}>
+          <div className="text-xs text-text-secondary mb-1.5 border-b border-bg-elevated pb-1">保有ポジション</div>
+          <div className="max-h-[200px] overflow-y-auto">
             {positions.map((pos) => (
-              <div key={pos.id} style={desktopStyles.positionItem}>
-                <span style={{ color: pos.direction === 'LONG' ? '#26a69a' : '#ef5350' }}>
+              <div key={pos.id} className="flex justify-between items-center py-1.5 border-b border-bg-elevated text-xs">
+                <span className={pos.direction === 'LONG' ? 'text-profit' : 'text-loss'}>
                   {pos.direction}
                 </span>
                 <span>{pos.shares}株</span>
                 <span>{formatCurrency(pos.entryPrice)}</span>
-                <span style={getPnlStyle(pos.unrealizedPnL)}>
+                <span className={getPnlClass(pos.unrealizedPnL)}>
                   {formatCurrency(pos.unrealizedPnL)}
                 </span>
-                <button style={desktopStyles.closeButton} onClick={() => onClose(pos.id)}>
+                <button
+                  className="py-1 px-2 bg-text-muted text-white border-none rounded text-[11px] cursor-pointer"
+                  onClick={() => onClose(pos.id)}
+                >
                   決済
                 </button>
               </div>
@@ -381,7 +130,6 @@ function DesktopTradePanel({
   )
 }
 
-/* ─── モバイル版: ポジション概要行 ─── */
 function MobilePositionSummary({ positions }: { positions: Position[] }) {
   if (!positions || positions.length === 0) return null
 
@@ -390,31 +138,30 @@ function MobilePositionSummary({ positions }: { positions: Position[] }) {
   const direction = positions[0]?.direction ?? ''
 
   return (
-    <div style={mobileStyles.positionSummary}>
+    <div className="flex justify-between items-center py-1.5 px-3 bg-bg-panel border-t border-bg-elevated text-xs font-mono text-text-primary shrink-0">
       <span>
         ポジション:{' '}
-        <span style={{ color: direction === 'LONG' ? '#26a69a' : '#ef5350' }}>
+        <span className={direction === 'LONG' ? 'text-profit' : 'text-loss'}>
           {direction}
         </span>{' '}
         {totalShares}株
       </span>
-      <span style={getPnlStyle(totalPnl)}>{formatCurrency(totalPnl)}</span>
+      <span className={getPnlClass(totalPnl)}>{formatCurrency(totalPnl)}</span>
     </div>
   )
 }
 
-/* ─── モバイル版: フッターバー ─── */
 function MobileFooterBar({ onBuyTap, onSellTap }: { onBuyTap: () => void; onSellTap: () => void }) {
   return (
-    <div style={mobileStyles.footerBar}>
+    <div className="flex gap-2 py-2 px-3 bg-bg-panel border-t border-bg-elevated shrink-0 h-14 items-center font-mono">
       <button
-        style={{ ...mobileStyles.footerButton, backgroundColor: '#26a69a' }}
+        className="flex-1 p-0 text-white border-none rounded-md text-base font-bold cursor-pointer min-h-11 bg-profit"
         onClick={onBuyTap}
       >
         BUY
       </button>
       <button
-        style={{ ...mobileStyles.footerButton, backgroundColor: '#ef5350' }}
+        className="flex-1 p-0 text-white border-none rounded-md text-base font-bold cursor-pointer min-h-11 bg-loss"
         onClick={onSellTap}
       >
         SELL
@@ -423,7 +170,6 @@ function MobileFooterBar({ onBuyTap, onSellTap }: { onBuyTap: () => void; onSell
   )
 }
 
-/* ─── モバイル版: 注文モーダル ─── */
 interface OrderModalProps {
   side: 'BUY' | 'SELL'
   shares: number
@@ -446,40 +192,45 @@ function OrderModal({
   onCancel,
 }: OrderModalProps) {
   const isBuy = side === 'BUY'
-  const color = isBuy ? '#26a69a' : '#ef5350'
   const label = isBuy ? '買い注文' : '売り注文'
 
   const addShares = (amount: number) => setShares((prev) => Math.max(1, prev + amount))
 
   return (
-    <div style={mobileStyles.overlay} onClick={onCancel}>
-      <div style={mobileStyles.modal} onClick={(e) => e.stopPropagation()}>
-        <div style={{ ...mobileStyles.modalTitle, color }}>{label}</div>
+    <div
+      className="fixed inset-0 bg-black/60 z-[var(--z-overlay)] flex items-end"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full bg-bg-panel rounded-t-2xl py-5 px-4 font-mono text-text-primary"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className={`text-base font-bold mb-4 ${isBuy ? 'text-profit' : 'text-loss'}`}>{label}</div>
 
-        <div style={mobileStyles.modalInputRow}>
-          <span style={mobileStyles.modalLabel}>株数</span>
+        <div className="flex gap-2 items-center mb-3">
+          <span className="text-[13px] text-text-secondary min-w-15">株数</span>
           <input
             type="number"
             min="1"
             value={shares}
             onChange={(e) => setShares(Math.max(1, parseInt(e.target.value, 10) || 1))}
-            style={mobileStyles.modalInput}
+            className="bg-bg-elevated text-text-primary border border-bg-button rounded py-2.5 px-3 text-base flex-1 text-right min-h-11"
           />
         </div>
 
-        <div style={mobileStyles.modalQuickRow}>
-          <button style={mobileStyles.modalQuickButton} onClick={() => addShares(1)}>+1</button>
-          <button style={mobileStyles.modalQuickButton} onClick={() => addShares(10)}>+10</button>
-          <button style={mobileStyles.modalQuickButton} onClick={() => addShares(100)}>+100</button>
-          <button style={mobileStyles.modalResetButton} onClick={() => setShares(1)}>C</button>
+        <div className="flex gap-2 mb-4">
+          <button className="flex-1 py-2.5 bg-bg-elevated text-text-primary border border-bg-button rounded-md text-sm cursor-pointer min-h-11" onClick={() => addShares(1)}>+1</button>
+          <button className="flex-1 py-2.5 bg-bg-elevated text-text-primary border border-bg-button rounded-md text-sm cursor-pointer min-h-11" onClick={() => addShares(10)}>+10</button>
+          <button className="flex-1 py-2.5 bg-bg-elevated text-text-primary border border-bg-button rounded-md text-sm cursor-pointer min-h-11" onClick={() => addShares(100)}>+100</button>
+          <button className="flex-1 py-2.5 bg-bg-danger text-loss border border-border-danger rounded-md text-sm cursor-pointer min-h-11" onClick={() => setShares(1)}>C</button>
         </div>
 
-        <div style={mobileStyles.modalInputRow}>
-          <span style={mobileStyles.modalLabel}>信用倍率</span>
+        <div className="flex gap-2 items-center mb-3">
+          <span className="text-[13px] text-text-secondary min-w-15">信用倍率</span>
           <select
             value={leverage}
             onChange={(e) => setLeverage(Number(e.target.value))}
-            style={mobileStyles.modalSelect}
+            className="bg-bg-elevated text-text-primary border border-bg-button rounded py-2.5 px-3 text-base min-h-11"
           >
             {leverageOptions.map((l) => (
               <option key={l} value={l}>{l}x</option>
@@ -488,7 +239,9 @@ function OrderModal({
         </div>
 
         <button
-          style={{ ...mobileStyles.modalConfirmButton, backgroundColor: color }}
+          className={`w-full py-3.5 text-white border-none rounded-lg text-lg font-bold cursor-pointer min-h-12 mt-2 ${
+            isBuy ? 'bg-profit' : 'bg-loss'
+          }`}
           onClick={() => onConfirm(shares, leverage)}
         >
           注文確定 ({side})
@@ -498,7 +251,6 @@ function OrderModal({
   )
 }
 
-/* ─── メインエクスポート ─── */
 export default function TradePanel({
   balance,
   unrealizedPnL,
@@ -534,7 +286,6 @@ export default function TradePanel({
     )
   }
 
-  /* ─── モバイルモード ─── */
   const handleConfirm = (s: number, l: number) => {
     if (modalSide === 'BUY') onBuy(s, l)
     else onSell(s, l)

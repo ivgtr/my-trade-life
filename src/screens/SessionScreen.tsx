@@ -17,118 +17,6 @@ interface SessionScreenProps {
   onEndSession?: (data: { results: unknown; summary: unknown }) => void
 }
 
-function getStyles(isMobile: boolean) {
-  return {
-    container: {
-      display: 'flex',
-      flexDirection: 'column',
-      height: '100dvh',
-      overflow: 'hidden',
-      backgroundColor: '#0a0a1a',
-      color: '#e0e0e0',
-      fontFamily: 'monospace',
-    },
-    header: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: isMobile ? '6px 10px' : '8px 16px',
-      backgroundColor: '#1a1a2e',
-      borderBottom: '1px solid #2a2a3e',
-      fontSize: isMobile ? '12px' : '14px',
-      flexShrink: 0,
-      flexWrap: isMobile ? 'wrap' : 'nowrap',
-      gap: isMobile ? '4px' : '0',
-    },
-    headerRow1: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      width: '100%',
-    },
-    headerRow2: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      width: '100%',
-      fontSize: '12px',
-    },
-    main: {
-      display: 'flex',
-      flexDirection: 'row',
-      flex: 1,
-      overflow: 'hidden',
-      minHeight: 0,
-    },
-    tickerColumn: {
-      width: '180px',
-      flexShrink: 0,
-      overflowY: 'auto',
-      overflowX: 'hidden',
-      borderRight: '1px solid #2a2a3e',
-    },
-    chartArea: {
-      flex: 1,
-      minWidth: 0,
-      minHeight: 0,
-      overflow: 'hidden',
-    },
-    tradePanel: {
-      width: '300px',
-      flexShrink: 0,
-      overflowY: 'auto',
-      overflowX: 'hidden',
-      borderLeft: '1px solid #2a2a3e',
-    },
-    /* モバイル用 */
-    tabBar: {
-      display: 'flex',
-      flexShrink: 0,
-      height: '36px',
-      backgroundColor: '#1a1a2e',
-      borderBottom: '1px solid #2a2a3e',
-    },
-    tab: {
-      flex: 1,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '13px',
-      cursor: 'pointer',
-      border: 'none',
-      backgroundColor: 'transparent',
-      color: '#a0a0b0',
-      fontFamily: 'monospace',
-    },
-    tabActive: {
-      color: '#e0e0e0',
-      borderBottom: '2px solid #6366f1',
-    },
-    mobileContent: {
-      flex: 1,
-      minHeight: 0,
-      overflow: 'hidden',
-    },
-    speedButton: {
-      padding: isMobile ? '4px 8px' : '6px 12px',
-      backgroundColor: '#3a3a4e',
-      color: '#e0e0e0',
-      border: 'none',
-      borderRadius: '4px',
-      cursor: 'pointer',
-      fontSize: isMobile ? '12px' : '13px',
-    },
-    speedActive: {
-      backgroundColor: '#6366f1',
-      color: '#fff',
-    },
-    timeDisplay: {
-      fontSize: isMobile ? '16px' : '18px',
-      fontWeight: 'bold',
-    },
-  } as const
-}
-
 export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   const { gameState, dispatch } = useGameContext()
   const { isMobile } = useResponsive()
@@ -141,8 +29,6 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   const [activeNews, setActiveNews] = useState<NewsEvent | null>(null)
   const [speed, setSpeed] = useState(gameState.speed ?? 1)
   const [mobileTab, setMobileTab] = useState('chart')
-
-  const styles = getStyles(isMobile)
 
   useEffect(() => {
     const regimeParams = gameState.regimeParams ?? { drift: 0, volMult: 1.0, regime: 'range' as const }
@@ -263,15 +149,19 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   const leverageOptions = [1, 2, 3, 3.3].filter((l) => l <= (gameState.maxLeverage ?? 1))
 
   const speedButtons = (
-    <div style={{ display: 'flex', gap: '4px' }}>
+    <div className="flex gap-1">
       <button
-        style={{ ...styles.speedButton, ...(speed === 1 ? styles.speedActive : {}) }}
+        className={`sm:py-1.5 sm:px-3 py-1 px-2 border-none rounded cursor-pointer font-mono sm:text-[13px] text-xs ${
+          speed === 1 ? 'bg-accent text-white' : 'bg-bg-button text-text-primary'
+        }`}
         onClick={() => handleSpeedChange(1)}
       >
         1x
       </button>
       <button
-        style={{ ...styles.speedButton, ...(speed === 2 ? styles.speedActive : {}) }}
+        className={`sm:py-1.5 sm:px-3 py-1 px-2 border-none rounded cursor-pointer font-mono sm:text-[13px] text-xs ${
+          speed === 2 ? 'bg-accent text-white' : 'bg-bg-button text-text-primary'
+        }`}
         onClick={() => handleSpeedChange(2)}
       >
         2x
@@ -279,42 +169,46 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     </div>
   )
 
-  /* ─── モバイルレイアウト ─── */
   if (isMobile) {
     return (
-      <div style={styles.container}>
-        {/* ヘッダー2行 */}
-        <div style={styles.header}>
-          <div style={styles.headerRow1}>
-            <span style={styles.timeDisplay}>{gameTime}</span>
+      <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
+        <div className="flex justify-between items-center px-2.5 py-1.5 bg-bg-panel border-b border-bg-elevated text-xs shrink-0 flex-wrap gap-1">
+          <div className="flex justify-between items-center w-full">
+            <span className="text-base font-bold">{gameTime}</span>
             {speedButtons}
           </div>
-          <div style={styles.headerRow2}>
+          <div className="flex justify-between items-center w-full text-xs">
             <span>残高: {formatCurrency(gameState.balance)}</span>
-            <span style={{ color: unrealizedPnL >= 0 ? '#26a69a' : '#ef5350' }}>
+            <span className={unrealizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
               含み: {formatCurrency(unrealizedPnL)}
             </span>
           </div>
         </div>
 
-        {/* タブバー */}
-        <div style={styles.tabBar}>
+        <div className="flex shrink-0 h-9 bg-bg-panel border-b border-bg-elevated">
           <button
-            style={{ ...styles.tab, ...(mobileTab === 'chart' ? styles.tabActive : {}) }}
+            className={`flex-1 flex items-center justify-center text-[13px] cursor-pointer border-none bg-transparent font-mono ${
+              mobileTab === 'chart'
+                ? 'text-text-primary border-b-2 border-b-accent'
+                : 'text-text-secondary'
+            }`}
             onClick={() => setMobileTab('chart')}
           >
             チャート
           </button>
           <button
-            style={{ ...styles.tab, ...(mobileTab === 'ticker' ? styles.tabActive : {}) }}
+            className={`flex-1 flex items-center justify-center text-[13px] cursor-pointer border-none bg-transparent font-mono ${
+              mobileTab === 'ticker'
+                ? 'text-text-primary border-b-2 border-b-accent'
+                : 'text-text-secondary'
+            }`}
             onClick={() => setMobileTab('ticker')}
           >
             歩み値
           </button>
         </div>
 
-        {/* メインコンテンツ */}
-        <div style={styles.mobileContent}>
+        <div className="flex-1 min-h-0 overflow-hidden">
           {mobileTab === 'chart' ? (
             <Chart ref={chartRef} autoSize />
           ) : (
@@ -322,7 +216,6 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
           )}
         </div>
 
-        {/* ポジション概要 + フッターバー（TradePanel compact） */}
         <TradePanel
           balance={gameState.balance}
           unrealizedPnL={unrealizedPnL}
@@ -340,31 +233,27 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     )
   }
 
-  /* ─── PCレイアウト: 3カラム ─── */
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <span style={styles.timeDisplay}>{gameTime}</span>
+    <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
+      <div className="flex justify-between items-center px-4 py-2 bg-bg-panel border-b border-bg-elevated text-sm shrink-0">
+        <span className="text-lg font-bold">{gameTime}</span>
         <span>残高: {formatCurrency(gameState.balance)}</span>
-        <span style={{ color: unrealizedPnL >= 0 ? '#26a69a' : '#ef5350' }}>
+        <span className={unrealizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
           含み: {formatCurrency(unrealizedPnL)}
         </span>
         {speedButtons}
       </div>
 
-      <div style={styles.main}>
-        {/* 歩み値 左カラム */}
-        <div style={styles.tickerColumn}>
+      <div className="flex flex-row flex-1 overflow-hidden min-h-0">
+        <div className="w-[180px] shrink-0 overflow-y-auto overflow-x-hidden border-r border-bg-elevated">
           <TickerTape ticks={ticks} maxDisplay={50} />
         </div>
 
-        {/* チャート 中央 */}
-        <div style={styles.chartArea}>
+        <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
           <Chart ref={chartRef} autoSize />
         </div>
 
-        {/* トレードパネル 右カラム */}
-        <div style={styles.tradePanel}>
+        <div className="w-[300px] shrink-0 overflow-y-auto overflow-x-hidden border-l border-bg-elevated">
           <TradePanel
             balance={gameState.balance}
             unrealizedPnL={unrealizedPnL}
