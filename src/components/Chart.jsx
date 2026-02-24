@@ -1,5 +1,5 @@
 import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react'
-import { createChart } from 'lightweight-charts'
+import { createChart, CandlestickSeries } from 'lightweight-charts'
 
 const CHART_OPTIONS = {
   layout: {
@@ -27,8 +27,11 @@ const CHART_OPTIONS = {
  * lightweight-charts v5 ラッパーコンポーネント。
  * TickDataを受けてリアルタイム更新する。React再レンダリングを回避するため
  * ref経由でupdateTick/resetを公開する。
+ *
+ * autoSize=true（デフォルト）: ResizeObserverで親コンテナに完全追従。
+ * 親に width/height を CSS で指定すること（flex:1 等）。
  */
-const Chart = forwardRef(function Chart({ width = '100%', height = 400 }, ref) {
+const Chart = forwardRef(function Chart({ autoSize = true, width, height }, ref) {
   const containerRef = useRef(null)
   const chartRef = useRef(null)
   const seriesRef = useRef(null)
@@ -36,19 +39,13 @@ const Chart = forwardRef(function Chart({ width = '100%', height = 400 }, ref) {
   const currentBarRef = useRef(null)
 
   useImperativeHandle(ref, () => ({
-    /**
-     * TickDataを受けてシリーズを更新する。
-     * @param {{ price: number, timestamp: number }} tickData
-     */
     updateTick(tickData) {
       if (!seriesRef.current) return
 
       const { price, timestamp } = tickData
-      // timestampはゲーム内時刻（分）。1分ごとに新しいバーを作成
       const barTime = Math.floor(timestamp)
 
       if (!currentBarRef.current || currentBarRef.current.time !== barTime) {
-        // 新しいバーを開始
         currentBarRef.current = {
           time: barTime,
           open: price,
@@ -57,7 +54,6 @@ const Chart = forwardRef(function Chart({ width = '100%', height = 400 }, ref) {
           close: price,
         }
       } else {
-        // 既存バーを更新
         currentBarRef.current.high = Math.max(currentBarRef.current.high, price)
         currentBarRef.current.low = Math.min(currentBarRef.current.low, price)
         currentBarRef.current.close = price
@@ -66,9 +62,6 @@ const Chart = forwardRef(function Chart({ width = '100%', height = 400 }, ref) {
       seriesRef.current.update({ ...currentBarRef.current })
     },
 
-    /**
-     * チャートデータをクリアする。
-     */
     reset() {
       if (seriesRef.current) {
         seriesRef.current.setData([])
@@ -80,14 +73,18 @@ const Chart = forwardRef(function Chart({ width = '100%', height = 400 }, ref) {
   useEffect(() => {
     if (!containerRef.current) return
 
-    const chart = createChart(containerRef.current, {
+    const el = containerRef.current
+    const initWidth = width ?? el.clientWidth
+    const initHeight = height ?? el.clientHeight
+
+    const chart = createChart(el, {
       ...CHART_OPTIONS,
-      width: typeof width === 'number' ? width : containerRef.current.clientWidth,
-      height,
+      width: typeof initWidth === 'number' ? initWidth : el.clientWidth,
+      height: typeof initHeight === 'number' ? initHeight : el.clientHeight,
     })
     chartRef.current = chart
 
-    const series = chart.addCandlestickSeries({
+    const series = chart.addSeries(CandlestickSeries, {
       upColor: '#26a69a',
       downColor: '#ef5350',
       borderUpColor: '#26a69a',
@@ -97,32 +94,35 @@ const Chart = forwardRef(function Chart({ width = '100%', height = 400 }, ref) {
     })
     seriesRef.current = series
 
-    const handleResize = () => {
-      if (chartRef.current && containerRef.current) {
-        chartRef.current.applyOptions({
-          width: containerRef.current.clientWidth,
-        })
-      }
+    let ro = null
+    if (autoSize) {
+      ro = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const { width: w, height: h } = entry.contentRect
+          if (chartRef.current && w > 0 && h > 0) {
+            chartRef.current.applyOptions({ width: w, height: h })
+          }
+        }
+      })
+      ro.observe(el)
     }
-    window.addEventListener('resize', handleResize)
 
     return () => {
-      window.removeEventListener('resize', handleResize)
+      if (ro) ro.disconnect()
       chart.remove()
       chartRef.current = null
       seriesRef.current = null
     }
-  }, [width, height])
+  }, [autoSize, width, height])
 
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        width: typeof width === 'number' ? `${width}px` : width,
-        height: `${height}px`,
-      }}
-    />
-  )
+  const containerStyle = autoSize
+    ? { width: '100%', height: '100%', minHeight: '200px' }
+    : {
+        width: typeof width === 'number' ? `${width}px` : (width ?? '100%'),
+        height: typeof height === 'number' ? `${height}px` : (height ?? '400px'),
+      }
+
+  return <div ref={containerRef} style={containerStyle} />
 })
 
 export default Chart
