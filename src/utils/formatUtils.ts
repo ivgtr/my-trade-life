@@ -19,3 +19,11 @@ export function formatDate(date: Date): string {
 export function formatPercent(value: number): string {
   return `${(value * 100).toFixed(1)}%`
 }
+
+/** 損益率を「+4.2%」「-6.6%」形式にフォーマットする */
+export function formatPnlPercent(pnl: number, cost: number): string {
+  if (cost === 0) return '0.0%'
+  const pct = (pnl / cost) * 100
+  const sign = pct > 0 ? '+' : ''
+  return `${sign}${pct.toFixed(1)}%`
+}

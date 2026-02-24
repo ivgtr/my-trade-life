@@ -40,6 +40,10 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   const availableCash = gameState.availableCash ?? gameState.balance
   const creditMargin = gameState.creditMargin ?? availableCash * (maxLeverage - 1)
   const buyingPower = gameState.buyingPower ?? availableCash * maxLeverage
+  const currentPrice = gameState.currentPrice ?? 0
+
+  const totalMargin = positions.reduce((sum, p) => sum + (p.margin ?? 0), 0)
+  const effectiveBalance = availableCash + unrealizedPnL + totalMargin
 
   const handleTimeframeChange = useCallback((tf: Timeframe) => {
     setTimeframe(tf)
@@ -83,6 +87,16 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     </div>
   )
 
+  const effectiveBalanceDisplay = (
+    <span>
+      有効{' '}
+      {formatCurrency(effectiveBalance)}
+      (<span className={unrealizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
+        {unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(unrealizedPnL)}
+      </span>)
+    </span>
+  )
+
   if (isMobile) {
     return (
       <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
@@ -96,9 +110,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
           </div>
           <div className="flex justify-between items-center w-full text-xs">
             <span>余力: {formatCurrency(buyingPower)}</span>
-            <span className={unrealizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
-              含み: {formatCurrency(unrealizedPnL)}
-            </span>
+            {effectiveBalanceDisplay}
           </div>
         </div>
 
@@ -134,6 +146,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
         </div>
 
         <TradePanel
+          currentPrice={currentPrice}
           availableCash={availableCash}
           creditMargin={creditMargin}
           buyingPower={buyingPower}
@@ -156,9 +169,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
       <div className="flex justify-between items-center px-4 py-2 bg-bg-panel border-b border-bg-elevated text-sm shrink-0">
         <span className="text-lg font-bold">{gameTime}</span>
         <span>余力: {formatCurrency(buyingPower)}</span>
-        <span className={unrealizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
-          含み: {formatCurrency(unrealizedPnL)}
-        </span>
+        {effectiveBalanceDisplay}
         <div className="flex gap-2">
           {timeframeButtons}
           {speedButtons}
@@ -176,6 +187,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
 
         <div className="w-75 shrink-0 overflow-y-auto overflow-x-hidden border-l border-bg-elevated">
           <TradePanel
+            currentPrice={currentPrice}
             availableCash={availableCash}
             creditMargin={creditMargin}
             buyingPower={buyingPower}
