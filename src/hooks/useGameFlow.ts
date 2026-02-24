@@ -108,13 +108,21 @@ export function useGameFlow(): UseGameFlowReturn {
 
     const dayOfWeek = date.getDay()
     if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+      handleWeekday(date)
+    } else if (dayOfWeek === 6) {
+      handleSaturday()
+    } else {
+      advanceFromCalendarRef.current()
+    }
+
+    function handleWeekday(d: Date) {
       const regime = regimeRef.current
       const growth = growthRef.current
       const level = growth?.getLevel?.() ?? gameState.level ?? 1
 
       const dailyCondition = regime?.generateDailyCondition(level)
       const regimeParams = regime?.getRegimeParams()
-      const month = date.getMonth() + 1
+      const month = d.getMonth() + 1
       const anomalyParams = regime?.getAnomalyParams(month)
       const anomalyInfo = regime?.getVisibleAnomalyInfo(month, level)
 
@@ -138,7 +146,9 @@ export function useGameFlow(): UseGameFlowReturn {
           previewEvent,
         },
       })
-    } else if (dayOfWeek === 6) {
+    }
+
+    function handleSaturday() {
       const news = newsRef.current
       const weekendNews = news?.generateWeekendNews() ?? []
       if (news && weekendNews.length > 0) {
@@ -156,8 +166,6 @@ export function useGameFlow(): UseGameFlowReturn {
           weekendNews,
         },
       })
-    } else {
-      advanceFromCalendarRef.current()
     }
   }, [dispatch, gameState.currentPrice, gameState.level])
 
@@ -179,54 +187,66 @@ export function useGameFlow(): UseGameFlowReturn {
 
   const closeReport = useCallback(() => {
     const cal = calendarRef.current
-    const growth = growthRef.current
 
-    dispatch({
-      type: ACTIONS.RECORD_DAY,
-      payload: {
-        entry: {
-          date: gameState.currentDate,
-          pnl: gameState.sessionPnL ?? 0,
-          trades: gameState.sessionTrades ?? 0,
-          wins: gameState.sessionWins ?? 0,
-          balance: gameState.balance,
-        },
-      },
-    })
+    recordDailyResult()
+    if (checkTerminalConditions()) return
+    if (handleEndOfMonth(cal)) return
 
-    if (growth) {
-      const bonus = growth.addDailyBonus(
-        gameState.sessionTrades ?? 0,
-        gameState.sessionWins ?? 0,
-      )
-      if (bonus.totalExp > 0) {
-        dispatch({ type: ACTIONS.ADD_EXP, payload: { amount: bonus.totalExp } })
-      }
-      const levelResult = growth.checkLevelUp()
-      if (levelResult) {
-        dispatch({
-          type: ACTIONS.LEVEL_UP,
-          payload: {
-            level: levelResult.newLevel,
-            unlockedFeatures: levelResult.newFeatures,
-            maxLeverage: levelResult.newLeverage ?? gameState.maxLeverage,
+    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
+
+    function recordDailyResult() {
+      dispatch({
+        type: ACTIONS.RECORD_DAY,
+        payload: {
+          entry: {
+            date: gameState.currentDate,
+            pnl: gameState.sessionPnL ?? 0,
+            trades: gameState.sessionTrades ?? 0,
+            wins: gameState.sessionWins ?? 0,
+            balance: gameState.balance,
           },
-        })
+        },
+      })
+
+      const growth = growthRef.current
+      if (growth) {
+        const bonus = growth.addDailyBonus(
+          gameState.sessionTrades ?? 0,
+          gameState.sessionWins ?? 0,
+        )
+        if (bonus.totalExp > 0) {
+          dispatch({ type: ACTIONS.ADD_EXP, payload: { amount: bonus.totalExp } })
+        }
+        const levelResult = growth.checkLevelUp()
+        if (levelResult) {
+          dispatch({
+            type: ACTIONS.LEVEL_UP,
+            payload: {
+              level: levelResult.newLevel,
+              unlockedFeatures: levelResult.newFeatures,
+              maxLeverage: levelResult.newLeverage ?? gameState.maxLeverage,
+            },
+          })
+        }
       }
     }
 
-    if (gameState.balance <= 0) {
-      dispatch({ type: ACTIONS.GAME_OVER })
-      return
+    function checkTerminalConditions(): boolean {
+      if (gameState.balance <= 0) {
+        dispatch({ type: ACTIONS.GAME_OVER })
+        return true
+      }
+      if (!gameState.isEndlessMode && gameState.balance >= BILLIONAIRE_THRESHOLD) {
+        dispatch({ type: ACTIONS.BILLIONAIRE })
+        return true
+      }
+      return false
     }
 
-    if (!gameState.isEndlessMode && gameState.balance >= BILLIONAIRE_THRESHOLD) {
-      dispatch({ type: ACTIONS.BILLIONAIRE })
-      return
-    }
+    function handleEndOfMonth(calendar: CalendarSystem | null): boolean {
+      if (!calendar?.isLastBusinessDay?.()) return false
 
-    if (cal?.isLastBusinessDay?.()) {
-      const monthStats = cal.calcMonthlyStats()
+      const monthStats = calendar.calcMonthlyStats()
       const monthPreview = regimeRef.current?.getNextMonthPreview()
       const month = new Date(gameState.currentDate!).getMonth() + 2
       const anomalyInfo = regimeRef.current?.getVisibleAnomalyInfo(
@@ -245,10 +265,8 @@ export function useGameFlow(): UseGameFlowReturn {
         },
       })
       dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'monthlyReport' } })
-      return
+      return true
     }
-
-    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
   }, [dispatch, gameState])
 
   const closeWeekend = useCallback(() => {

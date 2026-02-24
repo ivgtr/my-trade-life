@@ -1,17 +1,13 @@
-import { useRef, useState, useEffect, useCallback } from 'react'
+import { useRef, useState } from 'react'
 import { useGameContext } from '../hooks/useGameContext'
-import { ACTIONS } from '../state/actions'
-import { MarketEngine } from '../engine/MarketEngine'
-import { TradingEngine } from '../engine/TradingEngine'
-import { NewsSystem } from '../engine/NewsSystem'
-import { AudioSystem } from '../systems/AudioSystem'
+import { useSessionEngine } from '../hooks/useSessionEngine'
 import { useResponsive } from '../hooks/useMediaQuery'
 import Chart from '../components/Chart'
 import TradePanel from '../components/TradePanel'
 import TickerTape from '../components/TickerTape'
 import NewsOverlay from '../components/NewsOverlay'
 import { formatCurrency } from '../utils/formatUtils'
-import type { NewsEvent } from '../types/news'
+import type { ChartHandle } from '../components/Chart'
 
 interface SessionScreenProps {
   onEndSession?: (data: { results: unknown; summary: unknown }) => void
@@ -20,129 +16,20 @@ interface SessionScreenProps {
 export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   const { gameState, dispatch } = useGameContext()
   const { isMobile } = useResponsive()
-  const chartRef = useRef<any>(null)
-  const marketEngineRef = useRef<any>(null)
-  const tradingEngineRef = useRef<any>(null)
-  const newsSystemRef = useRef<any>(null)
-  const [ticks, setTicks] = useState<any[]>([])
-  const [gameTime, setGameTime] = useState('09:00')
-  const [activeNews, setActiveNews] = useState<NewsEvent | null>(null)
-  const [speed, setSpeed] = useState(gameState.speed ?? 1)
+  const chartRef = useRef<ChartHandle | null>(null)
   const [mobileTab, setMobileTab] = useState('chart')
 
-  useEffect(() => {
-    const regimeParams = gameState.regimeParams ?? { drift: 0, volMult: 1.0, regime: 'range' as const }
-    const anomalyParams = gameState.anomalyParams ?? { driftBias: 0, volBias: 1.0, tendency: '' }
-    const openPrice = gameState.currentPrice ?? 30000
-
-    const newsSystem = new NewsSystem({
-      currentRegime: regimeParams.regime ?? 'range',
-      onNewsTriggered: (event) => {
-        setActiveNews(event)
-        const force = newsSystem.getExternalForce(event)
-        if (marketEngineRef.current) {
-          marketEngineRef.current.injectExternalForce(force)
-        }
-      },
-    })
-    newsSystem.scheduleSessionEvents(180000)
-    newsSystemRef.current = newsSystem
-
-    const tradingEngine = new TradingEngine({
-      balance: gameState.balance,
-      maxLeverage: gameState.maxLeverage ?? 1,
-    })
-    tradingEngineRef.current = tradingEngine
-
-    const marketEngine = new MarketEngine({
-      openPrice,
-      regimeParams,
-      anomalyParams,
-      speed,
-      onTick: (tickData) => {
-        chartRef.current?.updateTick(tickData)
-        setTicks((prev) => [...prev.slice(-99), tickData])
-
-        const time = marketEngineRef.current?.getCurrentTime()
-        if (time) setGameTime(time.formatted)
-
-        const { total: unrealizedPnL } = tradingEngine.recalculateUnrealized(tickData.price)
-
-        dispatch({
-          type: ACTIONS.TICK_UPDATE,
-          payload: {
-            currentPrice: tickData.price,
-            unrealizedPnL,
-            positions: tradingEngine.getPositions(),
-          },
-        })
-
-        newsSystem.checkTriggers(tickData.timestamp)
-      },
-      onSessionEnd: () => {
-        const results = tradingEngine.forceCloseAll(marketEngine.getCurrentTime().totalMinutes)
-        const summary = tradingEngine.getDailySummary()
-
-        if (onEndSession) {
-          onEndSession({ results, summary })
-        } else {
-          dispatch({
-            type: ACTIONS.END_SESSION,
-            payload: { results, summary },
-          })
-          dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'report' } })
-        }
-      },
-    })
-    marketEngineRef.current = marketEngine
-    marketEngine.start()
-
-    dispatch({ type: ACTIONS.START_SESSION })
-
-    return () => {
-      marketEngine.stop()
-    }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleBuy = useCallback((shares: number, leverage: number) => {
-    const te = tradingEngineRef.current
-    if (!te) return
-    const pos = te.openPosition('LONG', shares, gameState.currentPrice, leverage)
-    if (pos) {
-      dispatch({ type: ACTIONS.OPEN_POSITION, payload: { position: pos } })
-      AudioSystem.playSE('entry')
-    }
-  }, [gameState.currentPrice, dispatch])
-
-  const handleSell = useCallback((shares: number, leverage: number) => {
-    const te = tradingEngineRef.current
-    if (!te) return
-    const pos = te.openPosition('SHORT', shares, gameState.currentPrice, leverage)
-    if (pos) {
-      dispatch({ type: ACTIONS.OPEN_POSITION, payload: { position: pos } })
-      AudioSystem.playSE('entry')
-    }
-  }, [gameState.currentPrice, dispatch])
-
-  const handleClose = useCallback((positionId: string) => {
-    const te = tradingEngineRef.current
-    if (!te) return
-    const result = te.closePosition(positionId, gameState.currentPrice)
-    if (result) {
-      dispatch({ type: ACTIONS.CLOSE_POSITION, payload: result })
-      AudioSystem.playSE(result.pnl >= 0 ? 'profit' : 'loss')
-    }
-  }, [gameState.currentPrice, dispatch])
-
-  const handleSpeedChange = (newSpeed: number) => {
-    setSpeed(newSpeed)
-    marketEngineRef.current?.setSpeed(newSpeed)
-    dispatch({ type: ACTIONS.SET_SPEED, payload: { speed: newSpeed } })
-  }
-
-  const handleNewsComplete = useCallback(() => {
-    setActiveNews(null)
-  }, [])
+  const {
+    ticks,
+    gameTime,
+    activeNews,
+    speed,
+    handleBuy,
+    handleSell,
+    handleClose,
+    handleSpeedChange,
+    handleNewsComplete,
+  } = useSessionEngine({ gameState, dispatch, chartRef, onEndSession })
 
   const unrealizedPnL = gameState.unrealizedPnL ?? 0
   const positions = gameState.positions ?? []
