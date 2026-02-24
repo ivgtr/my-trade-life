@@ -9,125 +9,6 @@ interface ImportExportModalProps {
   gameState: GameState
 }
 
-const styles = {
-  overlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 500,
-  },
-  modal: {
-    backgroundColor: '#1a1a2e',
-    color: '#e0e0e0',
-    padding: '24px',
-    borderRadius: '12px',
-    minWidth: '360px',
-    maxWidth: '440px',
-    boxShadow: '0 4px 24px rgba(0, 0, 0, 0.5)',
-  },
-  title: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    marginBottom: '16px',
-    textAlign: 'center',
-  },
-  tabs: {
-    display: 'flex',
-    marginBottom: '16px',
-    borderBottom: '1px solid #3a3a4e',
-  },
-  tab: {
-    flex: 1,
-    padding: '8px',
-    textAlign: 'center',
-    cursor: 'pointer',
-    fontSize: '14px',
-    backgroundColor: 'transparent',
-    color: '#a0a0b0',
-    border: 'none',
-    borderBottom: '2px solid transparent',
-  },
-  tabActive: {
-    color: '#e0e0e0',
-    borderBottomColor: '#6366f1',
-  },
-  button: {
-    display: 'block',
-    width: '100%',
-    padding: '10px',
-    backgroundColor: '#6366f1',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    marginBottom: '8px',
-  },
-  buttonSecondary: {
-    display: 'block',
-    width: '100%',
-    padding: '10px',
-    backgroundColor: '#3a3a4e',
-    color: '#e0e0e0',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    marginBottom: '8px',
-  },
-  buttonDanger: {
-    backgroundColor: '#ef5350',
-    color: '#fff',
-  },
-  message: {
-    padding: '12px',
-    borderRadius: '6px',
-    marginBottom: '12px',
-    fontSize: '13px',
-  },
-  warning: {
-    backgroundColor: 'rgba(255, 193, 7, 0.15)',
-    color: '#ffc107',
-    border: '1px solid rgba(255, 193, 7, 0.3)',
-  },
-  error: {
-    backgroundColor: 'rgba(239, 83, 80, 0.15)',
-    color: '#ef5350',
-    border: '1px solid rgba(239, 83, 80, 0.3)',
-  },
-  success: {
-    backgroundColor: 'rgba(38, 166, 154, 0.15)',
-    color: '#26a69a',
-    border: '1px solid rgba(38, 166, 154, 0.3)',
-  },
-  fileInput: {
-    display: 'none',
-  },
-  closeRow: {
-    marginTop: '12px',
-    textAlign: 'center',
-  },
-  closeButton: {
-    padding: '8px 16px',
-    backgroundColor: 'transparent',
-    color: '#a0a0b0',
-    border: '1px solid #3a3a4e',
-    borderRadius: '6px',
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-} as const
-
-/**
- * Import/Exportモーダル。
- * セーブデータのJSONエクスポート・インポートを行う。
- */
 export default function ImportExportModal({ onImportSuccess, onClose, gameState }: ImportExportModalProps) {
   const [activeTab, setActiveTab] = useState<'export' | 'import'>('export')
   const [importResult, setImportResult] = useState<(ImportResult & { _done?: boolean }) | null>(null)
@@ -152,7 +33,6 @@ export default function ImportExportModal({ onImportSuccess, onClose, gameState 
       setPendingData(result.data as any)
     }
 
-    // ファイル入力をリセット
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -170,91 +50,103 @@ export default function ImportExportModal({ onImportSuccess, onClose, gameState 
   }
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        <div style={styles.title}>データ管理</div>
+    <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-[var(--z-modal)]">
+      <div className="bg-bg-panel text-text-primary p-6 rounded-xl min-w-[360px] max-w-[440px] shadow-[0_4px_24px_rgba(0,0,0,0.5)]">
+        <div className="text-lg font-bold mb-4 text-center">データ管理</div>
 
-        {/* タブ */}
-        <div style={styles.tabs}>
+        <div className="flex mb-4 border-b border-bg-button">
           <button
-            style={{ ...styles.tab, ...(activeTab === 'export' ? styles.tabActive : {}) }}
+            className={`flex-1 p-2 text-center cursor-pointer text-sm bg-transparent border-none border-b-2 ${
+              activeTab === 'export'
+                ? 'text-text-primary border-b-accent'
+                : 'text-text-secondary border-b-transparent'
+            }`}
             onClick={() => { setActiveTab('export'); setImportResult(null); setPendingData(null) }}
           >
             Export
           </button>
           <button
-            style={{ ...styles.tab, ...(activeTab === 'import' ? styles.tabActive : {}) }}
+            className={`flex-1 p-2 text-center cursor-pointer text-sm bg-transparent border-none border-b-2 ${
+              activeTab === 'import'
+                ? 'text-text-primary border-b-accent'
+                : 'text-text-secondary border-b-transparent'
+            }`}
             onClick={() => { setActiveTab('import'); setImportResult(null); setPendingData(null) }}
           >
             Import
           </button>
         </div>
 
-        {/* Export タブ */}
         {activeTab === 'export' && (
-          <button style={styles.button} onClick={handleExport}>
+          <button
+            className="block w-full p-2.5 bg-accent text-white border-none rounded-md text-sm cursor-pointer mb-2"
+            onClick={handleExport}
+          >
             JSONファイルをダウンロード
           </button>
         )}
 
-        {/* Import タブ */}
         {activeTab === 'import' && (
           <>
             <input
               ref={fileInputRef}
               type="file"
               accept=".json"
-              style={styles.fileInput}
+              className="hidden"
               onChange={handleFileSelect}
             />
             <button
-              style={styles.button}
+              className="block w-full p-2.5 bg-accent text-white border-none rounded-md text-sm cursor-pointer mb-2"
               onClick={() => fileInputRef.current?.click()}
             >
               ファイルを選択
             </button>
 
-            {/* インポート結果表示 */}
             {importResult && importResult.status === 'parseError' && (
-              <div style={{ ...styles.message, ...styles.error }}>
+              <div className="p-3 rounded-md mb-3 text-[13px] bg-loss/15 text-loss border border-loss/30">
                 {importResult.warning}
               </div>
             )}
 
             {importResult && importResult.status === 'unknownVersion' && (
-              <div style={{ ...styles.message, ...styles.error }}>
+              <div className="p-3 rounded-md mb-3 text-[13px] bg-loss/15 text-loss border border-loss/30">
                 {importResult.warning}
               </div>
             )}
 
             {importResult && importResult.status === 'tampered' && pendingData && (
               <>
-                <div style={{ ...styles.message, ...styles.warning }}>
+                <div className="p-3 rounded-md mb-3 text-[13px] bg-warning/15 text-warning border border-warning/30">
                   {importResult.warning}
                 </div>
                 <button
-                  style={{ ...styles.button, ...styles.buttonDanger }}
+                  className="block w-full p-2.5 bg-loss text-white border-none rounded-md text-sm cursor-pointer mb-2"
                   onClick={handleContinueTampered}
                 >
                   続行する
                 </button>
-                <button style={styles.buttonSecondary} onClick={handleCancelImport}>
+                <button
+                  className="block w-full p-2.5 bg-bg-button text-text-primary border-none rounded-md text-sm cursor-pointer mb-2"
+                  onClick={handleCancelImport}
+                >
                   キャンセル
                 </button>
               </>
             )}
 
             {importResult && importResult._done && (
-              <div style={{ ...styles.message, ...styles.success }}>
+              <div className="p-3 rounded-md mb-3 text-[13px] bg-profit/15 text-profit border border-profit/30">
                 インポートに成功しました
               </div>
             )}
           </>
         )}
 
-        {/* 閉じるボタン */}
-        <div style={styles.closeRow}>
-          <button style={styles.closeButton} onClick={onClose}>
+        <div className="mt-3 text-center">
+          <button
+            className="py-2 px-4 bg-transparent text-text-secondary border border-bg-button rounded-md text-[13px] cursor-pointer"
+            onClick={onClose}
+          >
             タイトルへ戻る
           </button>
         </div>

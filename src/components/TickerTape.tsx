@@ -7,58 +7,20 @@ interface TickerTapeProps {
   compact?: boolean
 }
 
-function getStyles(compact: boolean) {
-  const fontSize = compact ? '11px' : '12px'
-  const padding = compact ? '2px' : '8px'
-
-  return {
-    container: {
-      backgroundColor: '#1a1a2e',
-      color: '#e0e0e0',
-      padding,
-      fontFamily: 'monospace',
-      fontSize,
-      height: '100%',
-      overflowY: 'auto',
-      overflowX: 'hidden',
-    } as const,
-    title: {
-      fontSize,
-      color: '#a0a0b0',
-      marginBottom: '4px',
-      borderBottom: '1px solid #2a2a3e',
-      paddingBottom: '4px',
-    },
-    row: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      padding: compact ? '1px 2px' : '2px 4px',
-      borderBottom: '1px solid #1e1e30',
-    },
-    time: {
-      color: '#a0a0b0',
-      minWidth: compact ? '36px' : '42px',
-    },
-    volume: {
-      color: '#a0a0b0',
-      minWidth: compact ? '40px' : '50px',
-      textAlign: 'right',
-    } as const,
-    up: { color: '#26a69a' },
-    down: { color: '#ef5350' },
-    neutral: { color: '#a0a0b0' },
-  }
-}
-
 function formatTime(timestamp: number) {
   const hours = Math.floor(timestamp / 60)
   const minutes = Math.floor(timestamp % 60)
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
 }
 
+function getPriceClass(current: number, prev: number) {
+  if (current > prev) return 'text-profit'
+  if (current < prev) return 'text-loss'
+  return 'text-text-secondary'
+}
+
 export default function TickerTape({ ticks, maxDisplay = 50, compact = false }: TickerTapeProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const styles = getStyles(compact)
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -71,19 +33,33 @@ export default function TickerTape({ ticks, maxDisplay = 50, compact = false }: 
   const displayTicks = ticks.slice(-maxDisplay)
 
   return (
-    <div style={styles.container} ref={scrollRef}>
-      <div style={styles.title}>歩み値</div>
+    <div
+      ref={scrollRef}
+      className={`bg-bg-panel text-text-primary font-mono h-full overflow-y-auto overflow-x-hidden ${
+        compact ? 'p-0.5 text-[11px]' : 'p-2 text-xs'
+      }`}
+    >
+      <div className={`text-text-secondary mb-1 border-b border-bg-elevated pb-1 ${compact ? 'text-[11px]' : 'text-xs'}`}>
+        歩み値
+      </div>
       {displayTicks.map((tick, i) => {
         const prevPrice = i > 0 ? displayTicks[i - 1].price : tick.price
-        let priceStyle = styles.neutral
-        if (tick.price > prevPrice) priceStyle = styles.up
-        else if (tick.price < prevPrice) priceStyle = styles.down
+        const priceClass = getPriceClass(tick.price, prevPrice)
 
         return (
-          <div key={i} style={styles.row}>
-            <span style={styles.time}>{formatTime(tick.timestamp)}</span>
-            <span style={priceStyle}>{formatCurrency(tick.price)}</span>
-            <span style={styles.volume}>{tick.volume.toLocaleString()}</span>
+          <div
+            key={i}
+            className={`flex justify-between border-b border-border-ticker ${
+              compact ? 'py-px px-0.5' : 'py-0.5 px-1'
+            }`}
+          >
+            <span className={`text-text-secondary ${compact ? 'min-w-9' : 'min-w-[42px]'}`}>
+              {formatTime(tick.timestamp)}
+            </span>
+            <span className={priceClass}>{formatCurrency(tick.price)}</span>
+            <span className={`text-text-secondary text-right ${compact ? 'min-w-10' : 'min-w-[50px]'}`}>
+              {tick.volume.toLocaleString()}
+            </span>
           </div>
         )
       })}

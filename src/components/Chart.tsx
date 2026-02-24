@@ -35,14 +35,6 @@ const CHART_OPTIONS = {
   },
 }
 
-/**
- * lightweight-charts v5 ラッパーコンポーネント。
- * TickDataを受けてリアルタイム更新する。React再レンダリングを回避するため
- * ref経由でupdateTick/resetを公開する。
- *
- * autoSize=true（デフォルト）: ResizeObserverで親コンテナに完全追従。
- * 親に width/height を CSS で指定すること（flex:1 等）。
- */
 const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = true, width, height }, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null)
@@ -126,14 +118,20 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
     }
   }, [autoSize, width, height])
 
-  const containerStyle = autoSize
-    ? { width: '100%', height: '100%', minHeight: '200px' }
-    : {
-        width: typeof width === 'number' ? `${width}px` : (width ?? '100%'),
-        height: typeof height === 'number' ? `${height}px` : (height ?? '400px'),
+  return (
+    <div
+      ref={containerRef}
+      className={autoSize ? 'w-full h-full min-h-[200px]' : ''}
+      style={
+        autoSize
+          ? undefined
+          : {
+              width: typeof width === 'number' ? `${width}px` : (width ?? '100%'),
+              height: typeof height === 'number' ? `${height}px` : (height ?? '400px'),
+            }
       }
-
-  return <div ref={containerRef} style={containerStyle} />
+    />
+  )
 })
 
 export default Chart

@@ -1,112 +1,32 @@
 import { useEffect, useState, useRef } from 'react'
 import { AudioSystem } from '../systems/AudioSystem'
-import { useResponsive } from '../hooks/useMediaQuery'
 
 interface NewsOverlayProps {
   newsEvent?: { id: string; headline: string } | null
   onComplete?: () => void
 }
 
-/** 前兆フェーズの実時間（ms） */
 const PREMONITION_DURATION = 1500
-/** テロップフェーズの実時間（ms） */
 const TICKER_DURATION = 2500
-/** フェードアウトフェーズの実時間（ms） */
 const FADEOUT_DURATION = 500
 
-const overlayBase = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  width: '100%',
-  height: '100%',
-  pointerEvents: 'none',
-  zIndex: 1000,
-} as const
-
-const flashStyle = {
-  ...overlayBase,
-  backgroundColor: 'rgba(200, 30, 30, 0.12)',
-}
-
-const tickerContainerStyle = {
-  position: 'fixed',
-  top: '20%',
-  left: 0,
-  width: '100%',
-  zIndex: 1001,
-  pointerEvents: 'none',
-  overflow: 'hidden',
-} as const
-
-const tickerTextBase = {
-  display: 'inline-block',
-  whiteSpace: 'nowrap',
-  fontSize: '28px',
-  fontWeight: 'bold',
-  color: '#ff4444',
-  textShadow: '0 0 10px rgba(255, 68, 68, 0.6), 0 2px 4px rgba(0,0,0,0.8)',
-  padding: '12px 24px',
-  backgroundColor: 'rgba(0, 0, 0, 0.85)',
-  borderTop: '2px solid #ff4444',
-  borderBottom: '2px solid #ff4444',
-}
-
-let injectedStyle = false
-function injectShakeStyle() {
-  if (injectedStyle) return
-  injectedStyle = true
-  const style = document.createElement('style')
-  style.textContent = `
-    @keyframes newsShake {
-      0%, 100% { transform: translate(0, 0); }
-      10% { transform: translate(-2px, 1px); }
-      20% { transform: translate(2px, -1px); }
-      30% { transform: translate(-1px, 2px); }
-      40% { transform: translate(1px, -2px); }
-      50% { transform: translate(-2px, 0); }
-      60% { transform: translate(2px, 1px); }
-      70% { transform: translate(-1px, -1px); }
-      80% { transform: translate(1px, 2px); }
-      90% { transform: translate(0, -1px); }
-    }
-    @keyframes newsTickerScroll {
-      0% { transform: translateX(100vw); }
-      100% { transform: translateX(-100%); }
-    }
-  `
-  document.head.appendChild(style)
-}
-
-/**
- * ブレイキングニュース演出オーバーレイ。
- * 前兆→テロップ→フェードアウトの演出シーケンスを実時間固定で再生する。
- */
 export default function NewsOverlay({ newsEvent, onComplete }: NewsOverlayProps) {
   type Phase = 'idle' | 'premonition' | 'ticker' | 'fadeout'
   const [phase, setPhase] = useState<Phase>('idle')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const eventIdRef = useRef<string | null>(null)
-  const { isMobile } = useResponsive()
-
-  useEffect(() => {
-    injectShakeStyle()
-  }, [])
 
   useEffect(() => {
     if (!newsEvent || newsEvent.id === eventIdRef.current) return
     eventIdRef.current = newsEvent.id
 
-    // 前兆フェーズ開始
     setPhase('premonition')
 
     timerRef.current = setTimeout(() => {
-      // テロップフェーズ開始 + SE発火
       setPhase('ticker')
       AudioSystem.playSE('news')
 
       timerRef.current = setTimeout(() => {
-        // フェードアウト
         setPhase('fadeout')
 
         timerRef.current = setTimeout(() => {
@@ -126,31 +46,20 @@ export default function NewsOverlay({ newsEvent, onComplete }: NewsOverlayProps)
 
   return (
     <>
-      {/* 前兆フェーズ: 赤フラッシュ + 微振動 */}
       {phase === 'premonition' && (
-        <div
-          style={{
-            ...flashStyle,
-            animation: 'newsShake 0.15s infinite',
-          }}
-        />
+        <div className="fixed inset-0 pointer-events-none z-[var(--z-news)] bg-[rgba(200,30,30,0.12)] animate-news-shake" />
       )}
 
-      {/* テロップフェーズ */}
       {(phase === 'ticker' || phase === 'fadeout') && (
         <div
+          className="fixed top-[20%] left-0 w-full z-[var(--z-news-ticker)] pointer-events-none overflow-hidden"
           style={{
-            ...tickerContainerStyle,
             opacity: phase === 'fadeout' ? 0 : 1,
             transition: `opacity ${FADEOUT_DURATION}ms ease-out`,
           }}
         >
           <span
-            style={{
-              ...tickerTextBase,
-              fontSize: isMobile ? '18px' : '28px',
-              animation: `newsTickerScroll ${TICKER_DURATION}ms linear`,
-            }}
+            className="inline-block whitespace-nowrap text-lg sm:text-[28px] font-bold text-news-red [text-shadow:0_0_10px_rgba(255,68,68,0.6),0_2px_4px_rgba(0,0,0,0.8)] py-3 px-6 bg-black/85 border-y-2 border-news-red animate-news-ticker-scroll"
           >
             ⚡ {newsEvent?.headline}
           </span>
