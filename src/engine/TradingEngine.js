@@ -2,9 +2,9 @@
  * @typedef {Object} Position
  * @property {string} id - ポジションID (uuid)
  * @property {'LONG'|'SHORT'} direction - 売買方向
- * @property {number} lots - ロット数
+ * @property {number} shares - 株数
  * @property {number} entryPrice - エントリー価格
- * @property {number} leverage - レバレッジ倍率
+ * @property {number} leverage - 信用倍率
  * @property {number} margin - 確保証拠金
  * @property {number} unrealizedPnL - 含み損益
  */
@@ -34,17 +34,14 @@
  * @property {TradeResult[]} closedTrades - 決済済みトレード一覧
  */
 
-/** 1ロットあたり金額単位（円） */
-const UNIT_AMOUNT = 10_000
-
 /**
- * トレードエンジン。
+ * トレードエンジン（ETF信用取引モデル）。
  * ポジション管理・損益計算を担う engine 層の中核コンポーネント。
  */
 export class TradingEngine {
   /** @type {number} 利用可能残高（証拠金差引後） */
   #balance
-  /** @type {number} 最大レバレッジ倍率 */
+  /** @type {number} 最大信用倍率 */
   #maxLeverage
   /** @type {Map<string, Position>} 保有ポジション（ID検索 O(1)） */
   #positions
@@ -54,7 +51,7 @@ export class TradingEngine {
   /**
    * @param {Object} config
    * @param {number} config.balance - 現在の残高
-   * @param {number} config.maxLeverage - 現在の最大レバレッジ倍率
+   * @param {number} config.maxLeverage - 現在の最大信用倍率
    */
   constructor({ balance, maxLeverage }) {
     this.#balance = balance
@@ -64,45 +61,45 @@ export class TradingEngine {
   }
 
   /**
-   * 証拠金を計算する
-   * @param {number} lots - ロット数
-   * @param {number} leverage - レバレッジ倍率
+   * 証拠金を計算する（ETF信用取引: 株数 × 価格 / 信用倍率）
+   * @param {number} shares - 株数
+   * @param {number} price - 現在価格
+   * @param {number} leverage - 信用倍率
    * @returns {number} 必要証拠金
    */
-  #calcMargin(lots, leverage) {
-    return lots * UNIT_AMOUNT / leverage
+  #calcMargin(shares, price, leverage) {
+    return shares * price / leverage
   }
 
   /**
-   * 損益を計算する
+   * 損益を計算する（ETF信用取引: 価格差 × 株数）
    * @param {'LONG'|'SHORT'} direction - 売買方向
    * @param {number} entryPrice - エントリー価格
    * @param {number} exitPrice - 決済価格
-   * @param {number} lots - ロット数
-   * @param {number} leverage - レバレッジ倍率
+   * @param {number} shares - 株数
    * @returns {number} 損益額
    */
-  #calcPnL(direction, entryPrice, exitPrice, lots, leverage) {
+  #calcPnL(direction, entryPrice, exitPrice, shares) {
     const diff = direction === 'LONG'
-      ? (exitPrice - entryPrice) / entryPrice
-      : (entryPrice - exitPrice) / entryPrice
-    return diff * lots * UNIT_AMOUNT * leverage
+      ? exitPrice - entryPrice
+      : entryPrice - exitPrice
+    return diff * shares
   }
 
   /**
    * ポジションを新規建てする
    * @param {'LONG'|'SHORT'} direction - 売買方向
-   * @param {number} lots - ロット数（1万円単位）
+   * @param {number} shares - 株数
    * @param {number} price - エントリー価格
-   * @param {number} leverage - レバレッジ倍率
+   * @param {number} leverage - 信用倍率
    * @returns {Position|null} 成功時はPosition、残高不足またはバリデーション失敗時はnull
    */
-  openPosition(direction, lots, price, leverage) {
+  openPosition(direction, shares, price, leverage) {
     if (direction !== 'LONG' && direction !== 'SHORT') return null
-    if (lots <= 0 || price <= 0) return null
+    if (shares <= 0 || price <= 0) return null
     if (leverage < 1 || leverage > this.#maxLeverage) return null
 
-    const margin = this.#calcMargin(lots, leverage)
+    const margin = this.#calcMargin(shares, price, leverage)
     if (margin > this.#balance) return null
 
     this.#balance -= margin
@@ -111,7 +108,7 @@ export class TradingEngine {
     const position = {
       id,
       direction,
-      lots,
+      shares,
       entryPrice: price,
       leverage,
       margin,
@@ -136,8 +133,7 @@ export class TradingEngine {
       position.direction,
       position.entryPrice,
       price,
-      position.lots,
-      position.leverage
+      position.shares
     )
 
     this.#balance += position.margin + pnl
@@ -182,8 +178,7 @@ export class TradingEngine {
         position.direction,
         position.entryPrice,
         currentPrice,
-        position.lots,
-        position.leverage
+        position.shares
       )
       position.unrealizedPnL = pnl
       total += pnl

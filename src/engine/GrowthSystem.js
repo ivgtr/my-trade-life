@@ -53,27 +53,27 @@ const UNLOCK_TABLE = {
   },
   3: {
     features: ['dailySentimentValue'],
-    leverage: 3,
+    leverage: 2,
     label: '地合い実強度数値',
   },
   4: {
     features: ['anomalyDisplay'],
-    leverage: 5,
+    leverage: 3,
     label: '月次アノマリー表示',
   },
   5: {
     features: ['newsProbIndicator'],
-    leverage: 10,
+    leverage: 3.3,
     label: 'ニュース発生確率',
   },
   6: {
     features: ['anomalyEffective'],
-    leverage: 25,
+    leverage: null,
     label: 'アノマリー実効強度',
   },
   7: {
     features: ['regimeTransition'],
-    leverage: 50,
+    leverage: null,
     label: 'レジーム遷移予兆',
   },
   8: {
@@ -83,8 +83,8 @@ const UNLOCK_TABLE = {
   },
 }
 
-/** レベルごとの最大レバレッジ（UNLOCK_TABLEから算出済み） */
-const LEVERAGE_BY_LEVEL = { 1: 1, 2: 1, 3: 3, 4: 5, 5: 10, 6: 25, 7: 50, 8: 50 }
+/** レベルごとの最大信用倍率（UNLOCK_TABLEから算出済み） */
+const LEVERAGE_BY_LEVEL = { 1: 1, 2: 1, 3: 2, 4: 3, 5: 3.3, 6: 3.3, 7: 3.3, 8: 3.3 }
 
 /**
  * プレイヤーの成長（経験値・レベル・機能解放）を管理するクラス。
