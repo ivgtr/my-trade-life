@@ -1,8 +1,9 @@
 import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { createChart, CandlestickSeries } from 'lightweight-charts'
-import type { CandlestickData, UTCTimestamp } from 'lightweight-charts'
+import type { CandlestickData } from 'lightweight-charts'
 import type { TickData, Timeframe } from '../types'
 import { ConfigManager } from '../systems/ConfigManager'
+import { asGameMinutes, toBarTime, formatChartTime } from '../utils/chartTime'
 
 interface ChartProps {
   autoSize?: boolean
@@ -16,16 +17,10 @@ export interface ChartHandle {
   reset: () => void
 }
 
-function formatGameTime(minutes: number): string {
-  const h = Math.floor(minutes / 60)
-  const m = minutes % 60
-  return `${String(h).padStart(2, '0')}:${String(Math.floor(m)).padStart(2, '0')}`
-}
-
 function buildBarsFromHistory(history: TickData[], tf: Timeframe): CandlestickData[] {
   const bars = new Map<number, CandlestickData>()
   for (const tick of history) {
-    const barTime = Math.floor(tick.timestamp / tf) * tf
+    const barTime = toBarTime(asGameMinutes(tick.timestamp), tf)
     const existing = bars.get(barTime)
     if (existing) {
       existing.high = Math.max(existing.high, tick.high)
@@ -33,7 +28,7 @@ function buildBarsFromHistory(history: TickData[], tf: Timeframe): CandlestickDa
       existing.close = tick.price
     } else {
       bars.set(barTime, {
-        time: barTime as UTCTimestamp,
+        time: barTime,
         open: tick.price,
         high: tick.high,
         low: tick.low,
@@ -57,13 +52,13 @@ const CHART_OPTIONS = {
     mode: 0 as const,
   },
   localization: {
-    timeFormatter: (time: number) => formatGameTime(time),
+    timeFormatter: (time: number) => formatChartTime(time),
   },
   timeScale: {
     timeVisible: true,
     secondsVisible: false,
     borderColor: '#2a2a3e',
-    tickMarkFormatter: (time: number) => formatGameTime(time),
+    tickMarkFormatter: (time: number) => formatChartTime(time),
   },
   rightPriceScale: {
     borderColor: '#2a2a3e',
@@ -83,7 +78,7 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
 
       const { price, high, low, timestamp } = tickData
       const tf = timeframeRef.current
-      const barTime = (Math.floor(timestamp / tf) * tf) as UTCTimestamp
+      const barTime = toBarTime(asGameMinutes(timestamp), tf)
 
       if (!currentBarRef.current || currentBarRef.current.time !== barTime) {
         currentBarRef.current = {
