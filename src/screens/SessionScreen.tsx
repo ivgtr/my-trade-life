@@ -33,7 +33,10 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
 
   const unrealizedPnL = gameState.unrealizedPnL ?? 0
   const positions = gameState.positions ?? []
-  const leverageOptions = [1, 2, 3, 3.3].filter((l) => l <= (gameState.maxLeverage ?? 1))
+  const maxLeverage = gameState.maxLeverage ?? 1
+  const availableCash = gameState.availableCash ?? gameState.balance
+  const creditMargin = gameState.creditMargin ?? availableCash * (maxLeverage - 1)
+  const buyingPower = gameState.buyingPower ?? availableCash * maxLeverage
 
   const speedButtons = (
     <div className="flex gap-1">
@@ -65,7 +68,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
             {speedButtons}
           </div>
           <div className="flex justify-between items-center w-full text-xs">
-            <span>残高: {formatCurrency(gameState.balance)}</span>
+            <span>余力: {formatCurrency(buyingPower)}</span>
             <span className={unrealizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
               含み: {formatCurrency(unrealizedPnL)}
             </span>
@@ -104,11 +107,12 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
         </div>
 
         <TradePanel
-          balance={gameState.balance}
+          availableCash={availableCash}
+          creditMargin={creditMargin}
+          buyingPower={buyingPower}
+          maxLeverage={maxLeverage}
           unrealizedPnL={unrealizedPnL}
           positions={positions}
-          maxLeverage={gameState.maxLeverage ?? 1}
-          unlockedLeverages={leverageOptions}
           onBuy={handleBuy}
           onSell={handleSell}
           onClose={handleClose}
@@ -124,7 +128,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
       <div className="flex justify-between items-center px-4 py-2 bg-bg-panel border-b border-bg-elevated text-sm shrink-0">
         <span className="text-lg font-bold">{gameTime}</span>
-        <span>残高: {formatCurrency(gameState.balance)}</span>
+        <span>余力: {formatCurrency(buyingPower)}</span>
         <span className={unrealizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
           含み: {formatCurrency(unrealizedPnL)}
         </span>
@@ -142,11 +146,12 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
 
         <div className="w-75 shrink-0 overflow-y-auto overflow-x-hidden border-l border-bg-elevated">
           <TradePanel
-            balance={gameState.balance}
+            availableCash={availableCash}
+            creditMargin={creditMargin}
+            buyingPower={buyingPower}
+            maxLeverage={maxLeverage}
             unrealizedPnL={unrealizedPnL}
             positions={positions}
-            maxLeverage={gameState.maxLeverage ?? 1}
-            unlockedLeverages={leverageOptions}
             onBuy={handleBuy}
             onSell={handleSell}
             onClose={handleClose}

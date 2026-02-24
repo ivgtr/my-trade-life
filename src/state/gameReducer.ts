@@ -64,6 +64,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       const p = payload as NonNullable<typeof payload> & {
         currentPrice: number
         unrealizedPnL: number
+        availableCash?: number
+        creditMargin?: number
+        buyingPower?: number
         positions?: GameState['positions']
         dailyCondition?: GameState['dailyCondition']
         regimeParams?: GameState['regimeParams']
@@ -80,6 +83,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         currentPrice: p.currentPrice,
         unrealizedPnL: p.unrealizedPnL,
+        ...(p.availableCash !== undefined && { availableCash: p.availableCash }),
+        ...(p.creditMargin !== undefined && { creditMargin: p.creditMargin }),
+        ...(p.buyingPower !== undefined && { buyingPower: p.buyingPower }),
         ...(p.positions !== undefined && { positions: p.positions }),
         ...(p.dailyCondition !== undefined && { dailyCondition: p.dailyCondition }),
         ...(p.regimeParams !== undefined && { regimeParams: p.regimeParams }),

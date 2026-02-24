@@ -3,13 +3,14 @@ import { formatCurrency } from '../utils/formatUtils'
 import type { Position } from '../types'
 
 interface TradePanelProps {
-  balance: number
+  availableCash: number
+  creditMargin: number
+  buyingPower: number
+  maxLeverage: number
   unrealizedPnL: number
   positions: Position[]
-  maxLeverage: number
-  unlockedLeverages: number[]
-  onBuy: (shares: number, leverage: number) => void
-  onSell: (shares: number, leverage: number) => void
+  onBuy: (shares: number) => void
+  onSell: (shares: number) => void
   onClose: (positionId: string) => void
   compact?: boolean
 }
@@ -21,28 +22,28 @@ function getPnlClass(value: number) {
 }
 
 interface DesktopTradePanelProps {
-  balance: number
+  availableCash: number
+  creditMargin: number
+  buyingPower: number
+  maxLeverage: number
   unrealizedPnL: number
   positions: Position[]
-  leverageOptions: number[]
   shares: number
   setShares: React.Dispatch<React.SetStateAction<number>>
-  leverage: number
-  setLeverage: React.Dispatch<React.SetStateAction<number>>
-  onBuy: (shares: number, leverage: number) => void
-  onSell: (shares: number, leverage: number) => void
+  onBuy: (shares: number) => void
+  onSell: (shares: number) => void
   onClose: (positionId: string) => void
 }
 
 function DesktopTradePanel({
-  balance,
+  availableCash,
+  creditMargin,
+  buyingPower,
+  maxLeverage,
   unrealizedPnL,
   positions,
-  leverageOptions,
   shares,
   setShares,
-  leverage,
-  setLeverage,
   onBuy,
   onSell,
   onClose,
@@ -51,12 +52,18 @@ function DesktopTradePanel({
 
   return (
     <div className="bg-bg-panel text-text-primary p-3 font-mono h-full overflow-y-auto overflow-x-hidden">
-      <div className="flex justify-between mb-3 text-sm">
-        <span>残高: {formatCurrency(balance)}</span>
+      <div className="flex justify-between mb-1 text-sm">
+        <span>余力: {formatCurrency(buyingPower)}</span>
         <span className={getPnlClass(unrealizedPnL)}>
           含み: {formatCurrency(unrealizedPnL)}
         </span>
       </div>
+      {maxLeverage > 1 && (
+        <div className="text-[11px] text-text-secondary mb-3">
+          現金{formatCurrency(availableCash)} + 信用{formatCurrency(creditMargin)}
+        </div>
+      )}
+      {maxLeverage <= 1 && <div className="mb-2" />}
 
       <div className="flex gap-2 items-center mb-2">
         <span className="text-xs text-text-secondary min-w-[52px]">株数</span>
@@ -67,16 +74,6 @@ function DesktopTradePanel({
           onChange={(e) => setShares(Math.max(1, parseInt(e.target.value, 10) || 1))}
           className="bg-bg-elevated text-text-primary border border-bg-button rounded py-1.5 px-2 text-sm w-20 text-right"
         />
-        <span className="text-xs text-text-secondary min-w-[52px]">信用倍率</span>
-        <select
-          value={leverage}
-          onChange={(e) => setLeverage(Number(e.target.value))}
-          className="bg-bg-elevated text-text-primary border border-bg-button rounded py-1.5 px-2 text-sm"
-        >
-          {leverageOptions.map((l) => (
-            <option key={l} value={l}>{l}x</option>
-          ))}
-        </select>
       </div>
 
       <div className="flex gap-1 mb-2">
@@ -89,13 +86,13 @@ function DesktopTradePanel({
       <div className="flex gap-2 mb-3">
         <button
           className="flex-1 p-2.5 bg-profit text-white border-none rounded-md text-base font-bold cursor-pointer"
-          onClick={() => onBuy(shares, leverage)}
+          onClick={() => onBuy(shares)}
         >
           BUY
         </button>
         <button
           className="flex-1 p-2.5 bg-loss text-white border-none rounded-md text-base font-bold cursor-pointer"
-          onClick={() => onSell(shares, leverage)}
+          onClick={() => onSell(shares)}
         >
           SELL
         </button>
@@ -174,10 +171,7 @@ interface OrderModalProps {
   side: 'BUY' | 'SELL'
   shares: number
   setShares: React.Dispatch<React.SetStateAction<number>>
-  leverage: number
-  setLeverage: React.Dispatch<React.SetStateAction<number>>
-  leverageOptions: number[]
-  onConfirm: (shares: number, leverage: number) => void
+  onConfirm: (shares: number) => void
   onCancel: () => void
 }
 
@@ -185,9 +179,6 @@ function OrderModal({
   side,
   shares,
   setShares,
-  leverage,
-  setLeverage,
-  leverageOptions,
   onConfirm,
   onCancel,
 }: OrderModalProps) {
@@ -225,24 +216,11 @@ function OrderModal({
           <button className="flex-1 py-2.5 bg-bg-danger text-loss border border-border-danger rounded-md text-sm cursor-pointer min-h-11" onClick={() => setShares(1)}>C</button>
         </div>
 
-        <div className="flex gap-2 items-center mb-3">
-          <span className="text-[13px] text-text-secondary min-w-15">信用倍率</span>
-          <select
-            value={leverage}
-            onChange={(e) => setLeverage(Number(e.target.value))}
-            className="bg-bg-elevated text-text-primary border border-bg-button rounded py-2.5 px-3 text-base min-h-11"
-          >
-            {leverageOptions.map((l) => (
-              <option key={l} value={l}>{l}x</option>
-            ))}
-          </select>
-        </div>
-
         <button
           className={`w-full py-3.5 text-white border-none rounded-lg text-lg font-bold cursor-pointer min-h-12 mt-2 ${
             isBuy ? 'bg-profit' : 'bg-loss'
           }`}
-          onClick={() => onConfirm(shares, leverage)}
+          onClick={() => onConfirm(shares)}
         >
           注文確定 ({side})
         </button>
@@ -252,33 +230,31 @@ function OrderModal({
 }
 
 export default function TradePanel({
-  balance,
+  availableCash,
+  creditMargin,
+  buyingPower,
+  maxLeverage,
   unrealizedPnL,
   positions,
-  maxLeverage,
-  unlockedLeverages,
   onBuy,
   onSell,
   onClose,
   compact = false,
 }: TradePanelProps) {
   const [shares, setShares] = useState(1)
-  const [leverage, setLeverage] = useState(1)
   const [modalSide, setModalSide] = useState<'BUY' | 'SELL' | null>(null)
-
-  const leverageOptions = (unlockedLeverages ?? [1]).filter((l) => l <= maxLeverage)
 
   if (!compact) {
     return (
       <DesktopTradePanel
-        balance={balance}
+        availableCash={availableCash}
+        creditMargin={creditMargin}
+        buyingPower={buyingPower}
+        maxLeverage={maxLeverage}
         unrealizedPnL={unrealizedPnL}
         positions={positions}
-        leverageOptions={leverageOptions}
         shares={shares}
         setShares={setShares}
-        leverage={leverage}
-        setLeverage={setLeverage}
         onBuy={onBuy}
         onSell={onSell}
         onClose={onClose}
@@ -286,9 +262,9 @@ export default function TradePanel({
     )
   }
 
-  const handleConfirm = (s: number, l: number) => {
-    if (modalSide === 'BUY') onBuy(s, l)
-    else onSell(s, l)
+  const handleConfirm = (s: number) => {
+    if (modalSide === 'BUY') onBuy(s)
+    else onSell(s)
     setModalSide(null)
   }
 
@@ -304,9 +280,6 @@ export default function TradePanel({
           side={modalSide}
           shares={shares}
           setShares={setShares}
-          leverage={leverage}
-          setLeverage={setLeverage}
-          leverageOptions={leverageOptions}
           onConfirm={handleConfirm}
           onCancel={() => setModalSide(null)}
         />

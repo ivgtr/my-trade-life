@@ -56,6 +56,10 @@ export interface GameState {
   monthPreview?: MonthPreview
   yearlyStats?: YearlyStats
   yearPreview?: YearPreviewEntry[]
+  // セッション中の余力情報（TICK_UPDATE経由）
+  availableCash?: number
+  creditMargin?: number
+  buyingPower?: number
   // LOAD_GAME で復元される追加フィールド
   year?: number
   debt?: number
@@ -110,6 +114,9 @@ export type GameAction =
 export interface TickUpdatePayload {
   currentPrice: number
   unrealizedPnL: number
+  availableCash?: number
+  creditMargin?: number
+  buyingPower?: number
   positions?: Position[]
   dailyCondition?: DailyCondition
   regimeParams?: RegimeParams

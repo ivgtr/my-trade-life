@@ -20,8 +20,8 @@ interface UseSessionEngineReturn {
   gameTime: string
   activeNews: NewsEvent | null
   speed: number
-  handleBuy: (shares: number, leverage: number) => void
-  handleSell: (shares: number, leverage: number) => void
+  handleBuy: (shares: number) => void
+  handleSell: (shares: number) => void
   handleClose: (positionId: string) => void
   handleSpeedChange: (newSpeed: number) => void
   handleNewsComplete: () => void
@@ -75,13 +75,16 @@ export function useSessionEngine({
         const time = marketEngine.getCurrentTime()
         if (time) setGameTime(time.formatted)
 
-        const { total: unrealizedPnL } = tradingEngine.recalculateUnrealized(tickData.price)
+        const { total: unrealizedPnL, availableCash, creditMargin, buyingPower } = tradingEngine.recalculateUnrealized(tickData.price)
 
         dispatch({
           type: ACTIONS.TICK_UPDATE,
           payload: {
             currentPrice: tickData.price,
             unrealizedPnL,
+            availableCash,
+            creditMargin,
+            buyingPower,
             positions: tradingEngine.getPositions(),
           },
         })
@@ -113,20 +116,20 @@ export function useSessionEngine({
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleBuy = useCallback((shares: number, leverage: number) => {
+  const handleBuy = useCallback((shares: number) => {
     const te = tradingEngineRef.current
     if (!te) return
-    const pos = te.openPosition('LONG', shares, gameState.currentPrice, leverage)
+    const pos = te.openPosition('LONG', shares, gameState.currentPrice)
     if (pos) {
       dispatch({ type: ACTIONS.OPEN_POSITION, payload: { position: pos } })
       AudioSystem.playSE('entry')
     }
   }, [gameState.currentPrice, dispatch])
 
-  const handleSell = useCallback((shares: number, leverage: number) => {
+  const handleSell = useCallback((shares: number) => {
     const te = tradingEngineRef.current
     if (!te) return
-    const pos = te.openPosition('SHORT', shares, gameState.currentPrice, leverage)
+    const pos = te.openPosition('SHORT', shares, gameState.currentPrice)
     if (pos) {
       dispatch({ type: ACTIONS.OPEN_POSITION, payload: { position: pos } })
       AudioSystem.playSE('entry')

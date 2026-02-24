@@ -1,4 +1,4 @@
-import type { Position, TradeResult, UnrealizedPnL, DailySummary } from '../types/trading'
+import type { Position, TradeResult, UnrealizedPnL, BuyingPowerInfo, DailySummary } from '../types/trading'
 
 interface TradingEngineConfig {
   balance: number
@@ -30,8 +30,8 @@ export class TradingEngine {
   }
 
   /** 証拠金を計算する（ETF信用取引: 株数 × 価格 / 信用倍率） */
-  #calcMargin(shares: number, price: number, leverage: number): number {
-    return shares * price / leverage
+  #calcMargin(shares: number, price: number): number {
+    return shares * price / this.#maxLeverage
   }
 
   /** 損益を計算する（ETF信用取引: 価格差 × 株数） */
@@ -43,12 +43,11 @@ export class TradingEngine {
   }
 
   /** ポジションを新規建てする */
-  openPosition(direction: 'LONG' | 'SHORT', shares: number, price: number, leverage: number): Position | null {
+  openPosition(direction: 'LONG' | 'SHORT', shares: number, price: number): Position | null {
     if (direction !== 'LONG' && direction !== 'SHORT') return null
     if (shares <= 0 || price <= 0) return null
-    if (leverage < 1 || leverage > this.#maxLeverage) return null
 
-    const margin = this.#calcMargin(shares, price, leverage)
+    const margin = this.#calcMargin(shares, price)
     if (margin > this.#balance) return null
 
     this.#balance -= margin
@@ -59,7 +58,7 @@ export class TradingEngine {
       direction,
       shares,
       entryPrice: price,
-      leverage,
+      leverage: this.#maxLeverage,
       margin,
       unrealizedPnL: 0,
     }
@@ -106,6 +105,14 @@ export class TradingEngine {
     return results
   }
 
+  /** 余力情報を返す */
+  getBuyingPowerInfo(): BuyingPowerInfo {
+    const availableCash = this.#balance
+    const creditMargin = availableCash * (this.#maxLeverage - 1)
+    const buyingPower = availableCash * this.#maxLeverage
+    return { availableCash, creditMargin, buyingPower }
+  }
+
   /** 含み損益を再計算する */
   recalculateUnrealized(currentPrice: number): UnrealizedPnL {
     let total = 0
@@ -119,7 +126,8 @@ export class TradingEngine {
       position.unrealizedPnL = pnl
       total += pnl
     }
-    return { total, effectiveBalance: this.#balance + total }
+    const { availableCash, creditMargin, buyingPower } = this.getBuyingPowerInfo()
+    return { total, effectiveBalance: this.#balance + total, availableCash, creditMargin, buyingPower }
   }
 
   /** 日次の取引結果サマリーを返す */

@@ -1,4 +1,4 @@
-export type { Position, TradeResult, UnrealizedPnL, DailySummary } from './trading'
+export type { Position, TradeResult, UnrealizedPnL, BuyingPowerInfo, DailySummary } from './trading'
 export type {
   VolState, TimeZone, RegimeName,
   TickData, GameTime, MarketEngineConfig,

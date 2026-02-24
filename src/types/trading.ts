@@ -16,9 +16,18 @@ export interface TradeResult {
   exitPrice: number
 }
 
+export interface BuyingPowerInfo {
+  availableCash: number
+  creditMargin: number
+  buyingPower: number
+}
+
 export interface UnrealizedPnL {
   total: number
   effectiveBalance: number
+  availableCash: number
+  creditMargin: number
+  buyingPower: number
 }
 
 export interface DailySummary {
