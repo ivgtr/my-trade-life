@@ -40,7 +40,6 @@ export class MarketEngine {
   #timerId: ReturnType<typeof setTimeout> | null
   #paused: boolean
   #running: boolean
-  #lastTickRealTime: number
   #intradayScenario: IntradayScenario
   #extremeEvent: ExtremeEventState | null
   #lastTickHigh: number
@@ -61,7 +60,6 @@ export class MarketEngine {
     this.#timerId = null
     this.#paused = false
     this.#running = false
-    this.#lastTickRealTime = 0
     this.#intradayScenario = this.#selectScenario(config.regimeParams.regime)
     this.#extremeEvent = null
     this.#lastTickHigh = config.openPrice
@@ -71,7 +69,6 @@ export class MarketEngine {
   /** エンジンを開始する。 */
   start(): void {
     this.#running = true
-    this.#lastTickRealTime = performance.now()
     this.#scheduleNextTick()
   }
 
@@ -109,13 +106,9 @@ export class MarketEngine {
     }
   }
 
-  /**
-   * 一時停止を解除する。
-   * pause中の経過時間を補正し、resume後に時刻が飛ばない。
-   */
+  /** 一時停止を解除する。 */
   resume(): void {
     this.#paused = false
-    this.#lastTickRealTime = performance.now()
     this.#scheduleNextTick()
   }
 
@@ -150,14 +143,10 @@ export class MarketEngine {
   #executeTick(): void {
     if (!this.#running || this.#paused) return
 
-    const now = performance.now()
-    const realDelta = now - this.#lastTickRealTime
-    this.#lastTickRealTime = now
-
-    // ゲーム内時刻更新（昼休みは高圧縮レート）
+    // ゲーム内時刻更新（固定刻み: 環境非依存で決定論的に進行）
     const timeZone = this.#getTimeZone(this.#gameTime)
     const rate = timeZone === 'lunch' ? LUNCH_RATE : NORMAL_RATE
-    this.#gameTime += realDelta * rate * this.#speed
+    this.#gameTime += TICK_INTERVAL[this.#volState].mean * rate
 
     // 15:30（930分）到達チェック
     if (this.#gameTime >= 930) {
