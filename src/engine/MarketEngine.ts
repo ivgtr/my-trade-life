@@ -19,8 +19,6 @@ const BASE_VOLUME: Record<VolState, number> = { high: 1500, normal: 800, low: 30
  * Tick生成・価格変動・時間帯管理を担う。
  */
 export class MarketEngine {
-  // @ts-expect-error reserved for future use
-  #openPrice: number
   #regimeParams: RegimeParams
   #anomalyParams: AnomalyParams
   #onTick: (tick: TickData) => void
@@ -37,7 +35,6 @@ export class MarketEngine {
   #lastTickRealTime: number
 
   constructor(config: MarketEngineConfig) {
-    this.#openPrice = config.openPrice
     this.#regimeParams = config.regimeParams
     this.#anomalyParams = config.anomalyParams
     this.#onTick = config.onTick

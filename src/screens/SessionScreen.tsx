@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { useGameContext } from '../state/GameContext'
+import { useGameContext } from '../hooks/useGameContext'
 import { ACTIONS } from '../state/actions'
 import { MarketEngine } from '../engine/MarketEngine'
 import { TradingEngine } from '../engine/TradingEngine'
@@ -245,7 +245,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
       </div>
 
       <div className="flex flex-row flex-1 overflow-hidden min-h-0">
-        <div className="w-[180px] shrink-0 overflow-y-auto overflow-x-hidden border-r border-bg-elevated">
+        <div className="w-45 shrink-0 overflow-y-auto overflow-x-hidden border-r border-bg-elevated">
           <TickerTape ticks={ticks} maxDisplay={50} />
         </div>
 
@@ -253,7 +253,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
           <Chart ref={chartRef} autoSize />
         </div>
 
-        <div className="w-[300px] shrink-0 overflow-y-auto overflow-x-hidden border-l border-bg-elevated">
+        <div className="w-75 shrink-0 overflow-y-auto overflow-x-hidden border-l border-bg-elevated">
           <TradePanel
             balance={gameState.balance}
             unrealizedPnL={unrealizedPnL}
