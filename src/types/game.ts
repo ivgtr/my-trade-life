@@ -10,6 +10,7 @@ export type GamePhase =
   | 'calendar'
   | 'morning'
   | 'session'
+  | 'closing'
   | 'report'
   | 'weekend'
   | 'monthlyReport'
@@ -61,11 +62,10 @@ export interface GameState {
   availableCash?: number
   creditMargin?: number
   buyingPower?: number
-  // オーバーナイト・ギャップ・マージンコール関連
+  // オーバーナイト・ギャップ関連
   gapResult?: GapResult | null
-  marginCallTriggered?: boolean
-  marginCallPnL?: number
-  maintenanceRatio?: number | null
+  overnightSettled?: boolean
+  overnightPnL?: number
   // LOAD_GAME で復元される追加フィールド
   year?: number
   debt?: number
@@ -137,7 +137,6 @@ export interface TickUpdatePayload {
   yearlyStats?: YearlyStats
   yearPreview?: YearPreviewEntry[]
   gapResult?: GapResult | null
-  marginCallTriggered?: boolean
-  marginCallPnL?: number
-  maintenanceRatio?: number | null
+  overnightSettled?: boolean
+  overnightPnL?: number
 }

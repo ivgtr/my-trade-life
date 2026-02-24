@@ -6,14 +6,6 @@ interface TradingEngineConfig {
   existingPositions?: Position[]
 }
 
-export interface MarginCallResult {
-  triggered: boolean
-  ratio: number
-  results: TradeResult[]
-  totalPnl: number
-  newBalance: number
-}
-
 interface TradingEngineState {
   balance: number
   maxLeverage: number
@@ -195,30 +187,6 @@ export class TradingEngine {
   /** 保有ポジション一覧を返す */
   getPositions(): Position[] {
     return [...this.#positions.values()].map((p) => ({ ...p }))
-  }
-
-  /** 証拠金維持率を返す（equity / totalRequiredMargin） */
-  getMaintenanceRatio(currentPrice: number): number {
-    if (this.#positions.size === 0) return Infinity
-    let totalMargin = 0
-    let unrealizedPnL = 0
-    for (const pos of this.#positions.values()) {
-      totalMargin += pos.margin
-      unrealizedPnL += this.#calcPnL(pos.direction, pos.entryPrice, currentPrice, pos.shares)
-    }
-    const equity = this.#balance + totalMargin + unrealizedPnL
-    return totalMargin > 0 ? equity / totalMargin : Infinity
-  }
-
-  /** マージンコールを判定・実行する。閾値未満なら全ポジション強制決済 */
-  executeMarginCall(currentPrice: number, threshold: number): MarginCallResult {
-    const ratio = this.getMaintenanceRatio(currentPrice)
-    if (ratio >= threshold) {
-      return { triggered: false, ratio, results: [], totalPnl: 0, newBalance: this.#balance }
-    }
-    const results = this.forceCloseAll(currentPrice)
-    const totalPnl = results.reduce((sum, r) => sum + r.pnl, 0)
-    return { triggered: true, ratio, results, totalPnl, newBalance: this.#balance }
   }
 
   /** 状態をシリアライズして返す。復元用。 */

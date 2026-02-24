@@ -6,7 +6,7 @@ import { MacroRegimeManager } from '../engine/MacroRegimeManager'
 import { GrowthSystem } from '../engine/GrowthSystem'
 import { NewsSystem } from '../engine/NewsSystem'
 import { TradingEngine } from '../engine/TradingEngine'
-import { calcGap, MARGIN_CALL_THRESHOLD } from '../engine/marketParams'
+import { calcGap } from '../engine/marketParams'
 import { SaveSystem } from '../systems/SaveSystem'
 import type { GameState } from '../types/game'
 import type { GapResult } from '../types/market'
@@ -22,6 +22,8 @@ interface UseGameFlowReturn {
   advanceFromCalendar: () => void
   enterSession: () => void
   endSession: (sessionResult?: Record<string, unknown>) => void
+  closeAllAtClose: () => void
+  carryOver: () => void
   closeReport: () => void
   closeWeekend: () => void
   closeMonthlyReport: () => void
@@ -139,11 +141,9 @@ export function useGameFlow(): UseGameFlowReturn {
         openPrice = gapResult.openPrice
       }
 
-      // マージンチェック
-      let marginCallTriggered = false
-      let marginCallPnL = 0
-      let maintenanceRatio: number | null = null
-      let updatedUnrealized = 0
+      // 持ち越しポジションの寄り付き強制決済
+      let overnightSettled = false
+      let overnightPnL = 0
 
       if (gameState.positions.length > 0) {
         const totalMargin = gameState.positions.reduce((s, p) => s + p.margin, 0)
@@ -152,18 +152,11 @@ export function useGameFlow(): UseGameFlowReturn {
           maxLeverage: gameState.maxLeverage ?? 1,
           existingPositions: gameState.positions,
         })
-
-        const mcResult = tempEngine.executeMarginCall(openPrice, MARGIN_CALL_THRESHOLD)
-        maintenanceRatio = mcResult.ratio
-
-        if (mcResult.triggered) {
-          marginCallTriggered = true
-          marginCallPnL = mcResult.totalPnl
-          dispatch({ type: ACTIONS.FORCE_CLOSE_ALL, payload: { totalPnl: mcResult.totalPnl } })
-        } else {
-          const unrealized = tempEngine.recalculateUnrealized(openPrice)
-          updatedUnrealized = unrealized.total
-        }
+        const results = tempEngine.forceCloseAll(openPrice)
+        const totalPnl = results.reduce((sum, r) => sum + r.pnl, 0)
+        overnightSettled = true
+        overnightPnL = totalPnl
+        dispatch({ type: ACTIONS.FORCE_CLOSE_ALL, payload: { totalPnl } })
       }
 
       const news = newsRef.current
@@ -178,16 +171,15 @@ export function useGameFlow(): UseGameFlowReturn {
         type: ACTIONS.TICK_UPDATE,
         payload: {
           currentPrice: openPrice,
-          unrealizedPnL: marginCallTriggered ? 0 : updatedUnrealized,
+          unrealizedPnL: 0,
           dailyCondition,
           regimeParams,
           anomalyParams,
           anomalyInfo,
           previewEvent,
           gapResult,
-          marginCallTriggered,
-          marginCallPnL,
-          maintenanceRatio,
+          overnightSettled,
+          overnightPnL,
         },
       })
     }
@@ -226,6 +218,16 @@ export function useGameFlow(): UseGameFlowReturn {
       type: ACTIONS.END_SESSION,
       payload: sessionResult ?? {},
     })
+    const phase = gameState.positions.length > 0 ? 'closing' : 'report'
+    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase } })
+  }, [dispatch, gameState.positions.length])
+
+  const closeAllAtClose = useCallback(() => {
+    dispatch({ type: ACTIONS.FORCE_CLOSE_ALL, payload: { totalPnl: gameState.unrealizedPnL } })
+    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'report' } })
+  }, [dispatch, gameState.unrealizedPnL])
+
+  const carryOver = useCallback(() => {
     dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'report' } })
   }, [dispatch])
 
@@ -369,6 +371,8 @@ export function useGameFlow(): UseGameFlowReturn {
     advanceFromCalendar,
     enterSession,
     endSession,
+    closeAllAtClose,
+    carryOver,
     closeReport,
     closeWeekend,
     closeMonthlyReport,

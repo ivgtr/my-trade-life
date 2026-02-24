@@ -104,9 +104,6 @@ export const GAP_PARAMS = {
 /** ニュースによるギャップへの影響倍率 */
 export const GAP_NEWS_IMPACT_MULT = 0.005
 
-/** マージンコール発動閾値（証拠金維持率） */
-export const MARGIN_CALL_THRESHOLD = 0.50
-
 /** オーバーナイトギャップを計算する */
 export function calcGap(
   closePrice: number,

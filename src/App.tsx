@@ -14,6 +14,7 @@ import MonthlyReportScreen from './screens/MonthlyReportScreen'
 import YearlyReportScreen from './screens/YearlyReportScreen'
 import GameOverScreen from './screens/GameOverScreen'
 import BillionaireScreen from './screens/BillionaireScreen'
+import ClosingScreen from './screens/ClosingScreen'
 import ImportExportModal from './components/ImportExportModal'
 
 function AppContent() {
@@ -59,6 +60,9 @@ function AppContent() {
 
     case 'session':
       return <SessionScreen onEndSession={flow.endSession} />
+
+    case 'closing':
+      return <ClosingScreen onCloseAll={flow.closeAllAtClose} onCarryOver={flow.carryOver} />
 
     case 'report':
       return <ReportScreen onNext={flow.closeReport} />

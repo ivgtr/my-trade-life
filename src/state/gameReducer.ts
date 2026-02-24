@@ -31,9 +31,8 @@ export const initialState: GameState = {
   bestTrade: 0,
   worstTrade: 0,
   gapResult: null,
-  marginCallTriggered: false,
-  marginCallPnL: 0,
-  maintenanceRatio: null,
+  overnightSettled: false,
+  overnightPnL: 0,
 }
 
 const MAX_HISTORY = 366
@@ -84,9 +83,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         yearlyStats?: GameState['yearlyStats']
         yearPreview?: GameState['yearPreview']
         gapResult?: GameState['gapResult']
-        marginCallTriggered?: GameState['marginCallTriggered']
-        marginCallPnL?: GameState['marginCallPnL']
-        maintenanceRatio?: GameState['maintenanceRatio']
+        overnightSettled?: GameState['overnightSettled']
+        overnightPnL?: GameState['overnightPnL']
       }
       return {
         ...state,
@@ -107,9 +105,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...(p.yearlyStats !== undefined && { yearlyStats: p.yearlyStats }),
         ...(p.yearPreview !== undefined && { yearPreview: p.yearPreview }),
         ...(p.gapResult !== undefined && { gapResult: p.gapResult }),
-        ...(p.marginCallTriggered !== undefined && { marginCallTriggered: p.marginCallTriggered }),
-        ...(p.marginCallPnL !== undefined && { marginCallPnL: p.marginCallPnL }),
-        ...(p.maintenanceRatio !== undefined && { maintenanceRatio: p.maintenanceRatio }),
+        ...(p.overnightSettled !== undefined && { overnightSettled: p.overnightSettled }),
+        ...(p.overnightPnL !== undefined && { overnightPnL: p.overnightPnL }),
       }
     }
 
