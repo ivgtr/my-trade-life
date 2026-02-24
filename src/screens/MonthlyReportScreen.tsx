@@ -1,4 +1,4 @@
-import { useGameContext } from '../state/GameContext'
+import { useGameContext } from '../hooks/useGameContext'
 import { formatCurrency, formatPercent } from '../utils/formatUtils'
 
 interface MonthlyReportScreenProps {

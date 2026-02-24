@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useGameContext } from '../state/GameContext'
+import { useGameContext } from '../hooks/useGameContext'
 import { AudioSystem } from '../systems/AudioSystem'
 import { formatDate, formatCurrency } from '../utils/formatUtils'
 

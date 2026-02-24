@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useGameContext } from '../state/GameContext'
+import { useGameContext } from '../hooks/useGameContext'
 import { formatCurrency } from '../utils/formatUtils'
 
 interface GameOverScreenProps {

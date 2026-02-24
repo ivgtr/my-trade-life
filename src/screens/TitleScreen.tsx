@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useGameContext } from '../state/GameContext'
+import { useGameContext } from '../hooks/useGameContext'
 import { ACTIONS } from '../state/actions'
 import { SaveSystem } from '../systems/SaveSystem'
 

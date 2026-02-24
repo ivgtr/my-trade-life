@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useGameContext } from '../state/GameContext'
+import { useGameContext } from './useGameContext'
 import { AudioSystem } from '../systems/AudioSystem'
 import { ConfigManager } from '../systems/ConfigManager'
 
