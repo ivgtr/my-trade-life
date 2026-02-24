@@ -130,7 +130,7 @@ export function calcGap(
 
 // ─── セッション内シナリオ ───────────────────────────────────
 
-/** 全22シナリオ定義 */
+/** 全36シナリオ定義 */
 export const INTRADAY_SCENARIOS: readonly IntradayScenario[] = [
   // ── 基本パターン (4種) ──
   {
@@ -363,33 +363,194 @@ export const INTRADAY_SCENARIOS: readonly IntradayScenario[] = [
       { startMinute: 870, driftOverride:  0.0012, volMult: 1.5, meanRevStrength: 0.0 },
     ],
   },
+
+  // ── 歴史的ショック — 暴落・ショック系 (8種) ──
+  {
+    name: 'cascade_crash', weight: 2, // ブラックマンデー1987: 波状崩壊
+    phases: [
+      { startMinute: 540, driftOverride: -0.0025, volMult: 3.0, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride:  0.0008, volMult: 1.5, meanRevStrength: 0.2 },
+      { startMinute: 660, driftOverride: -0.0020, volMult: 2.8, meanRevStrength: 0.0 },
+      { startMinute: 780, driftOverride:  0.0005, volMult: 1.2, meanRevStrength: 0.0 },
+      { startMinute: 810, driftOverride: -0.0025, volMult: 3.5, meanRevStrength: 0.0 },
+      { startMinute: 900, driftOverride:  0.0003, volMult: 2.0, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'flash_crash', weight: 2, // フラッシュクラッシュ2010: 瞬間暴落→即全戻し
+    phases: [
+      { startMinute: 540, driftOverride: -0.0002, volMult: 0.7, meanRevStrength: 0.0 },
+      { startMinute: 660, driftOverride: -0.0003, volMult: 1.0, meanRevStrength: 0.0 },
+      { startMinute: 780, driftOverride: -0.0040, volMult: 4.0, meanRevStrength: 0.0 },
+      { startMinute: 810, driftOverride:  0.0035, volMult: 3.5, meanRevStrength: 0.6 },
+      { startMinute: 870, driftOverride: -0.0003, volMult: 1.5, meanRevStrength: 0.3 },
+    ],
+  },
+  {
+    name: 'circuit_breaker_crash', weight: 2, // 令和ブラックマンデー2024: CB発動型暴落
+    phases: [
+      { startMinute: 540, driftOverride: -0.0012, volMult: 2.0, meanRevStrength: 0.0 },
+      { startMinute: 630, driftOverride: -0.0005, volMult: 1.5, meanRevStrength: 0.1 },
+      { startMinute: 720, driftOverride: -0.0025, volMult: 3.0, meanRevStrength: 0.0 },
+      { startMinute: 780, driftOverride: -0.0030, volMult: 3.5, meanRevStrength: 0.0 },
+      { startMinute: 840, driftOverride: -0.0020, volMult: 3.0, meanRevStrength: 0.0 },
+      { startMinute: 900, driftOverride:  0.0002, volMult: 2.0, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'disaster_panic', weight: 2, // 東日本大震災2011: 段階崩壊
+    phases: [
+      { startMinute: 540, driftOverride: -0.0015, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride: -0.0003, volMult: 1.2, meanRevStrength: 0.2 },
+      { startMinute: 660, driftOverride: -0.0020, volMult: 3.0, meanRevStrength: 0.0 },
+      { startMinute: 750, driftOverride: -0.0015, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride:  0.0003, volMult: 1.5, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'lehman_whipsaw', weight: 2, // リーマンショック2008: 超高ボラ乱高下+下落
+    phases: [
+      { startMinute: 540, driftOverride: -0.0018, volMult: 3.0, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride:  0.0012, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 660, driftOverride: -0.0015, volMult: 2.8, meanRevStrength: 0.0 },
+      { startMinute: 750, driftOverride:  0.0006, volMult: 2.0, meanRevStrength: 0.0 },
+      { startMinute: 810, driftOverride: -0.0010, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 900, driftOverride: -0.0008, volMult: 2.0, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'pandemic_freefall', weight: 2, // コロナショック2020: 一方的暴落
+    phases: [
+      { startMinute: 540, driftOverride: -0.0015, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride:  0.0003, volMult: 1.5, meanRevStrength: 0.1 },
+      { startMinute: 660, driftOverride: -0.0012, volMult: 2.2, meanRevStrength: 0.0 },
+      { startMinute: 780, driftOverride: -0.0018, volMult: 2.8, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride: -0.0005, volMult: 1.8, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'peg_break', weight: 2, // スイスフランショック2015: 場中ギャップ型
+    phases: [
+      { startMinute: 540, driftOverride:  0.0000, volMult: 0.3, meanRevStrength: 0.7 },
+      { startMinute: 660, driftOverride: -0.0050, volMult: 5.0, meanRevStrength: 0.0 },
+      { startMinute: 690, driftOverride:  0.0010, volMult: 3.0, meanRevStrength: 0.0 },
+      { startMinute: 780, driftOverride:  0.0000, volMult: 1.5, meanRevStrength: 0.4 },
+      { startMinute: 870, driftOverride: -0.0003, volMult: 1.2, meanRevStrength: 0.3 },
+    ],
+  },
+  {
+    name: 'volatility_explosion', weight: 2, // VIXショック2018: 超高ボラ+下落
+    phases: [
+      { startMinute: 540, driftOverride: -0.0015, volMult: 3.0, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride: -0.0005, volMult: 3.5, meanRevStrength: 0.2 },
+      { startMinute: 720, driftOverride: -0.0008, volMult: 3.0, meanRevStrength: 0.0 },
+      { startMinute: 810, driftOverride:  0.0005, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride: -0.0010, volMult: 2.5, meanRevStrength: 0.0 },
+    ],
+  },
+
+  // ── 歴史的ショック — 急落→反発系 (3種) ──
+  {
+    name: 'black_thursday', weight: 2, // ウォール街大暴落1929: 介入で急回復
+    phases: [
+      { startMinute: 540, driftOverride: -0.0035, volMult: 3.5, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride: -0.0015, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 660, driftOverride:  0.0025, volMult: 2.5, meanRevStrength: 0.5 },
+      { startMinute: 720, driftOverride:  0.0005, volMult: 1.0, meanRevStrength: 0.5 },
+      { startMinute: 810, driftOverride:  0.0000, volMult: 0.8, meanRevStrength: 0.6 },
+    ],
+  },
+  {
+    name: 'terror_shock', weight: 2, // 9.11テロ2001: GD回復→再悪化
+    phases: [
+      { startMinute: 540, driftOverride: -0.0020, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride:  0.0005, volMult: 1.2, meanRevStrength: 0.3 },
+      { startMinute: 720, driftOverride:  0.0000, volMult: 0.8, meanRevStrength: 0.4 },
+      { startMinute: 810, driftOverride: -0.0012, volMult: 1.8, meanRevStrength: 0.0 },
+      { startMinute: 900, driftOverride: -0.0008, volMult: 1.5, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'war_relief_rally', weight: 2, // 湾岸戦争1991: 噂売り→事実買い
+    phases: [
+      { startMinute: 540, driftOverride: -0.0025, volMult: 3.0, meanRevStrength: 0.0 },
+      { startMinute: 570, driftOverride:  0.0015, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 630, driftOverride:  0.0010, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 780, driftOverride: -0.0003, volMult: 1.0, meanRevStrength: 0.3 },
+      { startMinute: 870, driftOverride:  0.0005, volMult: 0.8, meanRevStrength: 0.0 },
+    ],
+  },
+
+  // ── 歴史的ショック — バブル・政策系 (3種) ──
+  {
+    name: 'bubble_pop', weight: 2, // ITバブル崩壊2000: 天井反転
+    phases: [
+      { startMinute: 540, driftOverride:  0.0010, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride:  0.0020, volMult: 2.0, meanRevStrength: 0.0 },
+      { startMinute: 690, driftOverride:  0.0002, volMult: 1.0, meanRevStrength: 0.3 },
+      { startMinute: 750, driftOverride: -0.0010, volMult: 1.8, meanRevStrength: 0.0 },
+      { startMinute: 810, driftOverride: -0.0020, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 900, driftOverride: -0.0008, volMult: 2.0, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'tariff_shock', weight: 2, // トランプ関税ショック2025: 政策不確実性
+    phases: [
+      { startMinute: 540, driftOverride: -0.0018, volMult: 2.5, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride: -0.0010, volMult: 2.0, meanRevStrength: 0.0 },
+      { startMinute: 690, driftOverride:  0.0005, volMult: 1.5, meanRevStrength: 0.2 },
+      { startMinute: 780, driftOverride: -0.0012, volMult: 2.2, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride: -0.0005, volMult: 1.8, meanRevStrength: 0.0 },
+    ],
+  },
+  {
+    name: 'contagion_collapse', weight: 2, // チャイナショック2015: 海外発連鎖安
+    phases: [
+      { startMinute: 540, driftOverride: -0.0010, volMult: 2.0, meanRevStrength: 0.0 },
+      { startMinute: 600, driftOverride:  0.0002, volMult: 1.0, meanRevStrength: 0.3 },
+      { startMinute: 720, driftOverride: -0.0005, volMult: 1.5, meanRevStrength: 0.0 },
+      { startMinute: 780, driftOverride: -0.0020, volMult: 2.8, meanRevStrength: 0.0 },
+      { startMinute: 870, driftOverride: -0.0010, volMult: 2.0, meanRevStrength: 0.0 },
+    ],
+  },
 ] as const
 
 /** レジーム別シナリオ出現バイアス（基本weightに乗算） */
 export const SCENARIO_REGIME_BIAS: Record<RegimeName, Record<string, number>> = {
   bullish: {
     trend_follow: 2.0, ascending_staircase: 2.0, bull_flag: 2.0,
+    war_relief_rally: 3.0, black_thursday: 3.0,
     descending_staircase: 0.3, bear_flag: 0.3, dead_cat_bounce: 0.3,
+    cascade_crash: 0.1, pandemic_freefall: 0.1, circuit_breaker_crash: 0.1,
   },
   bearish: {
     trend_follow: 2.0, descending_staircase: 2.0, bear_flag: 2.0,
+    contagion_collapse: 3.0, tariff_shock: 3.0, terror_shock: 3.0,
     ascending_staircase: 0.3, bull_flag: 0.3, cup_and_handle: 0.3,
+    war_relief_rally: 0.1, bubble_pop: 0.1,
   },
   range: {
     range_bound: 2.5, quiet: 2.0, double_bottom: 2.0, double_top: 2.0,
     trend_follow: 0.3,
+    cascade_crash: 0.1, circuit_breaker_crash: 0.1,
   },
   turbulent: {
     volatile_directionless: 2.5, selling_climax: 2.0, head_and_shoulders: 2.0,
+    flash_crash: 3.0, volatility_explosion: 3.0, lehman_whipsaw: 3.0, peg_break: 3.0,
     quiet: 0.2, range_bound: 0.3,
   },
   bubble: {
     parabolic_blowoff: 2.5, ascending_staircase: 2.0, bull_flag: 2.0,
+    bubble_pop: 3.0, war_relief_rally: 3.0,
     bear_flag: 0.3, dead_cat_bounce: 0.3,
+    cascade_crash: 0.1, pandemic_freefall: 0.1,
   },
   crash: {
     selling_climax: 2.5, dead_cat_bounce: 2.0, descending_staircase: 2.0,
+    cascade_crash: 3.0, circuit_breaker_crash: 3.0, pandemic_freefall: 3.0,
+    lehman_whipsaw: 3.0, disaster_panic: 3.0,
     bull_flag: 0.2, ascending_staircase: 0.3,
+    war_relief_rally: 0.1, bubble_pop: 0.1,
   },
 }
 
