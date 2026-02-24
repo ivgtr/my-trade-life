@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  /* カラーパレット */
+  --color-bg-deepest: #0a0a1a;
+  --color-bg-panel: #1a1a2e;
+  --color-bg-elevated: #2a2a3e;
+  --color-bg-button: #3a3a4e;
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #a0a0b0;
+  --color-profit: #26a69a;
+  --color-loss: #ef5350;
+  --color-accent: #6366f1;
+  --color-gold: #ffd700;
+  --color-warning: #ffc107;
+
+  /* ブレークポイント */
+  --breakpoint-sm: 768px;
+
+  /* アニメーション */
+  --animate-news-shake: newsShake 0.15s infinite;
+  --animate-confetti-fall: confettiFall 3s linear infinite;
+
+  @keyframes newsShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+  }
+
+  @keyframes newsTickerScroll {
+    from { transform: translateX(100%); }
+    to { transform: translateX(-100%); }
+  }
+
+  @keyframes confettiFall {
+    0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+}
+
+/* ベーススタイル */
+body {
+  font-family: monospace;
+  background-color: #0a0a1a;
+  color: #e0e0e0;
+  margin: 0;
+}
