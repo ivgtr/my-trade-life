@@ -8,6 +8,7 @@ import { NewsSystem } from '../engine/NewsSystem'
 import { TradingEngine } from '../engine/TradingEngine'
 import { calcGap } from '../engine/marketParams'
 import { SaveSystem } from '../systems/SaveSystem'
+import { ConfigManager } from '../systems/ConfigManager'
 import type { GameState } from '../types/game'
 import type { GapResult } from '../types/market'
 import type { SaveData } from '../types/save'
@@ -59,7 +60,8 @@ export function useGameFlow(): UseGameFlowReturn {
     })
     newsRef.current = newsSystem
 
-    dispatch({ type: ACTIONS.INIT_NEW_GAME })
+    const cfg = ConfigManager.getAll()
+    dispatch({ type: ACTIONS.INIT_NEW_GAME, payload: { speed: cfg.defaultSpeed } })
     dispatch({
       type: ACTIONS.SET_PHASE,
       payload: { phase: 'calendar' },

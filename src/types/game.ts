@@ -100,7 +100,7 @@ export type ActionType = typeof ACTIONS[keyof typeof ACTIONS]
 
 export type GameAction =
   | { type: typeof ACTIONS.SET_PHASE; payload: { phase: GamePhase } }
-  | { type: typeof ACTIONS.INIT_NEW_GAME }
+  | { type: typeof ACTIONS.INIT_NEW_GAME; payload?: { speed?: number } }
   | { type: typeof ACTIONS.LOAD_GAME; payload: { gameState: Partial<GameState> } }
   | { type: typeof ACTIONS.START_SESSION }
   | { type: typeof ACTIONS.TICK_UPDATE; payload: TickUpdatePayload }

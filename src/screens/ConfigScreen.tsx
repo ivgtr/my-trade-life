@@ -27,6 +27,12 @@ export default function ConfigScreen() {
     setConfig((c) => ({ ...c, defaultSpeed: speed }))
   }
 
+  const handleInvertColors = (inverted: boolean) => {
+    ConfigManager.set('invertColors', inverted)
+    ConfigManager.applyColorTheme()
+    setConfig((c) => ({ ...c, invertColors: inverted }))
+  }
+
   return (
     <div className="flex flex-col items-center justify-center min-h-dvh bg-bg-deepest text-text-primary font-mono">
       <div className="text-2xl font-bold mb-8">Config</div>
@@ -79,6 +85,32 @@ export default function ConfigScreen() {
               onClick={() => handleSpeed(2)}
             >
               2倍
+            </button>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center">
+          <span className="text-sm">損益カラー</span>
+          <div className="flex gap-2">
+            <button
+              className={`py-2 px-4 border rounded-md cursor-pointer text-sm ${
+                !config.invertColors
+                  ? 'bg-accent text-white border-accent'
+                  : 'bg-bg-panel text-text-secondary border-bg-button'
+              }`}
+              onClick={() => handleInvertColors(false)}
+            >
+              <span className="text-[#26a69a]">益</span>/<span className="text-[#ef5350]">損</span>
+            </button>
+            <button
+              className={`py-2 px-4 border rounded-md cursor-pointer text-sm ${
+                config.invertColors
+                  ? 'bg-accent text-white border-accent'
+                  : 'bg-bg-panel text-text-secondary border-bg-button'
+              }`}
+              onClick={() => handleInvertColors(true)}
+            >
+              <span className="text-[#ef5350]">益</span>/<span className="text-[#26a69a]">損</span>
             </button>
           </div>
         </div>

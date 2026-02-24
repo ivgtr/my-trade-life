@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { GameProvider } from './state/GameContext'
 import { useGameFlow } from './hooks/useGameFlow'
 import { useAudio } from './hooks/useAudio'
+import { ConfigManager } from './systems/ConfigManager'
 
 import TitleScreen from './screens/TitleScreen'
 import ConfigScreen from './screens/ConfigScreen'
@@ -22,6 +23,11 @@ function AppContent() {
   const { phase, gameState } = flow
 
   useAudio()
+
+  // 起動時にカラーテーマを適用
+  useEffect(() => {
+    ConfigManager.applyColorTheme()
+  }, [])
 
   // セッション中断時の復帰: sessionActive が true の状態で起動した場合
   useEffect(() => {

@@ -2,6 +2,7 @@ import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { createChart, CandlestickSeries } from 'lightweight-charts'
 import type { CandlestickData, UTCTimestamp } from 'lightweight-charts'
 import type { TickData, Timeframe } from '../types'
+import { ConfigManager } from '../systems/ConfigManager'
 
 interface ChartProps {
   autoSize?: boolean
@@ -131,13 +132,14 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
     })
     chartRef.current = chart
 
+    const { up, down } = ConfigManager.getChartColors()
     const series = chart.addSeries(CandlestickSeries, {
-      upColor: '#26a69a',
-      downColor: '#ef5350',
-      borderUpColor: '#26a69a',
-      borderDownColor: '#ef5350',
-      wickUpColor: '#26a69a',
-      wickDownColor: '#ef5350',
+      upColor: up,
+      downColor: down,
+      borderUpColor: up,
+      borderDownColor: down,
+      wickUpColor: up,
+      wickDownColor: down,
     })
     seriesRef.current = series
 

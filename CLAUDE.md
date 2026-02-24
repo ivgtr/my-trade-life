@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 最優先の注意点
+
+破壊的変更を恐れずコードのクオリティを最優先にして、シンプルで拡張性を考慮した設計を意識して、DRY原則と単一責任の原則に習って考えてください。
+
 ## コマンド
 
 ```bash

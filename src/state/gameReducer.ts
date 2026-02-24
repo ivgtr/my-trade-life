@@ -45,12 +45,15 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case ACTIONS.SET_PHASE:
       return { ...state, phase: (payload as { phase: GameState['phase'] }).phase }
 
-    case ACTIONS.INIT_NEW_GAME:
+    case ACTIONS.INIT_NEW_GAME: {
+      const initPayload = payload as { speed?: number } | undefined
       return {
         ...initialState,
         balance: 1_000_000,
         peakBalance: 1_000_000,
+        ...(initPayload?.speed != null && { speed: initPayload.speed }),
       }
+    }
 
     case ACTIONS.LOAD_GAME:
       return { ...state, ...(payload as { gameState: Partial<GameState> }).gameState }

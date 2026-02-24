@@ -4,6 +4,7 @@ interface GameConfig {
   bgmVolume: number
   seVolume: number
   defaultSpeed: number
+  invertColors: boolean
   [key: string]: unknown
 }
 
@@ -11,7 +12,11 @@ const DEFAULT_CONFIG: GameConfig = {
   bgmVolume: 50,
   seVolume: 70,
   defaultSpeed: 1,
+  invertColors: false,
 }
+
+const PROFIT_COLOR = '#26a69a'
+const LOSS_COLOR = '#ef5350'
 
 let cachedConfig: GameConfig | null = null
 
@@ -57,5 +62,23 @@ export const ConfigManager = {
   getSEVolume01(): number {
     if (!cachedConfig) this.load()
     return cachedConfig!.seVolume / 100
+  },
+
+  applyColorTheme(): void {
+    if (!cachedConfig) this.load()
+    const inverted = cachedConfig!.invertColors
+    const profit = inverted ? LOSS_COLOR : PROFIT_COLOR
+    const loss = inverted ? PROFIT_COLOR : LOSS_COLOR
+    document.documentElement.style.setProperty('--color-profit', profit)
+    document.documentElement.style.setProperty('--color-loss', loss)
+  },
+
+  getChartColors(): { up: string; down: string } {
+    if (!cachedConfig) this.load()
+    const inverted = cachedConfig!.invertColors
+    return {
+      up: inverted ? LOSS_COLOR : PROFIT_COLOR,
+      down: inverted ? PROFIT_COLOR : LOSS_COLOR,
+    }
   },
 }
