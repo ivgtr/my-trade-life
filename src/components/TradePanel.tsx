@@ -8,7 +8,6 @@ interface TradePanelProps {
   creditMargin: number
   buyingPower: number
   maxLeverage: number
-  unrealizedPnL: number
   positions: Position[]
   onBuy: (shares: number) => void
   onSell: (shares: number) => void
@@ -157,7 +156,6 @@ interface DesktopTradePanelProps {
   creditMargin: number
   buyingPower: number
   maxLeverage: number
-  unrealizedPnL: number
   positions: Position[]
   shares: number
   setShares: React.Dispatch<React.SetStateAction<number>>
@@ -174,7 +172,6 @@ function DesktopTradePanel({
   creditMargin,
   buyingPower,
   maxLeverage,
-  unrealizedPnL,
   positions,
   shares,
   setShares,
@@ -202,12 +199,9 @@ function DesktopTradePanel({
         <div className="text-base font-bold">{formatCurrency(currentPrice)}</div>
       </div>
 
-      {/* 余力・含み損益 */}
-      <div className="flex justify-between mb-1 text-sm">
+      {/* 余力 */}
+      <div className="mb-1 text-sm">
         <span>余力: {formatCurrency(buyingPower)}</span>
-        <span className={getPnlClass(unrealizedPnL)}>
-          含み: {formatCurrency(unrealizedPnL)}
-        </span>
       </div>
       {maxLeverage > 1 && (
         <div className="text-[11px] text-text-secondary mb-2">
@@ -500,7 +494,6 @@ export default function TradePanel({
   creditMargin,
   buyingPower,
   maxLeverage,
-  unrealizedPnL,
   positions,
   onBuy,
   onSell,
@@ -520,7 +513,6 @@ export default function TradePanel({
         creditMargin={creditMargin}
         buyingPower={buyingPower}
         maxLeverage={maxLeverage}
-        unrealizedPnL={unrealizedPnL}
         positions={positions}
         shares={shares}
         setShares={setShares}
