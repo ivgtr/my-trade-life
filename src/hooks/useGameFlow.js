@@ -53,7 +53,7 @@ export function useGameFlow() {
     })
     dispatch({
       type: ACTIONS.ADVANCE_DAY,
-      payload: { date: calendar.getCurrentDate().toISOString() },
+      payload: { date: calendar.getCurrentDate() },
     })
   }, [dispatch])
 
@@ -96,10 +96,11 @@ export function useGameFlow() {
     if (!cal) return
 
     cal.advanceDay()
-    const date = cal.getCurrentDate()
+    const dateStr = cal.getCurrentDate()
+    const date = new Date(dateStr)
     dispatch({
       type: ACTIONS.ADVANCE_DAY,
-      payload: { date: date.toISOString() },
+      payload: { date: dateStr },
     })
 
     const dayOfWeek = date.getDay()

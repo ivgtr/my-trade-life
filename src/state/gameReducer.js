@@ -74,6 +74,7 @@ export function gameReducer(state, action) {
         ...state,
         currentPrice: payload.currentPrice,
         unrealizedPnL: payload.unrealizedPnL,
+        positions: payload.positions,
       }
 
     case ACTIONS.END_SESSION: {
