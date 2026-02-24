@@ -110,7 +110,7 @@ export type GameAction =
   | { type: typeof ACTIONS.FORCE_CLOSE_ALL; payload: { totalPnl: number } }
   | { type: typeof ACTIONS.UPDATE_UNREALIZED; payload: { unrealizedPnL: number } }
   | { type: typeof ACTIONS.ADVANCE_DAY; payload: { date: string } }
-  | { type: typeof ACTIONS.RECORD_DAY; payload: { entry: DayHistoryEntry } }
+  | { type: typeof ACTIONS.RECORD_DAY }
   | { type: typeof ACTIONS.ADD_EXP; payload: { amount: number } }
   | { type: typeof ACTIONS.LEVEL_UP; payload: { level: number; unlockedFeatures: string[]; maxLeverage: number } }
   | { type: typeof ACTIONS.SET_SPEED; payload: { speed: number } }

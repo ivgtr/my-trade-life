@@ -243,25 +243,13 @@ export function useGameFlow(): UseGameFlowReturn {
     dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
 
     function recordDailyResult() {
-      dispatch({
-        type: ACTIONS.RECORD_DAY,
-        payload: {
-          entry: {
-            date: gameState.currentDate,
-            pnl: gameState.sessionPnL ?? 0,
-            trades: gameState.sessionTrades ?? 0,
-            wins: gameState.sessionWins ?? 0,
-            balance: gameState.balance,
-          },
-        },
-      })
+      const trades = gameState.sessionTrades ?? 0
+      const wins = gameState.sessionWins ?? 0
+      dispatch({ type: ACTIONS.RECORD_DAY })
 
       const growth = growthRef.current
       if (growth) {
-        const bonus = growth.addDailyBonus(
-          gameState.sessionTrades ?? 0,
-          gameState.sessionWins ?? 0,
-        )
+        const bonus = growth.addDailyBonus(trades, wins)
         if (bonus.totalExp > 0) {
           dispatch({ type: ACTIONS.ADD_EXP, payload: { amount: bonus.totalExp } })
         }

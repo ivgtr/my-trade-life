@@ -62,9 +62,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         sessionActive: true,
-        sessionPnL: 0,
-        sessionTrades: 0,
-        sessionWins: 0,
       }
 
     case ACTIONS.TICK_UPDATE: {
@@ -117,7 +114,6 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         sessionActive: false,
-        totalPnL: state.totalPnL + state.sessionPnL,
       }
     }
 
@@ -182,7 +178,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
     case ACTIONS.RECORD_DAY: {
-      const entry = (payload as { entry: GameState['dailyHistory'][number] }).entry
+      const entry: GameState['dailyHistory'][number] = {
+        date: state.currentDate,
+        pnl: state.sessionPnL,
+        trades: state.sessionTrades,
+        wins: state.sessionWins,
+        balance: state.balance,
+      }
       const updatedHistory = [...state.dailyHistory, entry]
       return {
         ...state,
@@ -190,6 +192,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           updatedHistory.length > MAX_HISTORY
             ? updatedHistory.slice(updatedHistory.length - MAX_HISTORY)
             : updatedHistory,
+        totalPnL: state.totalPnL + state.sessionPnL,
         sessionPnL: 0,
         sessionTrades: 0,
         sessionWins: 0,
