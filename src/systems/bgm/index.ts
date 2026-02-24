@@ -1,0 +1,1 @@
+export { bgmPlayer } from './bgmPlayer'
