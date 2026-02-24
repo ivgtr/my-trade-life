@@ -7,7 +7,7 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: '100vh',
+    minHeight: '100dvh',
     backgroundColor: '#0a0a1a',
     color: '#e0e0e0',
     fontFamily: 'monospace',
