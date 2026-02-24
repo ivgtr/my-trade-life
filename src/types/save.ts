@@ -37,6 +37,7 @@ export interface SaveStats {
 
 export interface SaveSettings {
   speed: number
+  timeframe: number
 }
 
 export interface SaveData {

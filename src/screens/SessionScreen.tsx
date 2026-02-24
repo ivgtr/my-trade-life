@@ -6,6 +6,7 @@ import Chart from '../components/Chart'
 import TradePanel from '../components/TradePanel'
 import TickerTape from '../components/TickerTape'
 import NewsOverlay from '../components/NewsOverlay'
+import { ACTIONS } from '../state/actions'
 import { formatCurrency } from '../utils/formatUtils'
 import type { ChartHandle } from '../components/Chart'
 import type { Timeframe } from '../types'
@@ -19,7 +20,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   const { isMobile } = useResponsive()
   const chartRef = useRef<ChartHandle | null>(null)
   const [mobileTab, setMobileTab] = useState('chart')
-  const [timeframe, setTimeframe] = useState<Timeframe>(1)
+  const [timeframe, setTimeframe] = useState<Timeframe>(gameState.timeframe ?? 1)
 
   const {
     ticks,
@@ -47,8 +48,9 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
 
   const handleTimeframeChange = useCallback((tf: Timeframe) => {
     setTimeframe(tf)
+    dispatch({ type: ACTIONS.SET_TIMEFRAME, payload: { timeframe: tf } })
     chartRef.current?.setTimeframe(tf, getTickHistory())
-  }, [getTickHistory])
+  }, [dispatch, getTickHistory])
 
   const timeframeButtons = (
     <div className="flex gap-1">

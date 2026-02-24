@@ -22,6 +22,7 @@ interface GameStateInput {
   totalPnL?: number
   lifetimePnl?: number
   speed?: number
+  timeframe?: number
 }
 
 const DEFAULT_PROGRESS: SaveProgress = {
@@ -46,6 +47,7 @@ const DEFAULT_STATS: SaveStats = {
 
 const DEFAULT_SETTINGS: SaveSettings = {
   speed: 1,
+  timeframe: 1,
 }
 
 /**
@@ -140,6 +142,7 @@ function buildSaveData(gameState: GameStateInput): SaveData {
 
   const settings: SaveSettings = {
     speed: gameState.speed ?? 1,
+    timeframe: gameState.timeframe ?? 1,
   }
 
   const hash = generateHash(progress.balance, progress.day)

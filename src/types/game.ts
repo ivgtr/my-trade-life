@@ -1,5 +1,5 @@
 import type { Position } from './trading'
-import type { DailyCondition, RegimeParams, AnomalyParams, MonthPreview, YearPreviewEntry } from './market'
+import type { Timeframe, DailyCondition, RegimeParams, AnomalyParams, MonthPreview, YearPreviewEntry } from './market'
 import type { DayHistoryEntry, MonthlyStats, YearlyStats } from './calendar'
 import type { PreviewEvent, WeekendNews } from './news'
 
@@ -38,6 +38,7 @@ export interface GameState {
   unlockedFeatures: string[]
   maxLeverage: number
   speed: number
+  timeframe: Timeframe
   isEndlessMode: boolean
   peakBalance: number
   maxDrawdown: number
@@ -84,6 +85,7 @@ export const ACTIONS = {
   ADD_EXP: 'ADD_EXP',
   LEVEL_UP: 'LEVEL_UP',
   SET_SPEED: 'SET_SPEED',
+  SET_TIMEFRAME: 'SET_TIMEFRAME',
   GAME_OVER: 'GAME_OVER',
   BILLIONAIRE: 'BILLIONAIRE',
   ENTER_ENDLESS: 'ENTER_ENDLESS',
@@ -107,6 +109,7 @@ export type GameAction =
   | { type: typeof ACTIONS.ADD_EXP; payload: { amount: number } }
   | { type: typeof ACTIONS.LEVEL_UP; payload: { level: number; unlockedFeatures: string[]; maxLeverage: number } }
   | { type: typeof ACTIONS.SET_SPEED; payload: { speed: number } }
+  | { type: typeof ACTIONS.SET_TIMEFRAME; payload: { timeframe: Timeframe } }
   | { type: typeof ACTIONS.GAME_OVER }
   | { type: typeof ACTIONS.BILLIONAIRE }
   | { type: typeof ACTIONS.ENTER_ENDLESS }

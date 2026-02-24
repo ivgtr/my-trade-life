@@ -22,6 +22,7 @@ export const initialState: GameState = {
   unlockedFeatures: [],
   maxLeverage: 1,
   speed: 1,
+  timeframe: 1,
   isEndlessMode: false,
   peakBalance: 0,
   maxDrawdown: 0,
@@ -199,6 +200,11 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     case ACTIONS.SET_SPEED:
       return { ...state, speed: (payload as { speed: number }).speed === 2 ? 2 : 1 }
+
+    case ACTIONS.SET_TIMEFRAME: {
+      const tf = (payload as { timeframe: number }).timeframe
+      return { ...state, timeframe: tf === 5 ? 5 : tf === 15 ? 15 : 1 }
+    }
 
     case ACTIONS.GAME_OVER:
       return { ...state, phase: 'gameOver' }

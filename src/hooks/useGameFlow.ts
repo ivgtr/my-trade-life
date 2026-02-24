@@ -352,5 +352,6 @@ function flattenSaveData(data: SaveData): Partial<GameState> {
     totalPnL: data.stats?.lifetimePnl ?? 0,
     dailyHistory: (data.stats?.dailyHistory ?? []) as any,
     speed: data.settings?.speed ?? 1,
+    timeframe: (data.settings?.timeframe ?? 1) as GameState['timeframe'],
   }
 }
