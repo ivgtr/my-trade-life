@@ -28,15 +28,15 @@ function buildBarsFromHistory(history: TickData[], tf: Timeframe): CandlestickDa
     const barTime = Math.floor(tick.timestamp / tf) * tf
     const existing = bars.get(barTime)
     if (existing) {
-      existing.high = Math.max(existing.high, tick.price)
-      existing.low = Math.min(existing.low, tick.price)
+      existing.high = Math.max(existing.high, tick.high)
+      existing.low = Math.min(existing.low, tick.low)
       existing.close = tick.price
     } else {
       bars.set(barTime, {
         time: barTime as UTCTimestamp,
         open: tick.price,
-        high: tick.price,
-        low: tick.price,
+        high: tick.high,
+        low: tick.low,
         close: tick.price,
       })
     }
@@ -81,7 +81,7 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
     updateTick(tickData: TickData) {
       if (!seriesRef.current) return
 
-      const { price, timestamp } = tickData
+      const { price, high, low, timestamp } = tickData
       const tf = timeframeRef.current
       const barTime = (Math.floor(timestamp / tf) * tf) as UTCTimestamp
 
@@ -89,13 +89,13 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
         currentBarRef.current = {
           time: barTime,
           open: price,
-          high: price,
-          low: price,
+          high,
+          low,
           close: price,
         }
       } else {
-        currentBarRef.current.high = Math.max(currentBarRef.current.high, price)
-        currentBarRef.current.low = Math.min(currentBarRef.current.low, price)
+        currentBarRef.current.high = Math.max(currentBarRef.current.high, high)
+        currentBarRef.current.low = Math.min(currentBarRef.current.low, low)
         currentBarRef.current.close = price
       }
 

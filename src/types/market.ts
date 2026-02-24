@@ -6,6 +6,8 @@ export type RegimeName = 'bullish' | 'bearish' | 'range' | 'turbulent' | 'bubble
 
 export interface TickData {
   price: number
+  high: number
+  low: number
   volume: number
   timestamp: number
   volState: VolState

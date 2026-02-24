@@ -43,6 +43,8 @@ export class MarketEngine {
   #lastTickRealTime: number
   #intradayScenario: IntradayScenario
   #extremeEvent: ExtremeEventState | null
+  #lastTickHigh: number
+  #lastTickLow: number
 
   constructor(config: MarketEngineConfig) {
     this.#regimeParams = config.regimeParams
@@ -62,6 +64,8 @@ export class MarketEngine {
     this.#lastTickRealTime = 0
     this.#intradayScenario = this.#selectScenario(config.regimeParams.regime)
     this.#extremeEvent = null
+    this.#lastTickHigh = config.openPrice
+    this.#lastTickLow = config.openPrice
   }
 
   /** エンジンを開始する。 */
@@ -178,36 +182,41 @@ export class MarketEngine {
   }
 
   /**
-   * 価格変動モデル。
+   * 価格変動モデル（幾何ブラウン運動）。
    * シナリオフェーズ・ドリフト・ショック・ファットテール・外部力・
    * モメンタム・平均回帰力・極端イベントを合算。
+   * 全ショック成分は現在価格に比例する。
    */
   #updatePrice(): void {
+    const prevPrice = this.#currentPrice
     const timeZone = this.#getTimeZone(this.#gameTime)
     const todParams = TIME_OF_DAY[timeZone]
     const phase = this.#getCurrentPhase()
+
+    // 合成ボラティリティ倍率
+    const combinedVolMult = this.#regimeParams.volMult *
+      this.#anomalyParams.volBias * todParams.volMult * phase.volMult
 
     // ドリフト: フェーズのdriftOverrideがあれば上書き
     const driftRate = phase.driftOverride ??
       (this.#regimeParams.drift + this.#anomalyParams.driftBias)
     const drift = driftRate * this.#currentPrice
 
-    // ショック: phase.volMultも乗算
-    const shock = gaussRandom() * PRICE_MOVE.sd *
-      this.#regimeParams.volMult * this.#anomalyParams.volBias *
-      todParams.volMult * phase.volMult
+    // ショック: 価格比例（幾何ブラウン運動）
+    const shock = gaussRandom() * this.#currentPrice * PRICE_MOVE.sdPct *
+      combinedVolMult
 
-    // ファットテール
+    // ファットテール: 同様に価格比例
     let fatTail = 0
     if (Math.random() < PRICE_MOVE.fatTailP) {
       const multiplier = 3 + Math.random() * 2
-      fatTail = gaussRandom() * PRICE_MOVE.sd * multiplier
+      fatTail = gaussRandom() * this.#currentPrice * PRICE_MOVE.sdPct * multiplier
     }
 
-    // 外部力（使用後に減衰）
-    const externalEffect = this.#externalForce
+    // 外部力（比率として保持、価格を乗じて適用。使用後に減衰）
+    const externalEffect = this.#externalForce * this.#currentPrice
     this.#externalForce *= FORCE_DECAY
-    if (Math.abs(this.#externalForce) < 0.5) {
+    if (Math.abs(this.#externalForce) < 0.00001) {
       this.#externalForce = 0
     }
 
@@ -222,13 +231,31 @@ export class MarketEngine {
       this.#momentum + meanRevForce + extremeForce
     let newPrice = this.#currentPrice + totalChange
 
-    // 10円刻み丸め、最小10円
-    newPrice = Math.max(10, Math.round(newPrice / 10) * 10)
+    // 1円刻み丸め、最小10円
+    newPrice = Math.max(10, Math.round(newPrice))
     this.#currentPrice = newPrice
 
-    // モメンタム更新
+    // tick内high/low推定
+    const effectiveVol = this.#currentPrice * PRICE_MOVE.sdPct * combinedVolMult
+    const { high, low } = this.#estimateTickHighLow(prevPrice, newPrice, effectiveVol)
+    this.#lastTickHigh = high
+    this.#lastTickLow = low
+
+    // モメンタム更新（価格比例でクランプ）
     this.#momentum = this.#momentum * MOMENTUM.decay + (shock + fatTail) * (1 - MOMENTUM.decay)
-    this.#momentum = Math.max(-MOMENTUM.maxAbs, Math.min(MOMENTUM.maxAbs, this.#momentum))
+    const maxMom = this.#currentPrice * MOMENTUM.maxAbsPct
+    this.#momentum = Math.max(-maxMom, Math.min(maxMom, this.#momentum))
+  }
+
+  /** tick間の経路上の推定高値/安値をブラウンブリッジ的に推定する。 */
+  #estimateTickHighLow(prevPrice: number, newPrice: number, effectiveVol: number): { high: number; low: number } {
+    const maxP = Math.max(prevPrice, newPrice)
+    const minP = Math.min(prevPrice, newPrice)
+    const overshoot = Math.abs(gaussRandom()) * effectiveVol * 0.5
+    return {
+      high: Math.round(maxP + overshoot),
+      low: Math.max(10, Math.round(minP - overshoot)),
+    }
   }
 
   /** 重み付きランダムでセッション内シナリオを選択する。 */
@@ -270,7 +297,8 @@ export class MarketEngine {
     const excess = absDeviation - MEAN_REVERSION.threshold
     const sign = deviation > 0 ? -1 : 1
     const force = sign * MEAN_REVERSION.scale * this.#currentPrice * excess * meanRevStrength
-    return Math.max(-MEAN_REVERSION.maxForce, Math.min(MEAN_REVERSION.maxForce, force))
+    const maxForce = this.#currentPrice * MEAN_REVERSION.maxForcePct
+    return Math.max(-maxForce, Math.min(maxForce, force))
   }
 
   /** 極端イベント（フラッシュクラッシュ/メルトアップ）の状態遷移と力を計算する。 */
@@ -284,7 +312,9 @@ export class MarketEngine {
           type: isCrash ? 'crash' : 'meltup',
           phase: 'active',
           ticksRemaining: duration,
-          force: isCrash ? EXTREME_EVENT.crashForce : EXTREME_EVENT.meltUpForce,
+          force: isCrash
+            ? this.#currentPrice * EXTREME_EVENT.crashForcePct
+            : this.#currentPrice * EXTREME_EVENT.meltUpForcePct,
           totalDisplacement: 0,
         }
       }
@@ -397,6 +427,8 @@ export class MarketEngine {
     const timeZone = this.#getTimeZone(this.#gameTime)
     const tickData: TickData = {
       price: this.#currentPrice,
+      high: this.#lastTickHigh,
+      low: this.#lastTickLow,
       volume: this.#generateVolume(),
       timestamp: this.#gameTime,
       volState: this.#volState,

@@ -235,13 +235,14 @@ export class NewsSystem {
   }
 
   /**
-   * ニュースイベントの外部イベント力を返す。
-   * MarketEngine.injectExternalForce() に渡す値（円単位）を算出する。
+   * ニュースイベントの外部イベント力を返す（比率）。
+   * MarketEngine.injectExternalForce() に渡す値を算出する。
+   * MarketEngine側で currentPrice を乗じて適用される。
    */
   getExternalForce(event: NewsEvent): number {
-    // impact（-1.0〜1.0）を価格変動のスケール（PRICE_MOVE.sd基準）に変換
+    // impact（-1.0〜1.0）を価格変動のスケール（PRICE_MOVE.sdPct基準）に変換
     // impact=1.0 で約5σ相当のショック
-    return event.impact * PRICE_MOVE.sd * 5
+    return event.impact * PRICE_MOVE.sdPct * 5
   }
 
   /** 週末ニュースの内部影響を返す（翌週の地合い・発生確率補正用）。 */

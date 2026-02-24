@@ -15,18 +15,18 @@ export const TICK_INTERVAL = {
   low:    { mean: 480, sd: 150 },
 } as const satisfies Record<VolState, { mean: number; sd: number }>
 
-/** 価格変動パラメータ */
+/** 価格変動パラメータ（比例値: 基準価格30000円に対する比率） */
 export const PRICE_MOVE = {
-  sd:       12.5,
+  sdPct:    0.00042,
   kurtosis: 4.2,
   fatTailP: 0.021,
-} as const satisfies { sd: number; kurtosis: number; fatTailP: number }
+} as const satisfies { sdPct: number; kurtosis: number; fatTailP: number }
 
-/** モメンタムパラメータ */
+/** モメンタムパラメータ（比例値） */
 export const MOMENTUM = {
-  decay:  0.72,
-  maxAbs: 16,
-} as const satisfies { decay: number; maxAbs: number }
+  decay:     0.72,
+  maxAbsPct: 0.00053,
+} as const satisfies { decay: number; maxAbsPct: number }
 
 /** ボラティリティフェーズ間の遷移確率 (6方向) */
 export const VOL_TRANSITION = {
@@ -115,7 +115,7 @@ export function calcGap(
   if (previewEvent) {
     gapPct += (Math.random() - 0.5) * 1.2 * GAP_NEWS_IMPACT_MULT
   }
-  const gapAmount = Math.round(closePrice * gapPct / 10) * 10
+  const gapAmount = Math.round(closePrice * gapPct)
   const openPrice = Math.max(10, closePrice + gapAmount)
   return {
     openPrice,
@@ -551,18 +551,18 @@ export const SCENARIO_REGIME_BIAS: Record<RegimeName, Record<string, number>> = 
   },
 }
 
-/** 平均回帰パラメータ */
+/** 平均回帰パラメータ（比例値） */
 export const MEAN_REVERSION = {
   threshold: 0.005,
   scale: 0.03,
-  maxForce: 25,
+  maxForcePct: 0.00083,
 } as const
 
-/** 極端イベントパラメータ */
+/** 極端イベントパラメータ（比例値） */
 export const EXTREME_EVENT = {
   triggerProb: 0.0003,
-  crashForce: -80,
-  meltUpForce: 60,
+  crashForcePct: -0.0027,
+  meltUpForcePct: 0.0020,
   activeDurationMin: 8,
   activeDurationMax: 20,
   recoveryDurationMin: 12,
