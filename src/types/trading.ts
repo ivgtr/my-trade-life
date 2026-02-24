@@ -6,6 +6,8 @@ export interface Position {
   leverage: number
   margin: number
   unrealizedPnL: number
+  stopLoss?: number
+  takeProfit?: number
 }
 
 export interface TradeResult {

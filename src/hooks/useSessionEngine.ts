@@ -23,6 +23,7 @@ interface UseSessionEngineReturn {
   handleBuy: (shares: number) => void
   handleSell: (shares: number) => void
   handleClose: (positionId: string) => void
+  handleSetSLTP: (positionId: string, stopLoss?: number, takeProfit?: number) => void
   handleSpeedChange: (newSpeed: number) => void
   handleNewsComplete: () => void
   getTickHistory: () => TickData[]
@@ -77,6 +78,15 @@ export function useSessionEngine({
 
         const time = marketEngine.getCurrentTime()
         if (time) setGameTime(time.formatted)
+
+        const triggeredIds = tradingEngine.checkSLTP(tickData.price)
+        for (const id of triggeredIds) {
+          const result = tradingEngine.closePosition(id, tickData.price)
+          if (result) {
+            dispatch({ type: ACTIONS.CLOSE_POSITION, payload: result })
+            AudioSystem.playSE(result.pnl >= 0 ? 'profit' : 'loss')
+          }
+        }
 
         const { total: unrealizedPnL, availableCash, creditMargin, buyingPower } = tradingEngine.recalculateUnrealized(tickData.price)
 
@@ -139,6 +149,10 @@ export function useSessionEngine({
     }
   }, [gameState.currentPrice, dispatch])
 
+  const handleSetSLTP = useCallback((positionId: string, stopLoss?: number, takeProfit?: number) => {
+    tradingEngineRef.current?.setSLTP(positionId, stopLoss, takeProfit)
+  }, [])
+
   const handleClose = useCallback((positionId: string) => {
     const te = tradingEngineRef.current
     if (!te) return
@@ -169,6 +183,7 @@ export function useSessionEngine({
     handleBuy,
     handleSell,
     handleClose,
+    handleSetSLTP,
     handleSpeedChange,
     handleNewsComplete,
     getTickHistory,

@@ -13,6 +13,7 @@ interface TradePanelProps {
   onBuy: (shares: number) => void
   onSell: (shares: number) => void
   onClose: (positionId: string) => void
+  onSetSLTP: (positionId: string, stopLoss?: number, takeProfit?: number) => void
   compact?: boolean
 }
 
@@ -20,6 +21,133 @@ function getPnlClass(value: number) {
   if (value > 0) return 'text-profit'
   if (value < 0) return 'text-loss'
   return 'text-text-secondary'
+}
+
+interface SLTPFormProps {
+  position: Position
+  onSetSLTP: (positionId: string, stopLoss?: number, takeProfit?: number) => void
+}
+
+function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
+  const [expanded, setExpanded] = useState(false)
+  const [slInput, setSlInput] = useState(position.stopLoss?.toString() ?? '')
+  const [tpInput, setTpInput] = useState(position.takeProfit?.toString() ?? '')
+
+  const hasSLTP = position.stopLoss != null || position.takeProfit != null
+
+  const validate = (): { sl?: number; tp?: number; error?: string } => {
+    const sl = slInput.trim() ? Number(slInput) : undefined
+    const tp = tpInput.trim() ? Number(tpInput) : undefined
+
+    if (sl != null && (isNaN(sl) || sl <= 0)) return { error: 'SL値が不正です' }
+    if (tp != null && (isNaN(tp) || tp <= 0)) return { error: 'TP値が不正です' }
+
+    if (position.direction === 'LONG') {
+      if (sl != null && sl >= position.entryPrice) return { error: 'SLはエントリー価格より下' }
+      if (tp != null && tp <= position.entryPrice) return { error: 'TPはエントリー価格より上' }
+    } else {
+      if (sl != null && sl <= position.entryPrice) return { error: 'SLはエントリー価格より上' }
+      if (tp != null && tp <= 0) return { error: 'TP値が不正です' }
+      if (tp != null && tp >= position.entryPrice) return { error: 'TPはエントリー価格より下' }
+    }
+
+    return { sl, tp }
+  }
+
+  const handleSet = () => {
+    const { sl, tp, error } = validate()
+    if (error) return
+    if (sl == null && tp == null) return
+    onSetSLTP(position.id, sl, tp)
+    setExpanded(false)
+  }
+
+  const handleClear = () => {
+    onSetSLTP(position.id, undefined, undefined)
+    setSlInput('')
+    setTpInput('')
+    setExpanded(false)
+  }
+
+  const { error } = validate()
+  const canSet = !error && (slInput.trim() || tpInput.trim())
+
+  if (!expanded) {
+    return (
+      <div className="flex items-center gap-1.5 mt-0.5">
+        {hasSLTP ? (
+          <>
+            {position.stopLoss != null && (
+              <span className="text-[10px] text-loss">SL:{formatCurrency(position.stopLoss)}</span>
+            )}
+            {position.takeProfit != null && (
+              <span className="text-[10px] text-profit">TP:{formatCurrency(position.takeProfit)}</span>
+            )}
+            <button
+              className="ml-auto py-0.5 px-1.5 bg-bg-elevated text-text-secondary border border-bg-button rounded text-[10px] cursor-pointer"
+              onClick={() => setExpanded(true)}
+            >
+              編集
+            </button>
+          </>
+        ) : (
+          <button
+            className="py-0.5 px-1.5 bg-bg-elevated text-text-secondary border border-bg-button rounded text-[10px] cursor-pointer"
+            onClick={() => setExpanded(true)}
+          >
+            SL/TP設定
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-1 p-1.5 bg-bg-elevated rounded space-y-1">
+      <div className="flex gap-1 items-center">
+        <span className="text-[10px] text-loss min-w-[18px]">SL</span>
+        <input
+          type="number"
+          value={slInput}
+          onChange={(e) => setSlInput(e.target.value)}
+          placeholder={position.direction === 'LONG' ? `< ${position.entryPrice}` : `> ${position.entryPrice}`}
+          className="bg-bg-deepest text-text-primary border border-bg-button rounded py-0.5 px-1.5 text-[11px] w-24 text-right"
+        />
+        <span className="text-[10px] text-profit min-w-[18px]">TP</span>
+        <input
+          type="number"
+          value={tpInput}
+          onChange={(e) => setTpInput(e.target.value)}
+          placeholder={position.direction === 'LONG' ? `> ${position.entryPrice}` : `< ${position.entryPrice}`}
+          className="bg-bg-deepest text-text-primary border border-bg-button rounded py-0.5 px-1.5 text-[11px] w-24 text-right"
+        />
+      </div>
+      {error && <div className="text-[10px] text-loss">{error}</div>}
+      <div className="flex gap-1">
+        <button
+          className="py-0.5 px-2 bg-accent text-white border-none rounded text-[10px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          onClick={handleSet}
+          disabled={!canSet}
+        >
+          設定
+        </button>
+        {hasSLTP && (
+          <button
+            className="py-0.5 px-2 bg-bg-danger text-loss border border-border-danger rounded text-[10px] cursor-pointer"
+            onClick={handleClear}
+          >
+            解除
+          </button>
+        )}
+        <button
+          className="py-0.5 px-2 bg-bg-elevated text-text-secondary border border-bg-button rounded text-[10px] cursor-pointer"
+          onClick={() => setExpanded(false)}
+        >
+          閉じる
+        </button>
+      </div>
+    </div>
+  )
 }
 
 interface DesktopTradePanelProps {
@@ -35,6 +163,7 @@ interface DesktopTradePanelProps {
   onBuy: (shares: number) => void
   onSell: (shares: number) => void
   onClose: (positionId: string) => void
+  onSetSLTP: (positionId: string, stopLoss?: number, takeProfit?: number) => void
 }
 
 function DesktopTradePanel({
@@ -50,6 +179,7 @@ function DesktopTradePanel({
   onBuy,
   onSell,
   onClose,
+  onSetSLTP,
 }: DesktopTradePanelProps) {
   const addShares = (amount: number) => setShares((prev) => Math.max(1, prev + amount))
   const maxShares = currentPrice > 0 ? Math.floor(buyingPower / currentPrice) : 0
@@ -177,6 +307,7 @@ function DesktopTradePanel({
                       決済
                     </button>
                   </div>
+                  <SLTPForm position={pos} onSetSLTP={onSetSLTP} />
                 </div>
               )
             })}
@@ -206,6 +337,9 @@ function MobilePositionSummary({ currentPrice, positions }: MobilePositionSummar
   const totalCost = positions.reduce((sum, p) => sum + p.entryPrice * p.shares, 0)
   const direction = positions[0]?.direction ?? ''
 
+  const slCount = positions.filter((p) => p.stopLoss != null).length
+  const tpCount = positions.filter((p) => p.takeProfit != null).length
+
   return (
     <div className="flex justify-between items-center py-1.5 px-3 bg-bg-panel border-t border-bg-elevated text-xs font-mono text-text-primary shrink-0">
       <span className="font-bold">{formatCurrency(currentPrice)}</span>
@@ -217,6 +351,13 @@ function MobilePositionSummary({ currentPrice, positions }: MobilePositionSummar
         <span className={getPnlClass(totalPnl)}>
           {formatCurrency(totalPnl)}({formatPnlPercent(totalPnl, totalCost)})
         </span>
+        {(slCount > 0 || tpCount > 0) && (
+          <span className="ml-1 text-[10px] text-text-secondary">
+            {slCount > 0 && <span className="text-loss">SL</span>}
+            {slCount > 0 && tpCount > 0 && '/'}
+            {tpCount > 0 && <span className="text-profit">TP</span>}
+          </span>
+        )}
       </span>
     </div>
   )
@@ -351,6 +492,7 @@ export default function TradePanel({
   onBuy,
   onSell,
   onClose,
+  onSetSLTP,
   compact = false,
 }: TradePanelProps) {
   const [shares, setShares] = useState(1)
@@ -371,6 +513,7 @@ export default function TradePanel({
         onBuy={onBuy}
         onSell={onSell}
         onClose={onClose}
+        onSetSLTP={onSetSLTP}
       />
     )
   }

@@ -113,6 +113,31 @@ export class TradingEngine {
     return { availableCash, creditMargin, buyingPower }
   }
 
+  /** ポジションにSL/TPを設定する。undefinedを渡すと解除 */
+  setSLTP(positionId: string, stopLoss?: number, takeProfit?: number): boolean {
+    const position = this.#positions.get(positionId)
+    if (!position) return false
+    position.stopLoss = stopLoss
+    position.takeProfit = takeProfit
+    return true
+  }
+
+  /** SL/TP条件を満たしたポジションIDを返す */
+  checkSLTP(currentPrice: number): string[] {
+    const triggered: string[] = []
+    for (const position of this.#positions.values()) {
+      const { direction, stopLoss, takeProfit } = position
+      if (direction === 'LONG') {
+        if (stopLoss != null && currentPrice <= stopLoss) triggered.push(position.id)
+        else if (takeProfit != null && currentPrice >= takeProfit) triggered.push(position.id)
+      } else {
+        if (stopLoss != null && currentPrice >= stopLoss) triggered.push(position.id)
+        else if (takeProfit != null && currentPrice <= takeProfit) triggered.push(position.id)
+      }
+    }
+    return triggered
+  }
+
   /** 含み損益を再計算する */
   recalculateUnrealized(currentPrice: number): UnrealizedPnL {
     let total = 0
