@@ -195,7 +195,7 @@ function DesktopTradePanel({
   const totalPositionPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnL ?? 0), 0)
 
   return (
-    <div className="bg-bg-panel text-text-primary p-3 font-mono h-full overflow-y-auto overflow-x-hidden">
+    <div className="bg-bg-panel text-text-primary p-3 font-mono h-full flex flex-col overflow-hidden">
       {/* 現在価格 */}
       <div className="mb-1.5 pb-1.5 border-b border-bg-elevated">
         <div className="text-[11px] text-text-secondary">現在値</div>
@@ -281,8 +281,8 @@ function DesktopTradePanel({
 
       {/* ポジション一覧 */}
       {positions && positions.length > 0 && (
-        <div>
-          <div className="flex justify-between items-center text-xs text-text-secondary mb-1.5 border-b border-bg-elevated pb-1">
+        <div className="flex flex-col min-h-0 flex-1">
+          <div className="flex justify-between items-center text-xs text-text-secondary mb-1.5 border-b border-bg-elevated pb-1 shrink-0">
             <span>保有ポジション({positions.length})</span>
             <div className="flex items-center gap-2">
               <span className={getPnlClass(totalPositionPnl)}>計 {formatCurrency(totalPositionPnl)}</span>
@@ -296,11 +296,11 @@ function DesktopTradePanel({
               )}
             </div>
           </div>
-          <div className="max-h-[200px] overflow-y-auto">
+          <div className="overflow-y-auto min-h-0">
             {positions.map((pos) => {
               const cost = pos.entryPrice * pos.shares
               return (
-                <div key={pos.id} className="py-1.5 border-b border-bg-elevated text-xs">
+                <div key={pos.id} className="py-1.5 pr-2 border-b border-bg-elevated text-xs">
                   <div className="flex justify-between items-center">
                     <span className={pos.direction === 'LONG' ? 'text-profit' : 'text-loss'}>
                       {pos.direction}
