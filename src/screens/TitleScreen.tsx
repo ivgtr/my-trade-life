@@ -8,98 +8,6 @@ interface TitleScreenProps {
   onLoadGame?: () => void
 }
 
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100dvh',
-    backgroundColor: '#0a0a1a',
-    color: '#e0e0e0',
-    fontFamily: 'monospace',
-  },
-  title: {
-    fontSize: '36px',
-    fontWeight: 'bold',
-    letterSpacing: '4px',
-    marginBottom: '48px',
-    color: '#ffd700',
-    textShadow: '0 0 20px rgba(255, 215, 0, 0.3)',
-  },
-  menu: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '12px',
-    width: '260px',
-  },
-  button: {
-    padding: '14px 24px',
-    fontSize: '16px',
-    backgroundColor: '#1a1a2e',
-    color: '#e0e0e0',
-    border: '1px solid #3a3a4e',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    textAlign: 'left',
-    transition: 'background-color 0.2s',
-  },
-  buttonDisabled: {
-    padding: '14px 24px',
-    fontSize: '16px',
-    backgroundColor: '#1a1a2e',
-    color: '#555',
-    border: '1px solid #2a2a3e',
-    borderRadius: '8px',
-    cursor: 'not-allowed',
-    textAlign: 'left',
-  },
-  dialog: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 500,
-  },
-  dialogBox: {
-    backgroundColor: '#1a1a2e',
-    padding: '24px',
-    borderRadius: '12px',
-    textAlign: 'center',
-    maxWidth: '360px',
-  },
-  dialogText: {
-    marginBottom: '16px',
-    fontSize: '14px',
-  },
-  dialogButtons: {
-    display: 'flex',
-    gap: '12px',
-    justifyContent: 'center',
-  },
-  dialogConfirm: {
-    padding: '8px 20px',
-    backgroundColor: '#ef5350',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-  },
-  dialogCancel: {
-    padding: '8px 20px',
-    backgroundColor: '#3a3a4e',
-    color: '#e0e0e0',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-  },
-} as const
-
 export default function TitleScreen({ onNewGame, onLoadGame }: TitleScreenProps) {
   const { dispatch } = useGameContext()
   const [showConfirm, setShowConfirm] = useState(false)
@@ -124,27 +32,36 @@ export default function TitleScreen({ onNewGame, onLoadGame }: TitleScreenProps)
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.title}>DAY TRADER LIFE</div>
-      <div style={styles.menu}>
-        <button style={styles.button} onClick={handleNewGame}>
+    <div className="flex flex-col items-center justify-center min-h-dvh bg-bg-deepest text-text-primary font-mono">
+      <div className="text-4xl font-bold tracking-[4px] mb-12 text-gold [text-shadow:0_0_20px_rgba(255,215,0,0.3)]">
+        DAY TRADER LIFE
+      </div>
+      <div className="flex flex-col gap-3 w-[260px]">
+        <button
+          className="py-3.5 px-6 text-base bg-bg-panel text-text-primary border border-bg-button rounded-lg cursor-pointer text-left transition-colors duration-200 hover:bg-bg-elevated"
+          onClick={handleNewGame}
+        >
           ▶ New Game
         </button>
         <button
-          style={hasSave ? styles.button : styles.buttonDisabled}
+          className={
+            hasSave
+              ? 'py-3.5 px-6 text-base bg-bg-panel text-text-primary border border-bg-button rounded-lg cursor-pointer text-left transition-colors duration-200 hover:bg-bg-elevated'
+              : 'py-3.5 px-6 text-base bg-bg-panel text-text-muted border border-bg-elevated rounded-lg cursor-not-allowed text-left'
+          }
           onClick={hasSave ? handleLoad : undefined}
           disabled={!hasSave}
         >
           Load Game
         </button>
         <button
-          style={styles.button}
+          className="py-3.5 px-6 text-base bg-bg-panel text-text-primary border border-bg-button rounded-lg cursor-pointer text-left transition-colors duration-200 hover:bg-bg-elevated"
           onClick={() => dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'config' } })}
         >
           Config
         </button>
         <button
-          style={styles.button}
+          className="py-3.5 px-6 text-base bg-bg-panel text-text-primary border border-bg-button rounded-lg cursor-pointer text-left transition-colors duration-200 hover:bg-bg-elevated"
           onClick={() => dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'importExport' } })}
         >
           Import / Export
@@ -152,14 +69,24 @@ export default function TitleScreen({ onNewGame, onLoadGame }: TitleScreenProps)
       </div>
 
       {showConfirm && (
-        <div style={styles.dialog}>
-          <div style={styles.dialogBox}>
-            <div style={styles.dialogText}>
+        <div className="fixed inset-0 bg-black/70 flex justify-center items-center z-[var(--z-modal)]">
+          <div className="bg-bg-panel p-6 rounded-xl text-center max-w-[360px]">
+            <div className="mb-4 text-sm">
               既存のセーブデータを上書きしますが、よろしいですか？
             </div>
-            <div style={styles.dialogButtons}>
-              <button style={styles.dialogConfirm} onClick={confirmNewGame}>上書きする</button>
-              <button style={styles.dialogCancel} onClick={() => setShowConfirm(false)}>キャンセル</button>
+            <div className="flex gap-3 justify-center">
+              <button
+                className="py-2 px-5 bg-loss text-white border-none rounded-md cursor-pointer"
+                onClick={confirmNewGame}
+              >
+                上書きする
+              </button>
+              <button
+                className="py-2 px-5 bg-bg-button text-text-primary border-none rounded-md cursor-pointer"
+                onClick={() => setShowConfirm(false)}
+              >
+                キャンセル
+              </button>
             </div>
           </div>
         </div>

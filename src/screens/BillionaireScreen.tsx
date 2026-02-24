@@ -10,89 +10,6 @@ interface BillionaireScreenProps {
 
 const CONFETTI_COUNT = 40
 
-const styles = {
-  container: {
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100dvh',
-    backgroundColor: '#0a0a0a',
-    color: '#ffd700',
-    fontFamily: 'monospace',
-    overflow: 'hidden',
-  },
-  flash: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#fff',
-    zIndex: 100,
-    pointerEvents: 'none',
-  },
-  logo: {
-    fontSize: '48px',
-    fontWeight: 'bold',
-    letterSpacing: '8px',
-    textShadow: '0 0 30px rgba(255, 215, 0, 0.6), 0 0 60px rgba(255, 215, 0, 0.3)',
-    marginBottom: '32px',
-    zIndex: 10,
-  },
-  statsBox: {
-    backgroundColor: 'rgba(255, 215, 0, 0.08)',
-    border: '1px solid rgba(255, 215, 0, 0.3)',
-    padding: '20px',
-    borderRadius: '12px',
-    width: '320px',
-    marginBottom: '32px',
-    zIndex: 10,
-  },
-  row: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '8px',
-    fontSize: '14px',
-  },
-  label: { color: '#b8860b' },
-  value: { color: '#ffd700' },
-  buttonRow: {
-    display: 'flex',
-    gap: '16px',
-    zIndex: 10,
-  },
-  continueButton: {
-    padding: '12px 24px',
-    fontSize: '14px',
-    backgroundColor: '#ffd700',
-    color: '#0a0a0a',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-  },
-  restartButton: {
-    padding: '12px 24px',
-    fontSize: '14px',
-    backgroundColor: 'transparent',
-    color: '#ffd700',
-    border: '1px solid #ffd700',
-    borderRadius: '8px',
-    cursor: 'pointer',
-  },
-  confetti: {
-    position: 'fixed',
-    top: '-20px',
-    width: '10px',
-    height: '10px',
-    borderRadius: '2px',
-    zIndex: 5,
-    pointerEvents: 'none',
-  },
-} as const
-
 const confettiColors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7']
 
 export default function BillionaireScreen({ onContinue, onRestart }: BillionaireScreenProps) {
@@ -116,40 +33,20 @@ export default function BillionaireScreen({ onContinue, onRestart }: Billionaire
     return () => clearTimeout(timer)
   }, [])
 
-  // CSS keyframes for confetti
-  useEffect(() => {
-    const id = 'billionaire-confetti-style'
-    if (document.getElementById(id)) return
-    const style = document.createElement('style')
-    style.id = id
-    style.textContent = `
-      @keyframes confettiFall {
-        0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
-        100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-      }
-    `
-    document.head.appendChild(style)
-  }, [])
-
   return (
-    <div style={styles.container}>
-      {/* フラッシュ */}
+    <div className="relative flex flex-col items-center justify-center min-h-dvh bg-bg-black text-gold font-mono overflow-hidden">
       {showFlash && (
         <div
-          style={{
-            ...styles.flash,
-            opacity: showFlash ? 1 : 0,
-            transition: 'opacity 0.3s',
-          }}
+          className="fixed inset-0 bg-white z-[var(--z-flash)] pointer-events-none transition-opacity duration-300"
+          style={{ opacity: showFlash ? 1 : 0 }}
         />
       )}
 
-      {/* 紙吹雪 */}
       {confettiItems.map((c) => (
         <div
           key={c.id}
+          className="fixed top-[-20px] rounded-sm z-5 pointer-events-none"
           style={{
-            ...styles.confetti,
             left: `${c.left}%`,
             width: `${c.size}px`,
             height: `${c.size}px`,
@@ -159,32 +56,34 @@ export default function BillionaireScreen({ onContinue, onRestart }: Billionaire
         />
       ))}
 
-      <div style={styles.logo}>BILLIONAIRE</div>
+      <div className="text-5xl font-bold tracking-[8px] [text-shadow:0_0_30px_rgba(255,215,0,0.6),0_0_60px_rgba(255,215,0,0.3)] mb-8 z-[var(--z-content)]">
+        BILLIONAIRE
+      </div>
 
-      <div style={styles.statsBox}>
-        <div style={styles.row}>
-          <span style={styles.label}>最終残高</span>
-          <span style={styles.value}>{formatCurrency(gameState.balance)}</span>
+      <div className="bg-gold/8 border border-gold/30 p-5 rounded-xl w-80 mb-8 z-[var(--z-content)]">
+        <div className="flex justify-between mb-2 text-sm">
+          <span className="text-gold-dark">最終残高</span>
+          <span className="text-gold">{formatCurrency(gameState.balance)}</span>
         </div>
-        <div style={styles.row}>
-          <span style={styles.label}>達成日数</span>
-          <span style={styles.value}>{gameState.day ?? 0}日</span>
+        <div className="flex justify-between mb-2 text-sm">
+          <span className="text-gold-dark">達成日数</span>
+          <span className="text-gold">{gameState.day ?? 0}日</span>
         </div>
-        <div style={styles.row}>
-          <span style={styles.label}>総取引回数</span>
-          <span style={styles.value}>{gameState.totalTrades ?? 0}回</span>
+        <div className="flex justify-between mb-2 text-sm">
+          <span className="text-gold-dark">総取引回数</span>
+          <span className="text-gold">{gameState.totalTrades ?? 0}回</span>
         </div>
       </div>
 
-      <div style={styles.buttonRow}>
+      <div className="flex gap-4 z-[var(--z-content)]">
         <button
-          style={styles.continueButton}
+          className="py-3 px-6 text-sm bg-gold text-bg-black border-none rounded-lg cursor-pointer font-bold"
           onClick={() => onContinue?.()}
         >
           エンドレスモードで続ける
         </button>
         <button
-          style={styles.restartButton}
+          className="py-3 px-6 text-sm bg-transparent text-gold border border-gold rounded-lg cursor-pointer"
           onClick={() => onRestart?.()}
         >
           最初からやり直す

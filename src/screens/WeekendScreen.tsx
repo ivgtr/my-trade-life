@@ -6,80 +6,10 @@ interface WeekendScreenProps {
   onNext?: () => void
 }
 
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100dvh',
-    backgroundColor: '#0a0a1a',
-    color: '#e0e0e0',
-    fontFamily: 'monospace',
-  },
-  title: {
-    fontSize: '20px',
-    fontWeight: 'bold',
-    marginBottom: '24px',
-  },
-  summaryBox: {
-    backgroundColor: '#1a1a2e',
-    padding: '16px',
-    borderRadius: '8px',
-    width: '320px',
-    marginBottom: '16px',
-  },
-  row: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '6px',
-    fontSize: '14px',
-  },
-  label: { color: '#a0a0b0' },
-  newsBox: {
-    backgroundColor: '#1a1a2e',
-    padding: '16px',
-    borderRadius: '8px',
-    width: '320px',
-    marginBottom: '16px',
-  },
-  newsTitle: {
-    fontSize: '14px',
-    color: '#a0a0b0',
-    marginBottom: '8px',
-    borderBottom: '1px solid #2a2a3e',
-    paddingBottom: '4px',
-  },
-  newsItem: {
-    marginBottom: '8px',
-    fontSize: '13px',
-    padding: '6px',
-    backgroundColor: '#0a0a1a',
-    borderRadius: '4px',
-  },
-  newsHeadline: {
-    fontWeight: 'bold',
-    marginBottom: '2px',
-  },
-  newsImpact: {
-    fontSize: '11px',
-  },
-  confirmButton: {
-    padding: '14px 32px',
-    fontSize: '16px',
-    backgroundColor: '#6366f1',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    cursor: 'pointer',
-  },
-} as const
-
 export default function WeekendScreen({ onNext }: WeekendScreenProps) {
   const { gameState } = useGameContext()
   const [weekendNews, setWeekendNews] = useState<any[]>([])
 
-  // 今週の統計を取得
   const history = gameState.dailyHistory ?? []
   const weekHistory = history.slice(-5)
   const weekPnL = weekHistory.reduce((sum, d) => sum + (d.pnl ?? 0), 0)
@@ -88,7 +18,6 @@ export default function WeekendScreen({ onNext }: WeekendScreenProps) {
   const weekWinRate = weekTrades > 0 ? weekWins / weekTrades : 0
 
   useEffect(() => {
-    // 週末ニュースはgameStateから取得（GameFlowControllerが事前に生成済み）
     setWeekendNews(gameState.weekendNews ?? [])
   }, [gameState.weekendNews])
 
@@ -97,38 +26,35 @@ export default function WeekendScreen({ onNext }: WeekendScreenProps) {
   }
 
   return (
-    <div style={styles.container}>
-      <div style={styles.title}>週末レビュー</div>
+    <div className="flex flex-col items-center justify-center min-h-dvh bg-bg-deepest text-text-primary font-mono">
+      <div className="text-xl font-bold mb-6">週末レビュー</div>
 
-      <div style={styles.summaryBox}>
-        <div style={styles.row}>
-          <span style={styles.label}>今週の損益</span>
-          <span style={{ color: weekPnL >= 0 ? '#26a69a' : '#ef5350' }}>
+      <div className="bg-bg-panel p-4 rounded-lg w-80 mb-4">
+        <div className="flex justify-between mb-1.5 text-sm">
+          <span className="text-text-secondary">今週の損益</span>
+          <span className={weekPnL >= 0 ? 'text-profit' : 'text-loss'}>
             {formatCurrency(weekPnL)}
           </span>
         </div>
-        <div style={styles.row}>
-          <span style={styles.label}>取引回数</span>
+        <div className="flex justify-between mb-1.5 text-sm">
+          <span className="text-text-secondary">取引回数</span>
           <span>{weekTrades}回</span>
         </div>
-        <div style={styles.row}>
-          <span style={styles.label}>勝率</span>
+        <div className="flex justify-between mb-1.5 text-sm">
+          <span className="text-text-secondary">勝率</span>
           <span>{formatPercent(weekWinRate)}</span>
         </div>
       </div>
 
       {weekendNews.length > 0 && (
-        <div style={styles.newsBox}>
-          <div style={styles.newsTitle}>週末の経済ニュース</div>
+        <div className="bg-bg-panel p-4 rounded-lg w-80 mb-4">
+          <div className="text-sm text-text-secondary mb-2 border-b border-bg-elevated pb-1">
+            週末の経済ニュース
+          </div>
           {weekendNews.map((news) => (
-            <div key={news.id} style={styles.newsItem}>
-              <div style={styles.newsHeadline}>{news.headline}</div>
-              <div
-                style={{
-                  ...styles.newsImpact,
-                  color: news.impact >= 0 ? '#26a69a' : '#ef5350',
-                }}
-              >
+            <div key={news.id} className="mb-2 text-[13px] p-1.5 bg-bg-deepest rounded">
+              <div className="font-bold mb-0.5">{news.headline}</div>
+              <div className={`text-[11px] ${news.impact >= 0 ? 'text-profit' : 'text-loss'}`}>
                 影響度: {news.impact > 0 ? '+' : ''}{(news.impact * 100).toFixed(0)}%
               </div>
             </div>
@@ -136,7 +62,10 @@ export default function WeekendScreen({ onNext }: WeekendScreenProps) {
         </div>
       )}
 
-      <button style={styles.confirmButton} onClick={handleConfirm}>
+      <button
+        className="py-3.5 px-8 text-base bg-accent text-white border-none rounded-lg cursor-pointer"
+        onClick={handleConfirm}
+      >
         確認した
       </button>
     </div>

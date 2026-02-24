@@ -19,62 +19,6 @@ const GAME_OVER_MESSAGES = [
   'これはゲームです。現実ではありません。たぶん。',
 ]
 
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100dvh',
-    backgroundColor: '#050510',
-    color: '#555',
-    fontFamily: 'monospace',
-    transition: 'opacity 2s ease-in',
-  },
-  message: {
-    fontSize: '22px',
-    fontWeight: 'bold',
-    textAlign: 'center',
-    maxWidth: '400px',
-    lineHeight: '1.6',
-    marginBottom: '48px',
-    color: '#888',
-    opacity: 0,
-    transition: 'opacity 3s ease-in',
-  },
-  messageVisible: {
-    opacity: 1,
-  },
-  scoreBox: {
-    marginBottom: '48px',
-    textAlign: 'center',
-    opacity: 0,
-    transition: 'opacity 2s ease-in 2s',
-  },
-  scoreVisible: {
-    opacity: 1,
-  },
-  scoreRow: {
-    fontSize: '13px',
-    marginBottom: '6px',
-    color: '#666',
-  },
-  retryButton: {
-    padding: '8px 20px',
-    backgroundColor: 'transparent',
-    color: '#555',
-    border: '1px solid #333',
-    borderRadius: '6px',
-    fontSize: '12px',
-    cursor: 'pointer',
-    opacity: 0,
-    transition: 'opacity 2s ease-in 4s',
-  },
-  retryVisible: {
-    opacity: 1,
-  },
-} as const
-
 export default function GameOverScreen({ onRetry }: GameOverScreenProps) {
   const { gameState } = useGameContext()
   const [visible, setVisible] = useState(false)
@@ -87,19 +31,29 @@ export default function GameOverScreen({ onRetry }: GameOverScreenProps) {
   }, [])
 
   return (
-    <div style={{ ...styles.container, opacity: visible ? 1 : 0 }}>
-      <div style={{ ...styles.message, ...(visible ? styles.messageVisible : {}) }}>
+    <div
+      className="flex flex-col items-center justify-center min-h-dvh bg-bg-darkest text-text-muted font-mono transition-opacity duration-2000 ease-in"
+      style={{ opacity: visible ? 1 : 0 }}
+    >
+      <div
+        className="text-[22px] font-bold text-center max-w-[400px] leading-relaxed mb-12 text-text-dim transition-opacity duration-3000 ease-in"
+        style={{ opacity: visible ? 1 : 0 }}
+      >
         {message}
       </div>
 
-      <div style={{ ...styles.scoreBox, ...(visible ? styles.scoreVisible : {}) }}>
-        <div style={styles.scoreRow}>最終残高: {formatCurrency(gameState.balance ?? 0)}</div>
-        <div style={styles.scoreRow}>到達日数: {gameState.day ?? 0}日</div>
-        <div style={styles.scoreRow}>総取引回数: {gameState.totalTrades ?? 0}回</div>
+      <div
+        className="mb-12 text-center transition-opacity duration-2000 ease-in delay-2000"
+        style={{ opacity: visible ? 1 : 0 }}
+      >
+        <div className="text-[13px] mb-1.5 text-text-dimmer">最終残高: {formatCurrency(gameState.balance ?? 0)}</div>
+        <div className="text-[13px] mb-1.5 text-text-dimmer">到達日数: {gameState.day ?? 0}日</div>
+        <div className="text-[13px] mb-1.5 text-text-dimmer">総取引回数: {gameState.totalTrades ?? 0}回</div>
       </div>
 
       <button
-        style={{ ...styles.retryButton, ...(visible ? styles.retryVisible : {}) }}
+        className="py-2 px-5 bg-transparent text-text-muted border border-[#333] rounded-md text-xs cursor-pointer transition-opacity duration-2000 ease-in delay-4000"
+        style={{ opacity: visible ? 1 : 0 }}
         onClick={() => onRetry?.()}
       >
         もう一度
