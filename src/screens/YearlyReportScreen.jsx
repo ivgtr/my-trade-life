@@ -1,6 +1,4 @@
 import { useGameContext } from '../state/GameContext'
-import { ACTIONS } from '../state/actions'
-import { SaveSystem } from '../systems/SaveSystem'
 import { formatCurrency, formatPercent } from '../utils/formatUtils'
 
 const styles = {
@@ -111,8 +109,8 @@ function getRankComment(startBalance, endBalance) {
 /**
  * 年次レポート画面。
  */
-export default function YearlyReportScreen() {
-  const { gameState, dispatch } = useGameContext()
+export default function YearlyReportScreen({ onNext }) {
+  const { gameState } = useGameContext()
 
   const yearStats = gameState.yearlyStats ?? {}
   const yearPnL = yearStats.totalPnL ?? 0
@@ -129,8 +127,7 @@ export default function YearlyReportScreen() {
   const rank = getRankComment(startBalance, gameState.balance)
 
   const handleNext = () => {
-    SaveSystem.save(gameState)
-    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
+    if (onNext) onNext()
   }
 
   return (

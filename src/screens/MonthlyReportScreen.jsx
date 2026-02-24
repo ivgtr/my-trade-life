@@ -1,6 +1,4 @@
 import { useGameContext } from '../state/GameContext'
-import { ACTIONS } from '../state/actions'
-import { SaveSystem } from '../systems/SaveSystem'
 import { formatCurrency, formatPercent } from '../utils/formatUtils'
 
 const styles = {
@@ -83,8 +81,8 @@ const styles = {
 /**
  * 月次レポート画面。
  */
-export default function MonthlyReportScreen() {
-  const { gameState, dispatch } = useGameContext()
+export default function MonthlyReportScreen({ onNext }) {
+  const { gameState } = useGameContext()
 
   const monthStats = gameState.monthlyStats ?? {}
   const monthPnL = monthStats.totalPnL ?? 0
@@ -100,8 +98,7 @@ export default function MonthlyReportScreen() {
   const anomalyInfo = gameState.anomalyInfo
 
   const handleNext = () => {
-    SaveSystem.save(gameState)
-    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
+    if (onNext) onNext()
   }
 
   return (

@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useGameContext } from '../state/GameContext'
-import { ACTIONS } from '../state/actions'
-import { SaveSystem } from '../systems/SaveSystem'
 import { AudioSystem } from '../systems/AudioSystem'
 import { formatCurrency, formatPercent } from '../utils/formatUtils'
 import MilestoneOverlay, { MILESTONE_TABLE } from '../components/MilestoneOverlay'
@@ -79,8 +77,8 @@ const styles = {
 /**
  * 日次成果報告画面。
  */
-export default function ReportScreen() {
-  const { gameState, dispatch } = useGameContext()
+export default function ReportScreen({ onNext }) {
+  const { gameState } = useGameContext()
   const [milestone, setMilestone] = useState(null)
   const [leveledUp, setLeveledUp] = useState(false)
 
@@ -108,9 +106,7 @@ export default function ReportScreen() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNext = () => {
-    // 自動セーブ
-    SaveSystem.save(gameState)
-    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
+    if (onNext) onNext()
   }
 
   return (

@@ -98,7 +98,7 @@ const styles = {
 /**
  * タイトル画面。
  */
-export default function TitleScreen() {
+export default function TitleScreen({ onNewGame, onLoadGame }) {
   const { dispatch } = useGameContext()
   const [showConfirm, setShowConfirm] = useState(false)
   const hasSave = SaveSystem.hasSaveData()
@@ -106,25 +106,19 @@ export default function TitleScreen() {
   const handleNewGame = () => {
     if (hasSave) {
       setShowConfirm(true)
-    } else {
-      dispatch({ type: ACTIONS.INIT_NEW_GAME })
-      dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
+    } else if (onNewGame) {
+      onNewGame()
     }
   }
 
   const confirmNewGame = () => {
     setShowConfirm(false)
     SaveSystem.deleteSaveData()
-    dispatch({ type: ACTIONS.INIT_NEW_GAME })
-    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
+    if (onNewGame) onNewGame()
   }
 
   const handleLoad = () => {
-    const data = SaveSystem.load()
-    if (data) {
-      dispatch({ type: ACTIONS.LOAD_GAME, payload: data })
-      dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
-    }
+    if (onLoadGame) onLoadGame()
   }
 
   return (

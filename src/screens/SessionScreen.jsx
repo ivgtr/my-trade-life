@@ -67,7 +67,7 @@ const styles = {
 /**
  * セッション画面。チャート・歩み値・トレードパネル・ニュースオーバーレイを統合する。
  */
-export default function SessionScreen() {
+export default function SessionScreen({ onEndSession }) {
   const { gameState, dispatch } = useGameContext()
   const chartRef = useRef(null)
   const marketEngineRef = useRef(null)
@@ -143,11 +143,15 @@ export default function SessionScreen() {
         const results = tradingEngine.forceCloseAll(marketEngine.getCurrentTime().totalMinutes)
         const summary = tradingEngine.getDailySummary()
 
-        dispatch({
-          type: ACTIONS.END_SESSION,
-          payload: { results, summary },
-        })
-        dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'report' } })
+        if (onEndSession) {
+          onEndSession({ results, summary })
+        } else {
+          dispatch({
+            type: ACTIONS.END_SESSION,
+            payload: { results, summary },
+          })
+          dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'report' } })
+        }
       },
     })
     marketEngineRef.current = marketEngine

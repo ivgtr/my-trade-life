@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { useGameContext } from '../state/GameContext'
-import { ACTIONS } from '../state/actions'
 import { AudioSystem } from '../systems/AudioSystem'
 import { formatDate, formatCurrency } from '../utils/formatUtils'
 
@@ -75,8 +74,8 @@ const styles = {
 /**
  * カレンダー画面。日付表示と損益推移、次アクションのボタンを表示する。
  */
-export default function CalendarScreen() {
-  const { gameState, dispatch } = useGameContext()
+export default function CalendarScreen({ onAdvance }) {
+  const { gameState } = useGameContext()
 
   useEffect(() => {
     AudioSystem.playSE('calendarFlip')
@@ -103,13 +102,8 @@ export default function CalendarScreen() {
   const maxAbsPnl = Math.max(1, ...monthHistory.map((d) => Math.abs(d.pnl ?? 0)))
 
   const handleAdvance = () => {
-    if (isSaturday) {
-      dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'weekend' } })
-    } else if (isWeekday) {
-      dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'morning' } })
-    } else {
-      // 日曜: 翌日へ自動進行
-      dispatch({ type: ACTIONS.ADVANCE_DAY })
+    if (onAdvance) {
+      onAdvance()
     }
   }
 

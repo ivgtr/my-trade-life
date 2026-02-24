@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useGameContext } from '../state/GameContext'
-import { ACTIONS } from '../state/actions'
 import { formatCurrency } from '../utils/formatUtils'
 
 const GAME_OVER_MESSAGES = [
@@ -75,8 +74,8 @@ const styles = {
 /**
  * ゲームオーバー画面。パワポケ風の不気味な演出。
  */
-export default function GameOverScreen() {
-  const { gameState, dispatch } = useGameContext()
+export default function GameOverScreen({ onRetry }) {
+  const { gameState } = useGameContext()
   const [visible, setVisible] = useState(false)
   const [message] = useState(
     () => GAME_OVER_MESSAGES[Math.floor(Math.random() * GAME_OVER_MESSAGES.length)],
@@ -100,7 +99,7 @@ export default function GameOverScreen() {
 
       <button
         style={{ ...styles.retryButton, ...(visible ? styles.retryVisible : {}) }}
-        onClick={() => dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'title' } })}
+        onClick={() => onRetry?.()}
       >
         もう一度
       </button>

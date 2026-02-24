@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useGameContext } from '../state/GameContext'
-import { ACTIONS } from '../state/actions'
 import { AudioSystem } from '../systems/AudioSystem'
 import { formatCurrency } from '../utils/formatUtils'
 
@@ -94,8 +93,8 @@ const confettiColors = ['#ffd700', '#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '
 /**
  * ビリオネア達成画面。フルスクリーンの派手な演出。
  */
-export default function BillionaireScreen() {
-  const { gameState, dispatch } = useGameContext()
+export default function BillionaireScreen({ onContinue, onRestart }) {
+  const { gameState } = useGameContext()
   const [showFlash, setShowFlash] = useState(true)
   const [confettiItems] = useState(() =>
     Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
@@ -178,16 +177,13 @@ export default function BillionaireScreen() {
       <div style={styles.buttonRow}>
         <button
           style={styles.continueButton}
-          onClick={() => {
-            dispatch({ type: ACTIONS.ENTER_ENDLESS })
-            dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
-          }}
+          onClick={() => onContinue?.()}
         >
           エンドレスモードで続ける
         </button>
         <button
           style={styles.restartButton}
-          onClick={() => dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'title' } })}
+          onClick={() => onRestart?.()}
         >
           最初からやり直す
         </button>

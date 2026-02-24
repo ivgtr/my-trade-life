@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useGameContext } from '../state/GameContext'
-import { ACTIONS } from '../state/actions'
 import { formatCurrency, formatPercent } from '../utils/formatUtils'
 
 const styles = {
@@ -75,8 +74,8 @@ const styles = {
 /**
  * 週末ニュース画面。
  */
-export default function WeekendScreen() {
-  const { gameState, dispatch } = useGameContext()
+export default function WeekendScreen({ onNext }) {
+  const { gameState } = useGameContext()
   const [weekendNews, setWeekendNews] = useState([])
 
   // 今週の統計を取得
@@ -93,8 +92,7 @@ export default function WeekendScreen() {
   }, [gameState.weekendNews])
 
   const handleConfirm = () => {
-    dispatch({ type: ACTIONS.ADVANCE_DAY })
-    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
+    if (onNext) onNext()
   }
 
   return (

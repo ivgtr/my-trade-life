@@ -1,5 +1,4 @@
 import { useGameContext } from '../state/GameContext'
-import { ACTIONS } from '../state/actions'
 
 const styles = {
   container: {
@@ -87,15 +86,15 @@ function getSentimentStyle(sentiment) {
 /**
  * 朝の地合い確認画面。レベルに応じた情報を開示する。
  */
-export default function MorningScreen() {
-  const { gameState, dispatch } = useGameContext()
+export default function MorningScreen({ onStartSession }) {
+  const { gameState } = useGameContext()
   const level = gameState.level ?? 1
   const dailyCondition = gameState.dailyCondition
   const previewEvent = gameState.previewEvent
   const anomaly = gameState.anomalyInfo
 
   const handleEnter = () => {
-    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'session' } })
+    if (onStartSession) onStartSession()
   }
 
   const displaySentiment = dailyCondition?.displaySentiment ?? 'range'
