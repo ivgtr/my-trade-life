@@ -48,7 +48,9 @@ export function useSessionEngine({
   const [isLunchBreak, setIsLunchBreak] = useState(false)
   const lunchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onTickCallbackRef = useRef(onTickCallback)
-  onTickCallbackRef.current = onTickCallback
+  useEffect(() => {
+    onTickCallbackRef.current = onTickCallback
+  })
 
   const [tickStore] = useState(createTickStore)
   const [sessionStore] = useState(() => {
