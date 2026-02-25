@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MarketEngine } from '../MarketEngine'
 import { tickUnit } from '../priceGrid'
+import { REFERENCE_TICK_MEAN, scaleProb, scaleDecay, scaleLinear } from '../marketParams'
 import type { TickData, MarketEngineConfig } from '../../types/market'
 
 function createConfig(overrides?: Partial<MarketEngineConfig>): MarketEngineConfig {
@@ -13,6 +14,19 @@ function createConfig(overrides?: Partial<MarketEngineConfig>): MarketEngineConf
     onSessionEnd: vi.fn(),
     ...overrides,
   }
+}
+
+/** 指定コールバックが発火するまでタイマーを段階的に進める */
+function advanceUntilCalled(
+  callback: ReturnType<typeof vi.fn>,
+  stepMs = 100,
+  limitMs = 120000,
+): void {
+  for (let elapsed = 0; elapsed < limitMs; elapsed += stepMs) {
+    vi.advanceTimersByTime(stepMs)
+    if (callback.mock.calls.length > 0) return
+  }
+  throw new Error(`Callback not called within ${limitMs}ms`)
 }
 
 describe('MarketEngine 昼休み停止', () => {
@@ -31,8 +45,7 @@ describe('MarketEngine 昼休み停止', () => {
     const engine = new MarketEngine(config)
     engine.start()
 
-    // 十分な時間を進めて昼休みに到達させる
-    vi.advanceTimersByTime(60000)
+    advanceUntilCalled(onLunchStart)
 
     expect(onLunchStart).toHaveBeenCalledTimes(1)
   })
@@ -48,7 +61,7 @@ describe('MarketEngine 昼休み停止', () => {
     const engine = new MarketEngine(config)
     engine.start()
 
-    vi.advanceTimersByTime(60000)
+    advanceUntilCalled(onLunchStart)
     expect(onLunchStart).toHaveBeenCalledTimes(1)
 
     const tickCountAtLunch = ticks.length
@@ -68,7 +81,7 @@ describe('MarketEngine 昼休み停止', () => {
     const engine = new MarketEngine(config)
     engine.start()
 
-    vi.advanceTimersByTime(60000)
+    advanceUntilCalled(onLunchStart)
     expect(onLunchStart).toHaveBeenCalled()
 
     const lastTick = ticks[ticks.length - 1]
@@ -96,7 +109,7 @@ describe('MarketEngine resumeFromLunch', () => {
     const engine = new MarketEngine(config)
     engine.start()
 
-    vi.advanceTimersByTime(60000)
+    advanceUntilCalled(onLunchStart)
     expect(onLunchStart).toHaveBeenCalled()
 
     engine.resumeFromLunch()
@@ -116,7 +129,7 @@ describe('MarketEngine resumeFromLunch', () => {
     const engine = new MarketEngine(config)
     engine.start()
 
-    vi.advanceTimersByTime(60000)
+    advanceUntilCalled(onLunchStart)
     const tickCountAtLunch = ticks.length
 
     engine.resumeFromLunch()
@@ -149,7 +162,7 @@ describe('MarketEngine 境界tickのhigh/low', () => {
     const engine = new MarketEngine(config)
     engine.start()
 
-    vi.advanceTimersByTime(60000)
+    advanceUntilCalled(onLunchStart)
 
     const boundaryTick = ticks.find(t => t.timestamp === 690)
     expect(boundaryTick).toBeDefined()
@@ -168,7 +181,7 @@ describe('MarketEngine 境界tickのhigh/low', () => {
     const engine = new MarketEngine(config)
     engine.start()
 
-    vi.advanceTimersByTime(60000)
+    advanceUntilCalled(onLunchStart)
     engine.resumeFromLunch()
 
     const resumeTick = ticks.find(t => t.timestamp === 750)
@@ -198,7 +211,7 @@ describe('MarketEngine 境界tickのtimeZone', () => {
     const engine = new MarketEngine(config)
     engine.start()
 
-    vi.advanceTimersByTime(60000)
+    advanceUntilCalled(onLunchStart)
 
     const boundaryTick = ticks.find(t => t.timestamp === 690)
     expect(boundaryTick).toBeDefined()
@@ -216,7 +229,7 @@ describe('MarketEngine 境界tickのtimeZone', () => {
     const engine = new MarketEngine(config)
     engine.start()
 
-    vi.advanceTimersByTime(60000)
+    advanceUntilCalled(onLunchStart)
     engine.resumeFromLunch()
 
     const resumeTick = ticks.find(t => t.timestamp === 750)
@@ -240,8 +253,9 @@ describe('MarketEngine onLunchStart単発発火', () => {
     const engine = new MarketEngine(config)
     engine.start()
 
-    // 十分進める
-    vi.advanceTimersByTime(120000)
+    advanceUntilCalled(onLunchStart)
+    // さらに進めても2回目は呼ばれない
+    vi.advanceTimersByTime(30000)
 
     expect(onLunchStart).toHaveBeenCalledTimes(1)
   })
@@ -300,5 +314,51 @@ describe('MarketEngine high/low overshootフロア', () => {
 
     const wideSpreadCount = normalTicks.filter(t => (t.high - t.low) > tickUnit(t.price) * 2).length
     expect(wideSpreadCount / normalTicks.length).toBeGreaterThan(0.5)
+  })
+})
+
+describe('dtスケーリング関数の数学的性質', () => {
+  it('scaleLinear: dt=1.0で元の値と一致', () => {
+    expect(scaleLinear(0.5, 1.0)).toBe(0.5)
+  })
+
+  it('scaleLinear: dt=0.5で半分', () => {
+    expect(scaleLinear(0.5, 0.5)).toBeCloseTo(0.25)
+  })
+
+  it('scaleDecay: dt=1.0で元の減衰率と一致', () => {
+    expect(scaleDecay(0.72, 1.0)).toBeCloseTo(0.72)
+  })
+
+  it('scaleDecay: dt=2.0で減衰率の2乗', () => {
+    expect(scaleDecay(0.72, 2.0)).toBeCloseTo(0.72 ** 2)
+  })
+
+  it('scaleDecay: dt=0.5で減衰率の平方根', () => {
+    expect(scaleDecay(0.72, 0.5)).toBeCloseTo(Math.sqrt(0.72))
+  })
+
+  it('scaleProb: dt=1.0で元の確率と一致', () => {
+    expect(scaleProb(0.1, 1.0)).toBeCloseTo(0.1)
+  })
+
+  it('scaleProb: dt=2.0で2回分の確率', () => {
+    // P(2ticks) = 1 - (1-p)^2
+    expect(scaleProb(0.1, 2.0)).toBeCloseTo(1 - 0.9 ** 2)
+  })
+
+  it('scaleProb: dt=0.5で半tick分の確率', () => {
+    expect(scaleProb(0.1, 0.5)).toBeCloseTo(1 - 0.9 ** 0.5)
+  })
+
+  it('scaleProb: 加法性 — scaleProb(p, a) + (1-scaleProb(p,a))*scaleProb(p,b) ≈ scaleProb(p, a+b)', () => {
+    const p = 0.12
+    const a = 0.3, b = 0.7
+    const combined = scaleProb(p, a) + (1 - scaleProb(p, a)) * scaleProb(p, b)
+    expect(combined).toBeCloseTo(scaleProb(p, a + b), 10)
+  })
+
+  it('REFERENCE_TICK_MEAN は200ms', () => {
+    expect(REFERENCE_TICK_MEAN).toBe(200)
   })
 })

@@ -2,6 +2,7 @@ import { gaussRandom } from '../utils/mathUtils'
 import {
   TICK_INTERVAL, PRICE_MOVE, MOMENTUM, VOL_TRANSITION, TIME_OF_DAY,
   INTRADAY_SCENARIOS, SCENARIO_REGIME_BIAS, MEAN_REVERSION, EXTREME_EVENT,
+  REFERENCE_TICK_MEAN, scaleDecay, scaleProb,
 } from './marketParams'
 import { roundPrice, tickUnit } from './priceGrid'
 import { SESSION_START_MINUTES, SESSION_END_MINUTES, LUNCH_START_MINUTES, LUNCH_END_MINUTES } from '../constants/sessionTime'
@@ -44,6 +45,7 @@ export class MarketEngine {
   #lastTickHigh: number
   #lastTickLow: number
   #onLunchStart: (() => void) | null
+  #scheduledInterval: number
 
   constructor(config: MarketEngineConfig) {
     this.#regimeParams = config.regimeParams
@@ -65,6 +67,7 @@ export class MarketEngine {
     this.#lastTickHigh = config.openPrice
     this.#lastTickLow = config.openPrice
     this.#onLunchStart = config.onLunchStart ?? null
+    this.#scheduledInterval = TICK_INTERVAL.normal.mean
   }
 
   /** エンジンを開始する。 */
@@ -145,22 +148,27 @@ export class MarketEngine {
   /**
    * 次のTick間隔を計算する。
    * ボラ状態に応じたTICK_INTERVALからガウスサンプリング。
+   * scheduledInterval（speed除算前）をdt計算・gameTime進行の基準として保持。
    */
   #calcNextInterval(): number {
     const { mean, sd } = TICK_INTERVAL[this.#volState]
-    const interval = mean + gaussRandom() * sd
-    return Math.max(20, interval / this.#speed)
+    const raw = mean + gaussRandom() * sd
+    this.#scheduledInterval = Math.max(20, raw)
+    return Math.max(20, raw / this.#speed)
   }
 
   /**
    * メインTickループ。
-   * 時刻更新→終了チェック→ボラ遷移→価格更新→Tick発行→次スケジュール。
+   * dt算出→時刻更新→終了チェック→ボラ遷移→価格更新→Tick発行→次スケジュール。
    */
   #executeTick(): void {
     if (!this.#running || this.#paused) return
 
-    // ゲーム内時刻更新（固定刻み: 環境非依存で決定論的に進行）
-    this.#gameTime += TICK_INTERVAL[this.#volState].mean * NORMAL_RATE
+    // dt: 実スケジュール間隔 / 基準間隔（全変換の基礎）
+    const dt = this.#scheduledInterval / REFERENCE_TICK_MEAN
+
+    // ゲーム内時刻更新: scheduledIntervalベース（dtと同じ時間基準）
+    this.#gameTime += this.#scheduledInterval * NORMAL_RATE
 
     // 昼休み到達チェック（11:30 = 690分）
     if (this.#gameTime >= LUNCH_START_MINUTES && this.#gameTime < LUNCH_END_MINUTES) {
@@ -182,10 +190,10 @@ export class MarketEngine {
     }
 
     // ボラティリティ状態遷移
-    this.#transitionVolState()
+    this.#transitionVolState(dt)
 
     // 価格変動計算
-    this.#updatePrice()
+    this.#updatePrice(dt)
 
     // Tick発行
     this.#emitTick()
@@ -199,8 +207,14 @@ export class MarketEngine {
    * シナリオフェーズ・ドリフト・ショック・ファットテール・外部力・
    * モメンタム・平均回帰力・極端イベントを合算。
    * 全ショック成分は現在価格に比例する。
+   *
+   * dtスケーリング分類:
+   * - 線形(dt): ドリフト・外部力適用・平均回帰・モメンタム適用・ExtremeEvent
+   * - 確率(scaleProb): ファットテール発生確率
+   * - 減衰(scaleDecay): モメンタム減衰・外部力減衰
+   * - 未適用: sdPct（ティック増でボラ増、意図的）
    */
-  #updatePrice(): void {
+  #updatePrice(dt: number): void {
     const timeZone = this.#getTimeZone(this.#gameTime)
     const todParams = TIME_OF_DAY[timeZone]
     const phase = this.#getCurrentPhase()
@@ -209,38 +223,45 @@ export class MarketEngine {
     const combinedVolMult = this.#regimeParams.volMult *
       this.#anomalyParams.volBias * todParams.volMult * phase.volMult
 
-    // ドリフト: フェーズのdriftOverrideがあれば上書き
+    // ドリフト: 線形スケーリング
     const driftRate = phase.driftOverride ??
       (this.#regimeParams.drift + this.#anomalyParams.driftBias)
-    const drift = driftRate * this.#currentPrice
+    const drift = driftRate * dt * this.#currentPrice
 
-    // ショック: 価格比例（幾何ブラウン運動）
+    // ショック: dt未適用（ティック増でボラ増、意図的）
     const shock = gaussRandom() * this.#currentPrice * PRICE_MOVE.sdPct *
       combinedVolMult
 
-    // ファットテール: 同様に価格比例
+    // ファットテール: 確率をscaleProb
     let fatTail = 0
-    if (Math.random() < PRICE_MOVE.fatTailP) {
+    if (Math.random() < scaleProb(PRICE_MOVE.fatTailP, dt)) {
       const multiplier = 3 + Math.random() * 2
       fatTail = gaussRandom() * this.#currentPrice * PRICE_MOVE.sdPct * multiplier
     }
 
-    // 外部力（比率として保持、価格を乗じて適用。使用後に減衰）
-    const externalEffect = this.#externalForce * this.#currentPrice
-    this.#externalForce *= FORCE_DECAY
+    // 外部力: 適用量は線形、減衰は指数
+    const externalEffect = this.#externalForce * this.#currentPrice * dt
+    this.#externalForce *= scaleDecay(FORCE_DECAY, dt)
     if (Math.abs(this.#externalForce) < 0.00001) {
       this.#externalForce = 0
     }
 
-    // 平均回帰力
-    const meanRevForce = this.#calcMeanReversionForce(phase.meanRevStrength)
+    // 平均回帰力: 線形スケーリング
+    const meanRevForce = this.#calcMeanReversionForce(phase.meanRevStrength, dt)
 
     // 極端イベント
-    const extremeForce = this.#processExtremeEvent()
+    const extremeForce = this.#processExtremeEvent(dt)
+
+    // モメンタム: 減衰は指数、適用量は線形
+    const effectiveDecay = scaleDecay(MOMENTUM.decay, dt)
+    this.#momentum = this.#momentum * effectiveDecay + (shock + fatTail) * (1 - effectiveDecay)
+    const maxMom = this.#currentPrice * MOMENTUM.maxAbsPct
+    this.#momentum = Math.max(-maxMom, Math.min(maxMom, this.#momentum))
+    const momentumEffect = this.#momentum * dt
 
     // 合算
     const totalChange = drift + shock + fatTail + externalEffect +
-      this.#momentum + meanRevForce + extremeForce
+      momentumEffect + meanRevForce + extremeForce
     let newPrice = this.#currentPrice + totalChange
 
     // 呼値丸め、最小10円
@@ -252,11 +273,6 @@ export class MarketEngine {
     const { high, low } = this.#estimateTickHighLow(newPrice, effectiveVol)
     this.#lastTickHigh = high
     this.#lastTickLow = low
-
-    // モメンタム更新（価格比例でクランプ）
-    this.#momentum = this.#momentum * MOMENTUM.decay + (shock + fatTail) * (1 - MOMENTUM.decay)
-    const maxMom = this.#currentPrice * MOMENTUM.maxAbsPct
-    this.#momentum = Math.max(-maxMom, Math.min(maxMom, this.#momentum))
   }
 
   /** tick内の推定高値/安値を現在価格中心に対称に生成する。 */
@@ -303,33 +319,37 @@ export class MarketEngine {
     return current
   }
 
-  /** 始値からの乖離に応じた平均回帰力を計算する。 */
-  #calcMeanReversionForce(meanRevStrength: number): number {
+  /** 始値からの乖離に応じた平均回帰力を計算する。線形スケーリング適用。 */
+  #calcMeanReversionForce(meanRevStrength: number, dt: number): number {
     if (meanRevStrength === 0) return 0
     const deviation = (this.#currentPrice - this.#openPrice) / this.#openPrice
     const absDeviation = Math.abs(deviation)
     if (absDeviation <= MEAN_REVERSION.threshold) return 0
     const excess = absDeviation - MEAN_REVERSION.threshold
     const sign = deviation > 0 ? -1 : 1
-    const force = sign * MEAN_REVERSION.scale * this.#currentPrice * excess * meanRevStrength
-    const maxForce = this.#currentPrice * MEAN_REVERSION.maxForcePct
+    const price = this.#currentPrice
+    const force = sign * MEAN_REVERSION.scale * dt * price * excess * meanRevStrength
+    const maxForce = price * MEAN_REVERSION.maxForcePct * dt
     return Math.max(-maxForce, Math.min(maxForce, force))
   }
 
-  /** 極端イベント（フラッシュクラッシュ/メルトアップ）の状態遷移と力を計算する。 */
-  #processExtremeEvent(): number {
+  /** 極端イベント（フラッシュクラッシュ/メルトアップ）の状態遷移と力を計算する。game-minutesベース。 */
+  #processExtremeEvent(dt: number): number {
+    const gameTimeDelta = this.#scheduledInterval * NORMAL_RATE
+    const gameTimePerRefTick = REFERENCE_TICK_MEAN * NORMAL_RATE
+
     if (this.#extremeEvent === null) {
-      if (Math.random() < EXTREME_EVENT.triggerProb) {
+      if (Math.random() < scaleProb(EXTREME_EVENT.triggerProb, dt)) {
         const isCrash = Math.random() < 0.5
-        const duration = EXTREME_EVENT.activeDurationMin +
-          Math.floor(Math.random() * (EXTREME_EVENT.activeDurationMax - EXTREME_EVENT.activeDurationMin + 1))
+        const { activeDurationMin: min, activeDurationMax: max } = EXTREME_EVENT
+        const refTicks = min + Math.floor(Math.random() * (max - min + 1))
+        const durationMinutes = refTicks * gameTimePerRefTick
+        const forcePct = isCrash ? EXTREME_EVENT.crashForcePct : EXTREME_EVENT.meltUpForcePct
         this.#extremeEvent = {
           type: isCrash ? 'crash' : 'meltup',
           phase: 'active',
-          ticksRemaining: duration,
-          force: isCrash
-            ? this.#currentPrice * EXTREME_EVENT.crashForcePct
-            : this.#currentPrice * EXTREME_EVENT.meltUpForcePct,
+          timeRemaining: durationMinutes,
+          force: (this.#currentPrice * forcePct) / gameTimePerRefTick,
           totalDisplacement: 0,
         }
       }
@@ -340,39 +360,40 @@ export class MarketEngine {
 
     if (event.phase === 'active') {
       const jitter = 0.7 + Math.random() * 0.6
-      const force = event.force * jitter
-      event.totalDisplacement += force
-      event.ticksRemaining--
-      if (event.ticksRemaining <= 0) {
-        const recoveryDuration = EXTREME_EVENT.recoveryDurationMin +
-          Math.floor(Math.random() * (EXTREME_EVENT.recoveryDurationMax - EXTREME_EVENT.recoveryDurationMin + 1))
+      const forceThisTick = event.force * gameTimeDelta * jitter
+      event.totalDisplacement += forceThisTick
+      event.timeRemaining -= gameTimeDelta
+      if (event.timeRemaining <= 0) {
+        const { recoveryDurationMin: rMin, recoveryDurationMax: rMax } = EXTREME_EVENT
+        const recoveryRefTicks = rMin + Math.floor(Math.random() * (rMax - rMin + 1))
+        const recoveryMinutes = recoveryRefTicks * gameTimePerRefTick
         event.phase = 'recovery'
-        event.force = -(event.totalDisplacement * EXTREME_EVENT.recoveryRatio) / recoveryDuration
-        event.ticksRemaining = recoveryDuration
+        event.force = -(event.totalDisplacement * EXTREME_EVENT.recoveryRatio) / recoveryMinutes
+        event.timeRemaining = recoveryMinutes
       }
-      return force
+      return forceThisTick
     }
 
     // recovery phase
     const jitter = 0.8 + Math.random() * 0.4
-    const force = event.force * jitter
-    event.ticksRemaining--
-    if (event.ticksRemaining <= 0) {
+    const forceThisTick = event.force * gameTimeDelta * jitter
+    event.timeRemaining -= gameTimeDelta
+    if (event.timeRemaining <= 0) {
       this.#extremeEvent = null
     }
-    return force
+    return forceThisTick
   }
 
   /**
    * ボラティリティ状態遷移。
-   * VOL_TRANSITIONの確率で遷移し、TIME_OF_DAYのvolPhBiasでバイアスを掛ける。
+   * VOL_TRANSITIONの確率にバイアスを適用後、scaleProbでdt変換。
    */
-  #transitionVolState(): void {
+  #transitionVolState(dt: number): void {
     const timeZone = this.#getTimeZone(this.#gameTime)
     const todParams = TIME_OF_DAY[timeZone]
     const biasTarget = todParams.volPhBias
 
-    const transitions = this.#getTransitionsForState(this.#volState, biasTarget)
+    const transitions = this.#getTransitionsForState(this.#volState, biasTarget, dt)
     const rand = Math.random()
     let cumulative = 0
 
@@ -387,9 +408,9 @@ export class MarketEngine {
 
   /**
    * 現在のボラ状態から遷移可能な候補と確率を返す。
-   * biasTargetへの遷移は1.5倍、離脱は0.5倍のバイアスを掛ける。
+   * 順序: bias適用(基準tickレート) → scaleProb(dt変換)
    */
-  #getTransitionsForState(current: VolState, biasTarget: VolState): Array<{ target: VolState; prob: number }> {
+  #getTransitionsForState(current: VolState, biasTarget: VolState, dt: number): Array<{ target: VolState; prob: number }> {
     const mapping: Record<VolState, Array<{ target: VolState; key: keyof typeof VOL_TRANSITION }>> = {
       high:   [
         { target: 'normal', key: 'highToNormal' },
@@ -406,13 +427,15 @@ export class MarketEngine {
     }
 
     return mapping[current].map(({ target, key }) => {
-      let prob = VOL_TRANSITION[key]
+      // 1. 基準tick確率にバイアスを適用
+      let biasedProb = VOL_TRANSITION[key]
       if (target === biasTarget) {
-        prob *= 1.5
+        biasedProb *= 1.5
       } else if (current === biasTarget) {
-        prob *= 0.5
+        biasedProb *= 0.5
       }
-      return { target, prob }
+      // 2. バイアス適用済み確率をdt変換
+      return { target, prob: scaleProb(biasedProb, dt) }
     })
   }
 

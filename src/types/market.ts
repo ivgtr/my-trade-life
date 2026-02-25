@@ -89,7 +89,7 @@ export interface IntradayScenario {
 export interface ExtremeEventState {
   type: 'crash' | 'meltup'
   phase: 'active' | 'recovery'
-  ticksRemaining: number
-  force: number
+  timeRemaining: number       // game-minutes
+  force: number               // force per game-minute
   totalDisplacement: number
 }

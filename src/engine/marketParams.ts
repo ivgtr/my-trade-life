@@ -11,10 +11,22 @@ import { roundPrice } from './priceGrid'
 
 /** ボラティリティフェーズごとのティック間隔 (ms) */
 export const TICK_INTERVAL = {
-  high:   { mean: 80,  sd: 40  },
-  normal: { mean: 200, sd: 80  },
-  low:    { mean: 480, sd: 150 },
+  high:   { mean: 50,  sd: 25  },
+  normal: { mean: 130, sd: 70  },
+  low:    { mean: 450, sd: 200 },
 } as const satisfies Record<VolState, { mean: number; sd: number }>
+
+/** パラメータ定義の基準ティック間隔(ms) — 全dtスケーリングの分母 */
+export const REFERENCE_TICK_MEAN = 200
+
+/** 線形パラメータのdt変換（ドリフト・力） */
+export const scaleLinear = (value: number, dt: number): number => value * dt
+
+/** 減衰パラメータのdt変換（momentum, force decay） */
+export const scaleDecay = (decay: number, dt: number): number => decay ** dt
+
+/** 確率パラメータのdt変換（遷移確率, trigger確率） */
+export const scaleProb = (prob: number, dt: number): number => 1 - (1 - prob) ** dt
 
 /** 価格変動パラメータ（比例値: 基準価格30000円に対する比率） */
 export const PRICE_MOVE = {
