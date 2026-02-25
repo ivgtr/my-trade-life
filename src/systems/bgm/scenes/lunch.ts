@@ -3,60 +3,95 @@ import { makeReverb, makeGain, makeLPF } from '../audioUtils'
 
 /**
  * lunch — ほのぼの神社リスペクトな昼休みBGM
- * 音楽的特徴: G majorの軽快で跳ねるメロディ + 温かい循環コード
- * 明るく楽しい雰囲気でトレーディングの合間にほっと一息
+ * F major, BPM 75, ゆったり脱力系メロディ
+ * コード進行: F - Am/E - Bb - C/G → F - Dm - Bb→C - F
  */
 export const buildLunch: BGMBuilder = (ctx, masterGain) => {
   const nodes: AudioNode[] = []
   const timers: BGMNodeSet['timers'] = []
   const reverb = makeReverb(ctx, 2.5, 1.5)
-  const lpf = makeLPF(ctx, 4000)
+  const lpf = makeLPF(ctx, 3500)
   reverb.connect(lpf)
   lpf.connect(masterGain)
 
-  // ほのぼのメロディ（G major, ~150 BPM の8分音符）
-  const melody = [
-    392.00, 493.88, 587.33, 493.88,  // G4 B4 D5 B4
-    440.00, 493.88, 587.33, 659.26,  // A4 B4 D5 E5
-    587.33, 493.88, 440.00, 392.00,  // D5 B4 A4 G4
-    440.00, 493.88, 440.00, 392.00,  // A4 B4 A4 G4
-  ]
-  const EIGHTH = 200
-  let mStep = 0
+  // BPM 75: quarter = 800ms, eighth = 400ms
+  const EIGHTH = 400
 
-  function playNote(): void {
-    const now = ctx.currentTime
-    const freq = melody[mStep % melody.length]
-    const osc = ctx.createOscillator()
-    const gain = makeGain(ctx, 0)
-    osc.type = 'triangle'
-    osc.frequency.setValueAtTime(freq, now)
-    osc.connect(gain)
-    gain.connect(reverb)
-    gain.gain.setValueAtTime(0, now)
-    gain.gain.linearRampToValueAtTime(0.07, now + 0.015)
-    gain.gain.exponentialRampToValueAtTime(0.02, now + 0.12)
-    gain.gain.linearRampToValueAtTime(0, now + 0.18)
-    osc.start(now)
-    osc.stop(now + 0.2)
-    nodes.push(osc, gain)
-    mStep++
+  // --- F major frequencies ---
+  const E3 = 164.81, F3 = 174.61, G3 = 196.00, A3 = 220.00, Bb3 = 233.08
+  const C4 = 261.63, D4 = 293.66, F4 = 349.23
+  const G4 = 392.00, A4 = 440.00, Bb4 = 466.16
+  const C5 = 523.25, D5 = 587.33, E5 = 659.26, F5 = 698.46
+
+  // --- Melody: [freq, durationInEighths][] ---
+  // Phrase A (bars 1-4): ド-ド シ♭-レ ド-ファ シ♭ラソラ ファ--- ド-シ♭ミファ ド-
+  const melodyA: [number, number][] = [
+    [C5, 3], [C5, 1], [Bb4, 2], [D5, 2],
+    [C5, 3], [F5, 1], [Bb4, 1], [A4, 1], [G4, 1], [A4, 1],
+    [F4, 6], [C5, 2],
+    [Bb4, 1], [E5, 1], [F5, 2], [C5, 4],
+  ]
+  // Phrase B (bars 5-8): 応答フレーズ
+  const melodyB: [number, number][] = [
+    [A4, 3], [G4, 1], [F4, 2], [A4, 2],
+    [Bb4, 2], [A4, 2], [G4, 3], [F4, 1],
+    [G4, 2], [A4, 2], [Bb4, 2], [C5, 2],
+    [F4, 6], [0, 2],
+  ]
+  const melody = [...melodyA, ...melodyB]
+
+  // --- Chords: [frequencies[], durationInEighths][] ---
+  const chords: [number[], number][] = [
+    [[F3, A3, C4], 8],                         // bar 1: F
+    [[E3, A3, C4], 8],                          // bar 2: Am/E
+    [[Bb3, D4, F4], 8],                         // bar 3: Bb
+    [[G3, C4, 329.63], 8],                      // bar 4: C/G  (E4=329.63)
+    [[F3, A3, C4], 8],                          // bar 5: F
+    [[D4, F4, A4], 8],                          // bar 6: Dm
+    [[Bb3, D4, F4], 4], [[G3, C4, 329.63], 4], // bar 7: Bb → C
+    [[F3, A3, C4], 8],                          // bar 8: F
+  ]
+
+  // --- Melody sequencer ---
+  let mIdx = 0
+  let mWait = 0
+
+  function stepMelody(): void {
+    if (mWait > 0) { mWait--; return }
+    const [freq, dur] = melody[mIdx % melody.length]
+    mWait = dur - 1
+    if (freq > 0) {
+      const now = ctx.currentTime
+      const len = dur * EIGHTH / 1000
+      const osc = ctx.createOscillator()
+      const gain = makeGain(ctx, 0)
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, now)
+      osc.connect(gain)
+      gain.connect(reverb)
+      gain.gain.setValueAtTime(0, now)
+      gain.gain.linearRampToValueAtTime(0.06, now + 0.04)
+      gain.gain.setValueAtTime(0.06, now + len * 0.3)
+      gain.gain.exponentialRampToValueAtTime(0.008, now + len * 0.85)
+      gain.gain.linearRampToValueAtTime(0, now + len)
+      osc.start(now)
+      osc.stop(now + len + 0.05)
+      nodes.push(osc, gain)
+    }
+    mIdx++
   }
 
-  // 温かいパッドコード（G - C - Em - D 循環）
-  const chords = [
-    [196.00, 246.94, 293.66],  // G  (G3 B3 D4)
-    [261.63, 329.63, 392.00],  // C  (C4 E4 G4)
-    [329.63, 392.00, 493.88],  // Em (E4 G4 B4)
-    [293.66, 369.99, 440.00],  // D  (D4 F#4 A4)
-  ]
-  const CHORD_DUR = 1.6
-  let cStep = 0
+  // --- Chord sequencer ---
+  let cIdx = 0
+  let cWait = 0
 
-  function playChord(): void {
+  function stepChord(): void {
+    if (cWait > 0) { cWait--; return }
+    const [freqs, dur] = chords[cIdx % chords.length]
+    cWait = dur - 1
     const now = ctx.currentTime
-    const chord = chords[cStep % chords.length]
-    chord.forEach((freq) => {
+    const len = dur * EIGHTH / 1000
+    for (const freq of freqs) {
       const osc = ctx.createOscillator()
       const gain = makeGain(ctx, 0)
       osc.type = 'sine'
@@ -64,19 +99,19 @@ export const buildLunch: BGMBuilder = (ctx, masterGain) => {
       osc.connect(gain)
       gain.connect(reverb)
       gain.gain.setValueAtTime(0, now)
-      gain.gain.linearRampToValueAtTime(0.04, now + 0.3)
-      gain.gain.linearRampToValueAtTime(0.025, now + CHORD_DUR - 0.3)
-      gain.gain.linearRampToValueAtTime(0, now + CHORD_DUR)
+      gain.gain.linearRampToValueAtTime(0.035, now + 0.4)
+      gain.gain.linearRampToValueAtTime(0.02, now + len - 0.4)
+      gain.gain.linearRampToValueAtTime(0, now + len)
       osc.start(now)
-      osc.stop(now + CHORD_DUR + 0.1)
+      osc.stop(now + len + 0.1)
       nodes.push(osc, gain)
-    })
-    cStep++
+    }
+    cIdx++
   }
 
-  playNote()
-  playChord()
-  timers.push(setInterval(playNote, EIGHTH))
-  timers.push(setInterval(playChord, CHORD_DUR * 1000))
+  stepMelody()
+  stepChord()
+  timers.push(setInterval(stepMelody, EIGHTH))
+  timers.push(setInterval(stepChord, EIGHTH))
   return { nodes, timers }
 }
