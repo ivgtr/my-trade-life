@@ -19,14 +19,21 @@ const PHASE_TO_BGM: Record<string, BGMSceneId | null> = {
 
 /**
  * BGM/SEファサード・シングルトン。
- * bgmPlayer / sePlayer をラップし、ConfigManagerと連携する。
+ * bgmPlayer / sePlayer をラップし、2軸（セッション許可 / ユーザー好み）でBGM再生を制御する。
  */
 export const AudioSystem = {
+  _audioUnlocked: false,
+  _bgmPreferred: true,
+  _pendingScene: null as BGMSceneId | null,
+
   playBGM(sceneId: BGMSceneId): void {
+    this._pendingScene = sceneId
+    if (!this._audioUnlocked || !this._bgmPreferred) return
     bgmPlayer.play(sceneId)
   },
 
   stopBGM(): void {
+    this._pendingScene = null
     bgmPlayer.stop()
   },
 
@@ -42,9 +49,26 @@ export const AudioSystem = {
     sePlayer.setVolume(volume)
   },
 
-  initFromConfig(config: { bgmVolume?: number; seVolume?: number }): void {
+  unlockAudio(): void {
+    this._audioUnlocked = true
+    if (this._bgmPreferred && this._pendingScene) {
+      bgmPlayer.play(this._pendingScene)
+    }
+  },
+
+  setBGMPreferred(preferred: boolean): void {
+    this._bgmPreferred = preferred
+    if (this._audioUnlocked && preferred && this._pendingScene) {
+      bgmPlayer.play(this._pendingScene)
+    } else if (!preferred) {
+      bgmPlayer.stop()
+    }
+  },
+
+  initFromConfig(config: { bgmVolume?: number; seVolume?: number; bgmEnabled?: boolean }): void {
     bgmPlayer.setVolume((config.bgmVolume ?? 50) / 100)
     sePlayer.setVolume((config.seVolume ?? 70) / 100)
+    this._bgmPreferred = config.bgmEnabled ?? true
   },
 
   getBGMSceneForPhase(phase: string): BGMSceneId | null {

@@ -3,10 +3,16 @@ import { useGameContext } from '../hooks/useGameContext'
 import { ACTIONS } from '../state/actions'
 import { ConfigManager } from '../systems/ConfigManager'
 import { AudioSystem } from '../systems/AudioSystem'
+import { applyBgmPreference } from '../systems/bgmPreference'
 
 export default function ConfigScreen() {
   const { dispatch } = useGameContext()
   const [config, setConfig] = useState(() => ConfigManager.load())
+
+  const handleBGMEnabled = (enabled: boolean) => {
+    applyBgmPreference(enabled)
+    setConfig((c) => ({ ...c, bgmEnabled: enabled }))
+  }
 
   const handleBGMVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = Number(e.target.value)
@@ -37,6 +43,32 @@ export default function ConfigScreen() {
     <div className="flex flex-col items-center justify-center min-h-dvh bg-bg-deepest text-text-primary font-mono">
       <div className="text-2xl font-bold mb-8">Config</div>
       <div className="flex flex-col gap-5 w-80">
+        <div className="flex justify-between items-center">
+          <span className="text-sm">BGM</span>
+          <div className="flex gap-2">
+            <button
+              className={`py-2 px-4 border rounded-md cursor-pointer text-sm ${
+                config.bgmEnabled
+                  ? 'bg-accent text-white border-accent'
+                  : 'bg-bg-panel text-text-secondary border-bg-button'
+              }`}
+              onClick={() => handleBGMEnabled(true)}
+            >
+              ON
+            </button>
+            <button
+              className={`py-2 px-4 border rounded-md cursor-pointer text-sm ${
+                !config.bgmEnabled
+                  ? 'bg-accent text-white border-accent'
+                  : 'bg-bg-panel text-text-secondary border-bg-button'
+              }`}
+              onClick={() => handleBGMEnabled(false)}
+            >
+              OFF
+            </button>
+          </div>
+        </div>
+
         <div className="flex justify-between items-center">
           <span className="text-sm">BGM音量</span>
           <input
