@@ -20,6 +20,39 @@ import { buildGameoverRetire } from './gameoverRetire'
 import { buildLunch } from './lunch'
 import { buildTradingMatch } from './tradingMatch'
 
+/**
+ * 各ビルダーの音量正規化係数。
+ * 曲ごとのピークゲイン合計に基づき、知覚音量を均一化する。
+ * 基準: calendarVillage = 1.0 (実効出力 ≈ 0.20)
+ */
+export const BUILDER_GAIN = new Map<BGMBuilder, number>([
+  // title系 — 静かなアンビエントなので大きく補正
+  [buildTitle,              2.5],
+  [buildTitlePrelude,       3.5],
+  [buildTitleOcarina,       2.2],
+  // trading系 — ドローン+ドラムで大きいので抑制
+  [buildTrading,            0.45],
+  [buildTradingDecisive,    0.50],
+  [buildTradingInfiltrate,  0.80],
+  [buildTradingMatch,       0.55],
+  // lunch
+  [buildLunch,              1.2],
+  // calendar系
+  [buildCalendar,           1.1],
+  [buildCalendarMyLife,     0.50],
+  [buildCalendarVillage,    1.0],
+  [buildCalendarOverworld,  0.65],
+  // report系 — 穏やかな曲なので補正
+  [buildReport,             2.0],
+  [buildReportFanfare,      1.5],
+  [buildReportHealing,      1.4],
+  // gameover系
+  [buildGameover,           0.85],
+  [buildGameoverDirge,      0.20],
+  [buildGameoverDescend,    0.70],
+  [buildGameoverRetire,     1.25],
+])
+
 export const SCENE_BUILDERS: Record<BGMSceneId, BGMBuilder[]> = {
   title:    [buildTitle, buildTitlePrelude, buildTitleOcarina],
   trading:  [buildTrading, buildTradingDecisive, buildTradingInfiltrate, buildTradingMatch],

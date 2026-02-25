@@ -1,7 +1,7 @@
 import type { BGMSceneId } from '../../types/audio'
 import type { BGMBuilder, BGMNodeSet } from './types'
 import { fadeIn, fadeOut } from './audioUtils'
-import { SCENE_BUILDERS } from './scenes'
+import { SCENE_BUILDERS, BUILDER_GAIN } from './scenes'
 
 /** AudioContextをユーザー操作後に初期化（ブラウザポリシー対応） */
 function getCtx(): AudioContext {
@@ -18,6 +18,7 @@ export const bgmPlayer: {
   _ctx: AudioContext | null
   _nodes: BGMNodeSet | null
   _masterGain: GainNode | null
+  _normGain: GainNode | null
   _volume: number
   _currentScene: BGMSceneId | null
   _fadingOut: boolean
@@ -31,6 +32,7 @@ export const bgmPlayer: {
   _ctx:          null,
   _nodes:        null,
   _masterGain:   null,
+  _normGain:     null,
   _volume:       0.5,
   _currentScene: null,
   _fadingOut:    false,
@@ -58,7 +60,14 @@ export const bgmPlayer: {
       master.connect(ctx.destination)
       this._masterGain = master
 
-      const nodeSet = builder(ctx, master, () => this._nodes === nodeSet)
+      // 曲別の音量正規化ノードを挿入: builder → normGain → masterGain → destination
+      const normFactor = BUILDER_GAIN.get(builder) ?? 1.0
+      const normGain = ctx.createGain()
+      normGain.gain.value = normFactor
+      normGain.connect(master)
+      this._normGain = normGain
+
+      const nodeSet = builder(ctx, normGain, () => this._nodes === nodeSet)
       this._nodes = nodeSet
 
       fadeIn(master, ctx, 1.4)
@@ -124,5 +133,6 @@ export const bgmPlayer: {
     })
     this._nodes      = null
     this._masterGain = null
+    this._normGain   = null
   },
 }
