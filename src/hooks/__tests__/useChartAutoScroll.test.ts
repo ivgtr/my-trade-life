@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { createElement } from 'react'
+import { createElement, useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import {
@@ -132,11 +132,12 @@ describe('useChartAutoScroll hook', () => {
     let controller: ChartAutoScrollController | null = null
 
     function TestComponent() {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      controller = useChartAutoScroll({
+      const result = useChartAutoScroll({
         chartRef: mockChartRef as any,
         containerRef: containerRef as any,
       })
+      const controllerRef = useRef({ set: (v: ChartAutoScrollController) => { controller = v } })
+      useEffect(() => { controllerRef.current.set(result) })
       return null
     }
 

@@ -36,7 +36,7 @@ describe('gameReducer new actions', () => {
   describe('SET_WEEKEND_DATA', () => {
     it('currentPrice 更新、unrealizedPnL=0 リセット、weekendNews 設定', () => {
       const state = makeState({ unrealizedPnL: 1000 })
-      const weekendNews = [{ title: 'テストニュース', effect: 'positive' as const, impact: 0.01, description: '説明' }]
+      const weekendNews = [{ id: 'test-1', headline: 'テストニュース', impact: 0.01 }]
       const action: GameAction = {
         type: ACTIONS.SET_WEEKEND_DATA,
         payload: {
@@ -55,7 +55,7 @@ describe('gameReducer new actions', () => {
   describe('SET_REPORT_DATA', () => {
     it('monthlyStats/yearlyStats 設定、unrealizedPnL=0 リセット', () => {
       const state = makeState({ unrealizedPnL: 2000 })
-      const monthlyStats = { totalPnL: 50000, totalTrades: 20, winRate: 0.6, maxDrawdown: 10000 }
+      const monthlyStats = { totalPnL: 50000, totalTrades: 20, winRate: 0.6, averagePnL: 2500 }
       const yearlyStats = { totalPnL: 200000, totalTrades: 100, winRate: 0.55, maxDrawdown: 30000 }
 
       const action1: GameAction = {

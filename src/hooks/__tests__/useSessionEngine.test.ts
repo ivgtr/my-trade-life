@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createElement } from 'react'
+import { createElement, useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import { ACTIONS } from '../../state/actions'
@@ -80,7 +80,8 @@ function renderHook(gameState: GameState, dispatch: React.Dispatch<GameAction>):
 
   function TestComponent() {
     const result = useSessionEngine({ gameState, dispatch, chartRef })
-    captured.handleEntry = result.handleEntry
+    const capturedRef = useRef(captured)
+    useEffect(() => { capturedRef.current.handleEntry = result.handleEntry })
     return null
   }
 

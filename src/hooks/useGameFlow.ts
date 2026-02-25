@@ -199,7 +199,7 @@ export function useGameFlow(): UseGameFlowReturn {
         },
       })
     }
-  }, [dispatch, gameState.currentPrice, gameState.level])
+  }, [dispatch, gameState.currentPrice, gameState.level, gameState.balance, gameState.maxLeverage, gameState.positions, gameState.previewEvent])
 
   useEffect(() => {
     advanceFromCalendarRef.current = advanceFromCalendar

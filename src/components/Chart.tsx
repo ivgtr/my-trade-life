@@ -250,7 +250,7 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
       chartRef.current = null
       seriesRef.current = null
     }
-  }, [autoSize, width, height])
+  }, [autoSize, width, height, rebuildIndexMap])
 
   return (
     <div

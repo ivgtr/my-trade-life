@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createElement } from 'react'
+import { createElement, useEffect, useRef } from 'react'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import { computeDailyCloseState, useAutoSave } from '../useAutoSave'
@@ -162,7 +162,8 @@ describe('useAutoSave — saveAndTransition', () => {
 
     function TestComponent() {
       const result = useAutoSave(dispatch, state)
-      resultRef.current = result
+      const ref = useRef(resultRef)
+      useEffect(() => { ref.current.current = result })
       return null
     }
 
