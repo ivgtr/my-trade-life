@@ -3,7 +3,10 @@ import { createChart, CandlestickSeries } from 'lightweight-charts'
 import type { CandlestickData } from 'lightweight-charts'
 import type { TickData, Timeframe } from '../types'
 import { ConfigManager } from '../systems/ConfigManager'
-import { asGameMinutes, toBarTime, formatChartTime } from '../utils/chartTime'
+import { asGameMinutes, toBarTime, createTickMarkFormatter, chartTimeFormatter, computeGridInterval, toVisibleBarCount } from '../utils/chartTime'
+import { buildBars, mergeTickIntoBar, generateSessionTimeline } from '../utils/chartBarBuilder'
+import { SESSION_START_MINUTES, SESSION_END_MINUTES } from '../constants/sessionTime'
+import { IntervalGridPrimitive } from './GridPrimitive'
 
 interface ChartProps {
   autoSize?: boolean
@@ -17,48 +20,26 @@ export interface ChartHandle {
   reset: () => void
 }
 
-function buildBarsFromHistory(history: TickData[], tf: Timeframe): CandlestickData[] {
-  const bars = new Map<number, CandlestickData>()
-  for (const tick of history) {
-    const barTime = toBarTime(asGameMinutes(tick.timestamp), tf)
-    const existing = bars.get(barTime)
-    if (existing) {
-      existing.high = Math.max(existing.high, tick.high)
-      existing.low = Math.min(existing.low, tick.low)
-      existing.close = tick.price
-    } else {
-      bars.set(barTime, {
-        time: barTime,
-        open: tick.price,
-        high: tick.high,
-        low: tick.low,
-        close: tick.price,
-      })
-    }
-  }
-  return Array.from(bars.values())
-}
-
 const CHART_OPTIONS = {
   layout: {
     background: { color: '#1a1a2e' },
     textColor: '#a0a0b0',
   },
   grid: {
-    vertLines: { color: '#2a2a3e' },
+    vertLines: { visible: false },
     horzLines: { color: '#2a2a3e' },
   },
   crosshair: {
     mode: 0 as const,
   },
   localization: {
-    timeFormatter: (time: number) => formatChartTime(time),
+    timeFormatter: chartTimeFormatter,
   },
   timeScale: {
     timeVisible: true,
     secondsVisible: false,
     borderColor: '#2a2a3e',
-    tickMarkFormatter: (time: number) => formatChartTime(time),
+    uniformDistribution: true,
   },
   rightPriceScale: {
     borderColor: '#2a2a3e',
@@ -71,43 +52,59 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
   const seriesRef = useRef<ReturnType<ReturnType<typeof createChart>['addSeries']> | null>(null)
   const currentBarRef = useRef<CandlestickData | null>(null)
   const timeframeRef = useRef<Timeframe>(1)
+  const intervalRef = useRef<number>(0)
+  const gridPrimitiveRef = useRef<IntervalGridPrimitive | null>(null)
+
+  function applyInterval(newInterval: number) {
+    if (newInterval === intervalRef.current) return
+    intervalRef.current = newInterval
+    chartRef.current?.applyOptions({
+      timeScale: { tickMarkFormatter: createTickMarkFormatter(newInterval) },
+    })
+    gridPrimitiveRef.current?.setInterval(newInterval)
+  }
 
   useImperativeHandle(ref, () => ({
     updateTick(tickData: TickData) {
       if (!seriesRef.current) return
 
-      const { price, high, low, timestamp } = tickData
+      const { timestamp } = tickData
+      if (timestamp < SESSION_START_MINUTES || timestamp > SESSION_END_MINUTES) return
+
       const tf = timeframeRef.current
       const barTime = toBarTime(asGameMinutes(timestamp), tf)
 
       if (!currentBarRef.current || currentBarRef.current.time !== barTime) {
-        currentBarRef.current = {
-          time: barTime,
-          open: price,
-          high,
-          low,
-          close: price,
-        }
+        currentBarRef.current = mergeTickIntoBar(null, tickData, barTime)
       } else {
-        currentBarRef.current.high = Math.max(currentBarRef.current.high, high)
-        currentBarRef.current.low = Math.min(currentBarRef.current.low, low)
-        currentBarRef.current.close = price
+        currentBarRef.current = mergeTickIntoBar(currentBarRef.current, tickData, barTime)
       }
 
-      seriesRef.current.update({ ...currentBarRef.current })
+      seriesRef.current.update({ ...currentBarRef.current }, true)
     },
 
     setTimeframe(tf: Timeframe, history: TickData[]) {
       timeframeRef.current = tf
       if (!seriesRef.current) return
-      const bars = buildBarsFromHistory(history, tf)
+
+      const bars = buildBars(history, tf)
       seriesRef.current.setData(bars)
-      currentBarRef.current = bars.length > 0 ? { ...bars[bars.length - 1] } : null
+
+      const range = chartRef.current?.timeScale().getVisibleLogicalRange()
+      const totalBars = generateSessionTimeline(tf).length
+      const visibleBars = range ? toVisibleBarCount(range) : totalBars
+      applyInterval(computeGridInterval(tf, visibleBars))
+
+      let lastCandle: CandlestickData | null = null
+      for (let i = bars.length - 1; i >= 0; i--) {
+        if ('open' in bars[i]) { lastCandle = { ...bars[i] } as CandlestickData; break }
+      }
+      currentBarRef.current = lastCandle
     },
 
     reset() {
       if (seriesRef.current) {
-        seriesRef.current.setData([])
+        seriesRef.current.setData(generateSessionTimeline(timeframeRef.current))
       }
       currentBarRef.current = null
     },
@@ -137,6 +134,28 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
       wickDownColor: down,
     })
     seriesRef.current = series
+    series.setData(generateSessionTimeline(timeframeRef.current))
+
+    const range = chart.timeScale().getVisibleLogicalRange()
+    const initialBars = range
+      ? toVisibleBarCount(range)
+      : generateSessionTimeline(timeframeRef.current).length
+    const initialInterval = computeGridInterval(timeframeRef.current, initialBars)
+    intervalRef.current = initialInterval
+    chart.applyOptions({
+      timeScale: { tickMarkFormatter: createTickMarkFormatter(initialInterval) },
+    })
+
+    const gridPrimitive = new IntervalGridPrimitive(initialInterval)
+    series.attachPrimitive(gridPrimitive)
+    gridPrimitiveRef.current = gridPrimitive
+
+    const handleVisibleRangeChange = (logicalRange: { from: number; to: number } | null) => {
+      if (!logicalRange) return
+      const visibleBars = toVisibleBarCount(logicalRange)
+      applyInterval(computeGridInterval(timeframeRef.current, visibleBars))
+    }
+    chart.timeScale().subscribeVisibleLogicalRangeChange(handleVisibleRangeChange)
 
     let ro: ResizeObserver | null = null
     if (autoSize) {
@@ -152,7 +171,10 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
     }
 
     return () => {
+      chart.timeScale().unsubscribeVisibleLogicalRangeChange(handleVisibleRangeChange)
       if (ro) ro.disconnect()
+      series.detachPrimitive(gridPrimitive)
+      gridPrimitiveRef.current = null
       chart.remove()
       chartRef.current = null
       seriesRef.current = null
