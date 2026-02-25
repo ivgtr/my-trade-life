@@ -4,11 +4,12 @@ import {
   INTRADAY_SCENARIOS, SCENARIO_REGIME_BIAS, MEAN_REVERSION, EXTREME_EVENT,
   REFERENCE_TICK_MEAN, scaleDecay, scaleProb,
 } from './marketParams'
-import { roundPrice, tickUnit } from './priceGrid'
 import { SESSION_START_MINUTES, SESSION_END_MINUTES, LUNCH_START_MINUTES, LUNCH_END_MINUTES } from '../constants/sessionTime'
+import { MicrostructureEngine } from './MicrostructureEngine'
+import { VolumeModel } from './VolumeModel'
 import type {
   VolState, TimeZone, TickData, GameTime, MarketEngineConfig,
-  RegimeParams, AnomalyParams, RegimeName,
+  RegimeParams, AnomalyParams, RegimeName, MicroResult,
   IntradayScenario, IntradayPhaseEntry, ExtremeEventState,
 } from '../types/market'
 
@@ -18,12 +19,10 @@ const NORMAL_RATE = 330 / 174750
 /** 外部イベント力の減衰係数 */
 const FORCE_DECAY = 0.7
 
-/** ボラ状態ごとの基本出来高 */
-const BASE_VOLUME: Record<VolState, number> = { high: 1500, normal: 800, low: 300 }
-
 /**
  * セッション中のリアルタイム価格変動を生成するエンジン。
  * Tick生成・価格変動・時間帯管理を担う。
+ * ミクロ構造はMicrostructureEngine、出来高はVolumeModelに委譲する。
  */
 export class MarketEngine {
   #regimeParams: RegimeParams
@@ -46,6 +45,9 @@ export class MarketEngine {
   #lastTickLow: number
   #onLunchStart: (() => void) | null
   #scheduledInterval: number
+  #microstructure: MicrostructureEngine
+  #volumeModel: VolumeModel
+  #lastMicroResult: MicroResult | null
 
   constructor(config: MarketEngineConfig) {
     this.#regimeParams = config.regimeParams
@@ -68,6 +70,9 @@ export class MarketEngine {
     this.#lastTickLow = config.openPrice
     this.#onLunchStart = config.onLunchStart ?? null
     this.#scheduledInterval = TICK_INTERVAL.normal.mean
+    this.#microstructure = new MicrostructureEngine(config.openPrice)
+    this.#volumeModel = new VolumeModel()
+    this.#lastMicroResult = null
   }
 
   /** エンジンを開始する。 */
@@ -120,6 +125,7 @@ export class MarketEngine {
   resumeFromLunch(): void {
     this.#gameTime = LUNCH_END_MINUTES
     this.#paused = false
+    this.#lastMicroResult = null
     this.#resetTickHighLow()
     this.#emitTick()
     this.#scheduleNextTick()
@@ -173,6 +179,7 @@ export class MarketEngine {
     // 昼休み到達チェック（11:30 = 690分）
     if (this.#gameTime >= LUNCH_START_MINUTES && this.#gameTime < LUNCH_END_MINUTES) {
       this.#gameTime = LUNCH_START_MINUTES
+      this.#lastMicroResult = null
       this.#resetTickHighLow()
       this.#emitTick()
       this.pause()
@@ -183,6 +190,7 @@ export class MarketEngine {
     // 15:30（930分）到達チェック
     if (this.#gameTime >= SESSION_END_MINUTES) {
       this.#gameTime = SESSION_END_MINUTES
+      this.#lastMicroResult = null
       this.#emitTick()
       this.#running = false
       this.#onSessionEnd()
@@ -203,23 +211,16 @@ export class MarketEngine {
   }
 
   /**
-   * 価格変動モデル（幾何ブラウン運動）。
-   * シナリオフェーズ・ドリフト・ショック・ファットテール・外部力・
-   * モメンタム・平均回帰力・極端イベントを合算。
-   * 全ショック成分は現在価格に比例する。
-   *
-   * dtスケーリング分類:
-   * - 線形(dt): ドリフト・外部力適用・平均回帰・モメンタム適用・ExtremeEvent
-   * - 確率(scaleProb): ファットテール発生確率
-   * - 減衰(scaleDecay): モメンタム減衰・外部力減衰
-   * - 未適用: sdPct（ティック増でボラ増、意図的）
+   * 価格変動モデル。
+   * マクロ力を計算し、ミクロ構造エンジンに委譲する。
    */
   #updatePrice(dt: number): void {
-    const timeZone = this.#getTimeZone(this.#gameTime)
-    const todParams = TIME_OF_DAY[timeZone]
+    const gameTimeDelta = this.#scheduledInterval * NORMAL_RATE
+    const gameTimePerRefTick = REFERENCE_TICK_MEAN * NORMAL_RATE
     const phase = this.#getCurrentPhase()
 
     // 合成ボラティリティ倍率
+    const todParams = TIME_OF_DAY[this.#getTimeZone(this.#gameTime)]
     const combinedVolMult = this.#regimeParams.volMult *
       this.#anomalyParams.volBias * todParams.volMult * phase.volMult
 
@@ -259,34 +260,35 @@ export class MarketEngine {
     this.#momentum = Math.max(-maxMom, Math.min(maxMom, this.#momentum))
     const momentumEffect = this.#momentum * dt
 
-    // 合算
+    // マクロ力合算
     const totalChange = drift + shock + fatTail + externalEffect +
       momentumEffect + meanRevForce + extremeForce
-    let newPrice = this.#currentPrice + totalChange
 
-    // 呼値丸め、最小10円
-    newPrice = roundPrice(newPrice)
-    this.#currentPrice = newPrice
+    // ミクロ構造へ委譲
+    const result = this.#microstructure.update({
+      currentPrice: this.#currentPrice,
+      totalChange,
+      dt,
+      gameTimeDelta,
+      gameTimePerRefTick,
+      volState: this.#volState,
+      effectiveVol: this.#currentPrice * PRICE_MOVE.sdPct * combinedVolMult,
+      momentumSign: Math.sign(this.#momentum),
+      extremeEventActive: this.#extremeEvent !== null,
+    })
 
-    // tick内high/low推定
-    const effectiveVol = this.#currentPrice * PRICE_MOVE.sdPct * combinedVolMult
-    const { high, low } = this.#estimateTickHighLow(newPrice, effectiveVol)
-    this.#lastTickHigh = high
-    this.#lastTickLow = low
-  }
+    this.#currentPrice = result.newPrice
+    this.#lastTickHigh = result.high
+    this.#lastTickLow = result.low
 
-  /** tick内の推定高値/安値を現在価格中心に対称に生成する。 */
-  #estimateTickHighLow(newPrice: number, effectiveVol: number): { high: number; low: number } {
-    const tick = tickUnit(newPrice)
-    const minOvershoot = tickUnit(newPrice + tick)
-    const overshoot = Math.max(
-      Math.abs(gaussRandom()) * effectiveVol * 0.5,
-      minOvershoot,
-    )
-    return {
-      high: roundPrice(newPrice + overshoot),
-      low: roundPrice(newPrice - overshoot),
+    // キリ番ブレイクアウトのモメンタム反映
+    if (result.momentumBoost !== 0) {
+      this.#momentum += result.momentumBoost
+      const momCap = this.#currentPrice * MOMENTUM.maxAbsPct
+      this.#momentum = Math.max(-momCap, Math.min(momCap, this.#momentum))
     }
+
+    this.#lastMicroResult = result
   }
 
   /** 重み付きランダムでセッション内シナリオを選択する。 */
@@ -448,26 +450,22 @@ export class MarketEngine {
     return 'close'
   }
 
-  /**
-   * 出来高を生成する。
-   * BASE_VOLUME × 時間帯倍率 × ランダム揺らぎ。
-   */
-  #generateVolume(): number {
-    const timeZone = this.#getTimeZone(this.#gameTime)
-    const todParams = TIME_OF_DAY[timeZone]
-    const base = BASE_VOLUME[this.#volState]
-    const randomFactor = 0.5 + Math.random()
-    return Math.round(base * todParams.volMult * randomFactor)
-  }
-
   /** TickDataを生成してonTickコールバックに通知する。 */
   #emitTick(): void {
     const timeZone = this.#getTimeZone(this.#gameTime)
+    const volume = this.#volumeModel.generate({
+      volState: this.#volState,
+      timeZone,
+      priceChange: this.#lastMicroResult?.appliedPriceChange ?? 0,
+      currentPrice: this.#currentPrice,
+      ignitionActive: this.#lastMicroResult?.ignitionActive ?? false,
+      priceChanged: this.#lastMicroResult?.priceChanged ?? true,
+    })
     const tickData: TickData = {
       price: this.#currentPrice,
       high: this.#lastTickHigh,
       low: this.#lastTickLow,
-      volume: this.#generateVolume(),
+      volume,
       timestamp: this.#gameTime,
       volState: this.#volState,
       timeZone,

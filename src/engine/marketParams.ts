@@ -563,6 +563,9 @@ export const SCENARIO_REGIME_BIAS: Record<RegimeName, Record<string, number>> = 
   },
 }
 
+/** ボラ状態ごとの基本出来高 */
+export const BASE_VOLUME: Record<import('../types/market').VolState, number> = { high: 1500, normal: 800, low: 300 }
+
 /** 平均回帰パラメータ（比例値） */
 export const MEAN_REVERSION = {
   threshold: 0.005,
@@ -580,4 +583,54 @@ export const EXTREME_EVENT = {
   recoveryDurationMin: 12,
   recoveryDurationMax: 30,
   recoveryRatio: 0.6,
+} as const
+
+/** Sticky Price（階段状価格移動）パラメータ */
+export const STICKY_PRICE = {
+  releaseMultMin: 1.0,
+  releaseMultMax: 2.5,
+  maxAccumulationMult: 5.0,
+  volStateMaxTicks: {
+    high: 2,
+    normal: 4,
+    low: 7,
+  } as Record<import('../types/market').VolState, number>,
+} as const
+
+/** ラウンドナンバー効果パラメータ */
+export const ROUND_NUMBER = {
+  attractionZone: 0.002,
+  forceScale: 0.015,
+  breakawayBoost: 0.1,
+} as const
+
+/** モメンタム・イグニションパラメータ */
+export const IGNITION = {
+  triggerProb: 0.008,
+  durationMin: 3,
+  durationMax: 10,
+  forcePct: 0.0006,
+  volStateMult: {
+    high: 2.0,
+    normal: 1.0,
+    low: 0.3,
+  } as Record<import('../types/market').VolState, number>,
+} as const
+
+/** 出来高-価格連動パラメータ */
+export const VOLUME_DYNAMICS = {
+  changeSensitivity: 0.002,
+  maxChangeMult: 5.0,
+  ignitionMult: 3.0,
+  stickyMult: 0.4,
+} as const
+
+/** ストップハンティングパラメータ */
+export const STOP_HUNT = {
+  proximityZone: 0.001,
+  triggerProb: 0.03,
+  pierceDuration: 2,
+  pierceForcePct: 0.0008,
+  reversalDuration: 5,
+  reversalForcePct: 0.0005,
 } as const

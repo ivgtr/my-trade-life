@@ -93,3 +93,52 @@ export interface ExtremeEventState {
   force: number               // force per game-minute
   totalDisplacement: number
 }
+
+/** MarketEngine → MicrostructureEngine へ渡すコンテキスト */
+export interface MicroContext {
+  currentPrice: number
+  totalChange: number
+  dt: number
+  gameTimeDelta: number
+  gameTimePerRefTick: number
+  volState: VolState
+  effectiveVol: number
+  momentumSign: number
+  extremeEventActive: boolean
+}
+
+/** MicrostructureEngine → MarketEngine へ返す結果 */
+export interface MicroResult {
+  newPrice: number
+  appliedPriceChange: number
+  high: number
+  low: number
+  priceChanged: boolean
+  ignitionActive: boolean
+  momentumBoost: number
+}
+
+/** VolumeModel へ渡すコンテキスト */
+export interface VolumeContext {
+  volState: VolState
+  timeZone: TimeZone
+  priceChange: number
+  currentPrice: number
+  ignitionActive: boolean
+  priceChanged: boolean
+}
+
+/** イグニション状態（MicrostructureEngine内部） */
+export interface IgnitionState {
+  direction: number
+  timeRemaining: number
+  forcePerGameMinute: number
+}
+
+/** ストップハンティング状態（MicrostructureEngine内部） */
+export interface StopHuntState {
+  phase: 'pierce' | 'reversal'
+  direction: number
+  timeRemaining: number
+  forcePerGameMinute: number
+}

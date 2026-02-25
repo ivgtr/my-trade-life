@@ -285,7 +285,7 @@ describe('MarketEngine high/low overshootフロア', () => {
     return ticks
   }
 
-  it('低ボラ設定で通常tickのhigh >= price + tickUnit かつ low <= price - tickUnit', () => {
+  it('低ボラ設定で価格変動tickのhigh >= price + tickUnit かつ low <= price - tickUnit', () => {
     const ticks = collectTicksWithSeed({
       openPrice: 25000,
       regimeParams: { drift: 0, volMult: 0.7, regime: 'range' },
@@ -296,7 +296,12 @@ describe('MarketEngine high/low overshootフロア', () => {
     const normalTicks = ticks.filter(t => t.timestamp !== 690 && t.timestamp !== 750 && t.timestamp !== 930)
     expect(normalTicks.length).toBeGreaterThan(0)
 
-    for (const tick of normalTicks) {
+    // Sticky Price により価格据え置きtickではhigh===low===price。
+    // 価格変動tick（high !== price）のみチェック。
+    const changedTicks = normalTicks.filter(t => t.high !== t.price || t.low !== t.price)
+    expect(changedTicks.length).toBeGreaterThan(0)
+
+    for (const tick of changedTicks) {
       expect(tick.high).toBeGreaterThanOrEqual(tick.price + tickUnit(tick.price))
       expect(tick.low).toBeLessThanOrEqual(tick.price - tickUnit(tick.price))
     }
