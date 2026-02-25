@@ -16,7 +16,6 @@ interface UseSessionEngineConfig {
   gameState: GameState
   dispatch: React.Dispatch<GameAction>
   chartRef: React.RefObject<ChartHandle | null>
-  onEndSession?: (data: { results: unknown; summary: unknown }) => void
   onTickCallback?: (tick: TickData) => void
 }
 
@@ -39,7 +38,6 @@ export function useSessionEngine({
   gameState,
   dispatch,
   chartRef,
-  onEndSession,
   onTickCallback,
 }: UseSessionEngineConfig): UseSessionEngineReturn {
   const marketEngineRef = useRef<MarketEngine | null>(null)
@@ -50,7 +48,7 @@ export function useSessionEngine({
   const [isLunchBreak, setIsLunchBreak] = useState(false)
   const lunchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onTickCallbackRef = useRef(onTickCallback)
-  useEffect(() => { onTickCallbackRef.current = onTickCallback })
+  onTickCallbackRef.current = onTickCallback
 
   const [tickStore] = useState(createTickStore)
   const [sessionStore] = useState(() => {
@@ -144,6 +142,7 @@ export function useSessionEngine({
       },
       onSessionEnd: () => {
         const summary = tradingEngine.getDailySummary()
+        const positions = tradingEngine.getPositions()
         const ss = sessionStore.getState()
 
         dispatch({
@@ -151,22 +150,16 @@ export function useSessionEngine({
           payload: {
             currentPrice: ss.currentPrice,
             unrealizedPnL: ss.unrealizedPnL,
-            positions: ss.positions,
+            positions,
             availableCash: ss.availableCash,
             creditMargin: ss.creditMargin,
             buyingPower: ss.buyingPower,
           },
         })
 
-        if (onEndSession) {
-          onEndSession({ results: [], summary })
-        } else {
-          dispatch({
-            type: ACTIONS.END_SESSION,
-            payload: { summary },
-          })
-          dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'report' } })
-        }
+        dispatch({ type: ACTIONS.END_SESSION, payload: { summary } })
+        const phase = positions.length > 0 ? 'closing' : 'report'
+        dispatch({ type: ACTIONS.SET_PHASE, payload: { phase } })
       },
     })
     marketEngineRef.current = marketEngine

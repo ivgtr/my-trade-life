@@ -86,7 +86,7 @@ function AppContent() {
         return <MorningScreen onStartSession={flow.enterSession} />
 
       case 'session':
-        return <SessionScreen onEndSession={flow.endSession} />
+        return <SessionScreen />
 
       case 'closing':
         return <ClosingScreen onCloseAll={flow.closeAllAtClose} onCarryOver={flow.carryOver} />

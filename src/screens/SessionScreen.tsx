@@ -17,11 +17,7 @@ import { parseLocalDate } from '../utils/formatUtils'
 import type { ChartHandle } from '../components/Chart'
 import type { Timeframe } from '../types'
 
-interface SessionScreenProps {
-  onEndSession?: (data: { results: unknown; summary: unknown }) => void
-}
-
-export default function SessionScreen({ onEndSession }: SessionScreenProps) {
+export default function SessionScreen() {
   const { gameState, dispatch } = useGameContext()
   const { isMobile } = useResponsive()
   const chartRef = useRef<ChartHandle | null>(null)
@@ -59,7 +55,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     handleSpeedChange,
     handleNewsComplete,
     getTickHistory,
-  } = useSessionEngine({ gameState, dispatch, chartRef, onEndSession, onTickCallback: handleTick })
+  } = useSessionEngine({ gameState, dispatch, chartRef, onTickCallback: handleTick })
 
   const maxLeverage = gameState.maxLeverage ?? 1
 

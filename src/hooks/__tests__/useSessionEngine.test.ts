@@ -7,10 +7,12 @@ import { ACTIONS } from '../../state/actions'
 import type { GameState, GameAction } from '../../types'
 import type { Direction } from '../../types/trading'
 
-const { mockOpenPosition, mockPlaySE, mockMarketStart } = vi.hoisted(() => ({
+const { mockOpenPosition, mockPlaySE, mockMarketStart, mockGetPositions, capturedOnSessionEnd } = vi.hoisted(() => ({
   mockOpenPosition: vi.fn(),
   mockPlaySE: vi.fn(),
   mockMarketStart: vi.fn(),
+  mockGetPositions: vi.fn<() => unknown[]>().mockReturnValue([]),
+  capturedOnSessionEnd: { current: null as (() => void) | null },
 }))
 
 vi.mock('../../engine/MarketEngine', () => ({
@@ -21,6 +23,9 @@ vi.mock('../../engine/MarketEngine', () => ({
     getCurrentTime() { return { formatted: '09:00' } }
     injectExternalForce() {}
     resumeFromLunch() {}
+    constructor(opts: { onSessionEnd?: () => void }) {
+      if (opts.onSessionEnd) capturedOnSessionEnd.current = opts.onSessionEnd
+    }
   },
 }))
 
@@ -33,7 +38,7 @@ vi.mock('../../engine/TradingEngine', () => ({
     recalculateUnrealized() {
       return { total: 0, effectiveBalance: 0, availableCash: 0, creditMargin: 0, buyingPower: 0 }
     }
-    getPositions() { return [] }
+    getPositions = mockGetPositions
     getDailySummary() {
       return { trades: 0, wins: 0, losses: 0, winRate: 0, totalPnL: 0, closedTrades: [] }
     }
@@ -157,6 +162,58 @@ describe('useSessionEngine handleEntry', () => {
     )
     expect(openPositionCalls).toHaveLength(0)
     expect(mockPlaySE).not.toHaveBeenCalledWith('entry')
+  })
+})
+
+describe('useSessionEngine — onSessionEnd のフェーズ判定', () => {
+  const dispatch = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    capturedOnSessionEnd.current = null
+  })
+
+  function mountHook(gameState: GameState) {
+    const chartRef = { current: null }
+    function TestComponent() {
+      useSessionEngine({ gameState, dispatch, chartRef })
+      return null
+    }
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    act(() => { root.render(createElement(TestComponent)) })
+  }
+
+  it('ポジション有り → SET_PHASE { phase: "closing" }', () => {
+    const fakePos = { id: '1', direction: 'LONG' as const, shares: 10, entryPrice: 30000, leverage: 1, margin: 300000, unrealizedPnL: 0 }
+    mockGetPositions.mockReturnValue([fakePos])
+
+    mountHook(createGameState())
+
+    expect(capturedOnSessionEnd.current).not.toBeNull()
+    act(() => { capturedOnSessionEnd.current!() })
+
+    const setPhaseCall = dispatch.mock.calls.find(
+      (call) => call[0].type === ACTIONS.SET_PHASE,
+    )
+    expect(setPhaseCall).toBeDefined()
+    expect(setPhaseCall![0].payload).toEqual({ phase: 'closing' })
+  })
+
+  it('ポジション無し → SET_PHASE { phase: "report" }', () => {
+    mockGetPositions.mockReturnValue([])
+
+    mountHook(createGameState())
+
+    expect(capturedOnSessionEnd.current).not.toBeNull()
+    act(() => { capturedOnSessionEnd.current!() })
+
+    const setPhaseCall = dispatch.mock.calls.find(
+      (call) => call[0].type === ACTIONS.SET_PHASE,
+    )
+    expect(setPhaseCall).toBeDefined()
+    expect(setPhaseCall![0].payload).toEqual({ phase: 'report' })
   })
 })
 
