@@ -21,6 +21,11 @@ export type GamePhase =
   | 'bgmTheater'
   | 'license'
 
+export type SessionSnapshot = Pick<GameState,
+  'balance' | 'positions' | 'currentPrice' | 'unrealizedPnL' |
+  'totalTrades' | 'totalWins' | 'peakBalance' | 'maxDrawdown' |
+  'consecutiveWins' | 'consecutiveLosses' | 'bestTrade' | 'worstTrade'>
+
 export interface GameState {
   phase: GamePhase
   day: number
@@ -50,6 +55,7 @@ export interface GameState {
   consecutiveLosses: number
   bestTrade: number
   worstTrade: number
+  preSessionSnapshot?: SessionSnapshot
   // SET_DAY_CONTEXT / SET_WEEKEND_DATA 経由で設定される追加フィールド
   dailyCondition?: DailyCondition
   regimeParams?: RegimeParams
@@ -103,13 +109,14 @@ export const ACTIONS = {
   BILLIONAIRE: 'BILLIONAIRE',
   ENTER_ENDLESS: 'ENTER_ENDLESS',
   CLEAR_LEVEL_UP: 'CLEAR_LEVEL_UP',
+  ABORT_SESSION: 'ABORT_SESSION',
 } as const
 
 export type ActionType = typeof ACTIONS[keyof typeof ACTIONS]
 
 export type GameAction =
   | { type: typeof ACTIONS.SET_PHASE; payload: { phase: GamePhase } }
-  | { type: typeof ACTIONS.INIT_NEW_GAME; payload?: { speed?: number } }
+  | { type: typeof ACTIONS.INIT_NEW_GAME; payload?: { speed?: number; currentDate?: string } }
   | { type: typeof ACTIONS.LOAD_GAME; payload: { gameState: Partial<GameState> } }
   | { type: typeof ACTIONS.START_SESSION }
   | { type: typeof ACTIONS.SET_DAY_CONTEXT; payload: SetDayContextPayload }
@@ -121,7 +128,7 @@ export type GameAction =
   | { type: typeof ACTIONS.CLOSE_POSITION; payload: { positionId: string; pnl: number } }
   | { type: typeof ACTIONS.FORCE_CLOSE_ALL; payload: { totalPnl: number } }
   | { type: typeof ACTIONS.UPDATE_UNREALIZED; payload: { unrealizedPnL: number } }
-  | { type: typeof ACTIONS.ADVANCE_DAY; payload: { date: string } }
+  | { type: typeof ACTIONS.ADVANCE_DAY; payload: { date: string; dayIncrement?: number } }
   | { type: typeof ACTIONS.RECORD_DAY }
   | { type: typeof ACTIONS.ADD_EXP; payload: { amount: number } }
   | { type: typeof ACTIONS.LEVEL_UP; payload: { level: number; newFeatures: string[]; maxLeverage: number; lastLevelUp: LevelUpResult } }
@@ -131,6 +138,7 @@ export type GameAction =
   | { type: typeof ACTIONS.GAME_OVER }
   | { type: typeof ACTIONS.BILLIONAIRE }
   | { type: typeof ACTIONS.ENTER_ENDLESS }
+  | { type: typeof ACTIONS.ABORT_SESSION }
 
 export interface SetDayContextPayload {
   currentPrice: number

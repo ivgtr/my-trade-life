@@ -10,6 +10,7 @@ import SessionTradePanel from '../components/SessionTradePanel'
 import TickerTape from '../components/TickerTape'
 import NewsOverlay from '../components/NewsOverlay'
 import SessionCalendarPopup from '../components/SessionCalendarPopup'
+import ConfigPanel from '../components/ConfigPanel'
 import { ConfigManager } from '../systems/ConfigManager'
 import { ACTIONS } from '../state/actions'
 import { parseLocalDate } from '../utils/formatUtils'
@@ -31,6 +32,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     return config.maVisible ?? false
   })
   const [showCalendar, setShowCalendar] = useState(false)
+  const [showConfig, setShowConfig] = useState(false)
 
   const currentDate = useMemo(
     () => gameState.currentDate ? parseLocalDate(gameState.currentDate) : new Date(),
@@ -74,6 +76,15 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
 
   const handleDateClick = useCallback(() => setShowCalendar(true), [])
 
+  const handleReturnToTitle = useCallback(() => {
+    dispatch({ type: ACTIONS.ABORT_SESSION })
+  }, [dispatch])
+
+  const handleOpenConfig = useCallback(() => {
+    setShowCalendar(false)
+    setShowConfig(true)
+  }, [])
+
   const calendarPopup = showCalendar && (
     <SessionCalendarPopup
       currentDate={currentDate}
@@ -83,7 +94,38 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
       sessionTrades={gameState.sessionTrades}
       sessionWins={gameState.sessionWins}
       onClose={() => setShowCalendar(false)}
+      onReturnToTitle={handleReturnToTitle}
+      onOpenConfig={handleOpenConfig}
     />
+  )
+
+  const configModal = showConfig && (
+    <div
+      className="fixed inset-0 bg-black/50 z-[var(--z-modal)] flex items-center justify-center"
+      onClick={() => setShowConfig(false)}
+    >
+      <div
+        className="bg-bg-panel rounded-lg p-6 font-mono text-text-primary"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-6">
+          <div className="text-lg font-bold">Config</div>
+          <button
+            className="bg-transparent border-none text-text-secondary cursor-pointer text-lg leading-none"
+            onClick={() => setShowConfig(false)}
+          >
+            &times;
+          </button>
+        </div>
+        <ConfigPanel />
+        <button
+          className="mt-6 w-full py-2.5 bg-bg-button text-text-primary border-none rounded-md cursor-pointer text-sm"
+          onClick={() => setShowConfig(false)}
+        >
+          閉じる
+        </button>
+      </div>
+    </div>
   )
 
   const lunchOverlay = isLunchBreak && (
@@ -95,75 +137,69 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     </div>
   )
 
-  if (isMobile) {
-    return (
-      <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
-        <SessionHeader
-          sessionStore={sessionStore}
-          currentDate={currentDate}
-          speed={speed}
-          onSpeedChange={handleSpeedChange}
-          onDateClick={handleDateClick}
-          isMobile
-        />
+  const mobileLayout = (
+    <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
+      <SessionHeader
+        sessionStore={sessionStore}
+        currentDate={currentDate}
+        speed={speed}
+        onSpeedChange={handleSpeedChange}
+        onDateClick={handleDateClick}
+        isMobile
+      />
 
-        <div className="flex shrink-0 h-9 bg-bg-panel border-b border-bg-elevated">
-          <button
-            className={`flex-1 flex items-center justify-center text-[13px] cursor-pointer border-none bg-transparent font-mono ${
-              mobileTab === 'chart'
-                ? 'text-text-primary border-b-2 border-b-accent'
-                : 'text-text-secondary'
-            }`}
-            onClick={() => setMobileTab('chart')}
-          >
-            チャート
-          </button>
-          <button
-            className={`flex-1 flex items-center justify-center text-[13px] cursor-pointer border-none bg-transparent font-mono ${
-              mobileTab === 'ticker'
-                ? 'text-text-primary border-b-2 border-b-accent'
-                : 'text-text-secondary'
-            }`}
-            onClick={() => setMobileTab('ticker')}
-          >
-            歩み値
-          </button>
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-hidden relative">
-          <div className={mobileTab === 'chart' ? 'w-full h-full' : 'hidden'}>
-            <Chart ref={chartRef} autoSize timeframe={timeframe} />
-            <ChartControls
-              layout="leftMenu"
-              timeframe={timeframe}
-              onTimeframeChange={handleTimeframeChange}
-              maVisible={maVisible}
-              onMAToggle={handleMAToggle}
-            />
-          </div>
-          <div className={mobileTab === 'ticker' ? 'w-full h-full overflow-y-auto' : 'hidden'}>
-            <TickerTape tickStore={tickStore} maxDisplay={50} compact />
-          </div>
-        </div>
-
-        <SessionTradePanel
-          sessionStore={sessionStore}
-          maxLeverage={maxLeverage}
-          onEntry={handleEntry}
-          onClose={handleClose}
-          onCloseAll={handleCloseAll}
-          onSetSLTP={handleSetSLTP}
-          compact
-        />
-
-        <NewsOverlay newsEvent={activeNews} onComplete={handleNewsComplete} />
-        {lunchOverlay}
-        {calendarPopup}
+      <div className="flex shrink-0 h-9 bg-bg-panel border-b border-bg-elevated">
+        <button
+          className={`flex-1 flex items-center justify-center text-[13px] cursor-pointer border-none bg-transparent font-mono ${
+            mobileTab === 'chart'
+              ? 'text-text-primary border-b-2 border-b-accent'
+              : 'text-text-secondary'
+          }`}
+          onClick={() => setMobileTab('chart')}
+        >
+          チャート
+        </button>
+        <button
+          className={`flex-1 flex items-center justify-center text-[13px] cursor-pointer border-none bg-transparent font-mono ${
+            mobileTab === 'ticker'
+              ? 'text-text-primary border-b-2 border-b-accent'
+              : 'text-text-secondary'
+          }`}
+          onClick={() => setMobileTab('ticker')}
+        >
+          歩み値
+        </button>
       </div>
-    )
-  }
 
-  return (
+      <div className="flex-1 min-h-0 overflow-hidden relative">
+        <div className={mobileTab === 'chart' ? 'w-full h-full' : 'hidden'}>
+          <Chart ref={chartRef} autoSize timeframe={timeframe} />
+          <ChartControls
+            layout="leftMenu"
+            timeframe={timeframe}
+            onTimeframeChange={handleTimeframeChange}
+            maVisible={maVisible}
+            onMAToggle={handleMAToggle}
+          />
+        </div>
+        <div className={mobileTab === 'ticker' ? 'w-full h-full overflow-y-auto' : 'hidden'}>
+          <TickerTape tickStore={tickStore} maxDisplay={50} compact />
+        </div>
+      </div>
+
+      <SessionTradePanel
+        sessionStore={sessionStore}
+        maxLeverage={maxLeverage}
+        onEntry={handleEntry}
+        onClose={handleClose}
+        onCloseAll={handleCloseAll}
+        onSetSLTP={handleSetSLTP}
+        compact
+      />
+    </div>
+  )
+
+  const desktopLayout = (
     <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
       <SessionHeader
         sessionStore={sessionStore}
@@ -205,10 +241,16 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
           />
         </div>
       </div>
+    </div>
+  )
 
+  return (
+    <>
+      {isMobile ? mobileLayout : desktopLayout}
       <NewsOverlay newsEvent={activeNews} onComplete={handleNewsComplete} />
       {lunchOverlay}
       {calendarPopup}
-    </div>
+      {configModal}
+    </>
   )
 }

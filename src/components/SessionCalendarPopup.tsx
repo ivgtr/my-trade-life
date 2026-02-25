@@ -9,6 +9,8 @@ interface SessionCalendarPopupProps {
   sessionTrades: number
   sessionWins: number
   onClose: () => void
+  onReturnToTitle: () => void
+  onOpenConfig: () => void
 }
 
 const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'] as const
@@ -20,6 +22,8 @@ export default function SessionCalendarPopup({
   sessionPnL,
   sessionTrades,
   onClose,
+  onReturnToTitle,
+  onOpenConfig,
 }: SessionCalendarPopupProps) {
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -142,6 +146,22 @@ export default function SessionCalendarPopup({
               <span className="text-text-secondary ml-2">{sessionTrades}回</span>
             </span>
           </div>
+        </div>
+
+        {/* ナビゲーションボタン */}
+        <div className="mt-3 pt-3 border-t border-bg-elevated flex gap-2">
+          <button
+            className="flex-1 py-2 bg-bg-button text-text-primary border-none rounded-md cursor-pointer text-xs"
+            onClick={onOpenConfig}
+          >
+            コンフィグ
+          </button>
+          <button
+            className="flex-1 py-2 bg-bg-danger text-text-primary border-none rounded-md cursor-pointer text-xs"
+            onClick={onReturnToTitle}
+          >
+            タイトルへ戻る
+          </button>
         </div>
       </div>
     </div>

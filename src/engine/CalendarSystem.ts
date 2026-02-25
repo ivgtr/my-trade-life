@@ -1,4 +1,5 @@
 import { isHoliday, isSQDay, isMarketClosed } from '../utils/calendarUtils'
+import { parseLocalDate } from '../utils/formatUtils'
 import type { DayRecord, MonthlyStats, YearlyStats } from '../types/calendar'
 
 interface CalendarState {
@@ -18,8 +19,8 @@ export class CalendarSystem {
 
   constructor(state: CalendarState | null = null) {
     if (state) {
-      this.#currentDate = new Date(state.currentDate)
-      this.#startDate = new Date(state.startDate)
+      this.#currentDate = parseLocalDate(state.currentDate)
+      this.#startDate = state.startDate ? parseLocalDate(state.startDate) : parseLocalDate(state.currentDate)
       this.#history = state.history ? [...state.history] : []
     } else {
       this.#currentDate = new Date(0)
@@ -179,9 +180,15 @@ export class CalendarSystem {
 
   /** 状態をシリアライズして返す。復元用。 */
   serialize(): CalendarState {
+    const formatDate = (d: Date): string => {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
     return {
-      currentDate: this.#currentDate.toISOString(),
-      startDate: this.#startDate.toISOString(),
+      currentDate: formatDate(this.#currentDate),
+      startDate: formatDate(this.#startDate),
       history: [...this.#history],
     }
   }

@@ -1,6 +1,6 @@
 import { useRef, useCallback, useEffect } from 'react'
 import { useGameContext } from './useGameContext'
-import { useAutoSave, computeDailyCloseState } from './useAutoSave'
+import { computeDailyCloseState } from './useAutoSave'
 import { ACTIONS } from '../state/actions'
 import { CalendarSystem } from '../engine/CalendarSystem'
 import { MacroRegimeManager } from '../engine/MacroRegimeManager'
@@ -10,11 +10,18 @@ import { calcGap } from '../engine/marketParams'
 import { SaveSystem } from '../systems/SaveSystem'
 import { ConfigManager } from '../systems/ConfigManager'
 import { parseLocalDate } from '../utils/formatUtils'
-import type { GameState } from '../types/game'
+import type { GameState, GamePhase } from '../types/game'
+import type { GameStateInput } from '../systems/SaveSystem'
 import type { GapResult } from '../types/market'
 import type { SaveData } from '../types/save'
 
 const BILLIONAIRE_THRESHOLD = 1_000_000_000
+
+const AUTOSAVE_PHASES: ReadonlySet<GamePhase> = new Set([
+  'calendar',
+  'monthlyReport',
+  'yearlyReport',
+])
 
 interface UseGameFlowReturn {
   phase: GameState['phase']
@@ -37,11 +44,48 @@ interface UseGameFlowReturn {
 
 export function useGameFlow(): UseGameFlowReturn {
   const { gameState, dispatch } = useGameContext()
-  const { saveAndTransition } = useAutoSave(dispatch, gameState)
 
   const calendarRef = useRef<CalendarSystem | null>(null)
   const regimeRef = useRef<MacroRegimeManager | null>(null)
   const newsRef = useRef<NewsSystem | null>(null)
+
+  const saveAndTransition = useCallback(
+    (phase: GamePhase, options?: {
+      commitDailyResult?: boolean
+      advanceDay?: boolean
+    }) => {
+      const cal = calendarRef.current
+      let dayIncrement = 0
+      let advancedDate = gameState.currentDate
+
+      if (options?.advanceDay && cal) {
+        do {
+          cal.advanceDay()
+          dayIncrement++
+        } while (parseLocalDate(cal.getCurrentDate()).getDay() === 0)
+        advancedDate = cal.getCurrentDate()
+      }
+
+      if (AUTOSAVE_PHASES.has(phase)) {
+        const baseState = options?.commitDailyResult
+          ? computeDailyCloseState(gameState)
+          : gameState
+        const snapshot = dayIncrement > 0
+          ? { ...baseState, day: baseState.day + dayIncrement, currentDate: advancedDate }
+          : baseState
+        SaveSystem.save(snapshot as GameStateInput)
+      }
+
+      if (dayIncrement > 0) {
+        dispatch({
+          type: ACTIONS.ADVANCE_DAY,
+          payload: { date: advancedDate!, dayIncrement },
+        })
+      }
+      dispatch({ type: ACTIONS.SET_PHASE, payload: { phase } })
+    },
+    [dispatch, gameState],
+  )
 
   const startNewGame = useCallback(() => {
     const calendar = new CalendarSystem()
@@ -59,14 +103,10 @@ export function useGameFlow(): UseGameFlowReturn {
     newsRef.current = newsSystem
 
     const cfg = ConfigManager.getAll()
-    dispatch({ type: ACTIONS.INIT_NEW_GAME, payload: { speed: cfg.defaultSpeed } })
+    dispatch({ type: ACTIONS.INIT_NEW_GAME, payload: { speed: cfg.defaultSpeed, currentDate: calendar.getCurrentDate() } })
     dispatch({
       type: ACTIONS.SET_PHASE,
       payload: { phase: 'calendar' },
-    })
-    dispatch({
-      type: ACTIONS.ADVANCE_DAY,
-      payload: { date: calendar.getCurrentDate() },
     })
   }, [dispatch])
 
@@ -100,21 +140,17 @@ export function useGameFlow(): UseGameFlowReturn {
     const cal = calendarRef.current
     if (!cal) return
 
-    cal.advanceDay()
-    const dateStr = cal.getCurrentDate()
-    const date = new Date(dateStr)
-    dispatch({
-      type: ACTIONS.ADVANCE_DAY,
-      payload: { date: dateStr },
-    })
-
+    const dateStr = gameState.currentDate ?? cal.getCurrentDate()
+    const date = parseLocalDate(dateStr)
     const dayOfWeek = date.getDay()
+
     if (dayOfWeek >= 1 && dayOfWeek <= 5) {
       handleWeekday(date)
     } else if (dayOfWeek === 6) {
       handleSaturday()
     } else {
-      advanceFromCalendarRef.current()
+      // 日曜フォールバック: 次の営業日まで進めてカレンダーに戻る
+      saveAndTransition('calendar', { advanceDay: true })
     }
 
     function handleWeekday(d: Date) {
@@ -199,7 +235,7 @@ export function useGameFlow(): UseGameFlowReturn {
         },
       })
     }
-  }, [dispatch, gameState.currentPrice, gameState.level, gameState.balance, gameState.maxLeverage, gameState.positions, gameState.previewEvent])
+  }, [dispatch, gameState.currentPrice, gameState.currentDate, gameState.level, gameState.balance, gameState.maxLeverage, gameState.positions, gameState.previewEvent, saveAndTransition])
 
   useEffect(() => {
     advanceFromCalendarRef.current = advanceFromCalendar
@@ -234,7 +270,7 @@ export function useGameFlow(): UseGameFlowReturn {
     if (checkTerminalConditions()) return
     if (handleEndOfMonth(cal)) return
 
-    saveAndTransition('calendar', { commitDailyResult: true })
+    saveAndTransition('calendar', { commitDailyResult: true, advanceDay: true })
 
     function recordDailyResult() {
       const closedState = computeDailyCloseState(gameState)
@@ -299,7 +335,7 @@ export function useGameFlow(): UseGameFlowReturn {
   }, [dispatch, gameState, saveAndTransition])
 
   const closeWeekend = useCallback(() => {
-    saveAndTransition('calendar')
+    saveAndTransition('calendar', { advanceDay: true })
   }, [saveAndTransition])
 
   const closeMonthlyReport = useCallback(() => {
@@ -320,12 +356,12 @@ export function useGameFlow(): UseGameFlowReturn {
       })
       saveAndTransition('yearlyReport')
     } else {
-      saveAndTransition('calendar')
+      saveAndTransition('calendar', { advanceDay: true })
     }
   }, [dispatch, gameState, saveAndTransition])
 
   const closeYearlyReport = useCallback(() => {
-    saveAndTransition('calendar')
+    saveAndTransition('calendar', { advanceDay: true })
   }, [saveAndTransition])
 
   const returnToTitle = useCallback(() => {
@@ -376,6 +412,7 @@ function flattenSaveData(data: SaveData): Partial<GameState> {
     positions: data.progress?.positions ?? [],
     currentPrice: data.progress?.currentPrice ?? 0,
     maxLeverage: data.progress?.maxLeverage ?? 1,
+    currentDate: data.progress?.currentDate ?? null,
     totalTrades: data.stats?.totalTrades ?? 0,
     totalWins: data.stats?.totalWins ?? 0,
     totalPnL: data.stats?.lifetimePnl ?? 0,

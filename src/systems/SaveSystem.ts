@@ -28,6 +28,7 @@ export interface GameStateInput {
   positions?: Position[]
   currentPrice?: number
   maxLeverage?: number
+  currentDate?: string | null
 }
 
 const DEFAULT_PROGRESS: SaveProgress = {
@@ -134,6 +135,7 @@ function buildSaveData(gameState: GameStateInput): SaveData {
     positions:         gameState.positions ?? [],
     currentPrice:      gameState.currentPrice ?? 0,
     maxLeverage:       gameState.maxLeverage ?? 1,
+    ...(gameState.currentDate != null && { currentDate: gameState.currentDate }),
   }
 
   let dailyHistory = gameState.dailyHistory ?? []

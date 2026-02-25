@@ -1,16 +1,7 @@
-import { useCallback } from 'react'
 import { gameReducer } from '../state/gameReducer'
 import { calculateDailyBonus, checkLevelUp, getMaxLeverage } from '../engine/GrowthSystem'
 import { ACTIONS } from '../state/actions'
-import { SaveSystem } from '../systems/SaveSystem'
-import type { GameStateInput } from '../systems/SaveSystem'
-import type { GameState, GamePhase, GameAction } from '../types/game'
-
-const AUTOSAVE_PHASES: ReadonlySet<GamePhase> = new Set([
-  'calendar',
-  'monthlyReport',
-  'yearlyReport',
-])
+import type { GameState, GameAction } from '../types/game'
 
 /**
  * 日次確定ロジックの単一定義。
@@ -44,28 +35,4 @@ export function computeDailyCloseState(state: GameState): GameState {
   }
 
   return s
-}
-
-/**
- * フェーズ遷移時の自動バックアップセーブフック。
- * 保存対象フェーズへの遷移時に SaveSystem.save() を呼び出してから dispatch する。
- */
-export function useAutoSave(
-  dispatch: React.Dispatch<GameAction>,
-  gameState: GameState,
-) {
-  const saveAndTransition = useCallback(
-    (phase: GamePhase, options?: { commitDailyResult?: boolean }) => {
-      if (AUTOSAVE_PHASES.has(phase)) {
-        const snapshot = options?.commitDailyResult
-          ? computeDailyCloseState(gameState)
-          : gameState
-        SaveSystem.save(snapshot as GameStateInput)
-      }
-      dispatch({ type: ACTIONS.SET_PHASE, payload: { phase } })
-    },
-    [dispatch, gameState],
-  )
-
-  return { saveAndTransition }
 }

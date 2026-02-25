@@ -7,6 +7,41 @@ function makeState(overrides?: Partial<GameState>): GameState {
   return { ...initialState, balance: 1_000_000, currentPrice: 30000, ...overrides }
 }
 
+describe('ADVANCE_DAY', () => {
+  it('デフォルト increment: day +1', () => {
+    const state = makeState({ day: 5, currentDate: '2025-01-05' })
+    const result = gameReducer(state, {
+      type: ACTIONS.ADVANCE_DAY,
+      payload: { date: '2025-01-06' },
+    })
+    expect(result.day).toBe(6)
+    expect(result.currentDate).toBe('2025-01-06')
+  })
+
+  it('dayIncrement: 2 で day +2（日曜スキップ）', () => {
+    const state = makeState({ day: 5, currentDate: '2025-01-10' })
+    const result = gameReducer(state, {
+      type: ACTIONS.ADVANCE_DAY,
+      payload: { date: '2025-01-12', dayIncrement: 2 },
+    })
+    expect(result.day).toBe(7)
+    expect(result.currentDate).toBe('2025-01-12')
+  })
+})
+
+describe('INIT_NEW_GAME with currentDate', () => {
+  it('currentDate がセットされる', () => {
+    const state = makeState()
+    const result = gameReducer(state, {
+      type: ACTIONS.INIT_NEW_GAME,
+      payload: { currentDate: '2025-01-01' },
+    })
+    expect(result.currentDate).toBe('2025-01-01')
+    expect(result.day).toBe(1)
+    expect(result.balance).toBe(1_000_000)
+  })
+})
+
 describe('gameReducer new actions', () => {
   describe('SET_DAY_CONTEXT', () => {
     it('currentPrice 更新、unrealizedPnL=0 リセット、dailyCondition 等の設定', () => {

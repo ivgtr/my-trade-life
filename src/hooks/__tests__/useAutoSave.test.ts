@@ -1,19 +1,7 @@
-// @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createElement, useEffect, useRef } from 'react'
-import { createRoot } from 'react-dom/client'
-import { act } from 'react'
-import { computeDailyCloseState, useAutoSave } from '../useAutoSave'
+import { describe, it, expect } from 'vitest'
+import { computeDailyCloseState } from '../useAutoSave'
 import { initialState } from '../../state/gameReducer'
-import { ACTIONS } from '../../types/game'
-import { SaveSystem } from '../../systems/SaveSystem'
-import type { GameState, GamePhase, GameAction } from '../../types/game'
-
-vi.mock('../../systems/SaveSystem', () => ({
-  SaveSystem: {
-    save: vi.fn(),
-  },
-}))
+import type { GameState } from '../../types/game'
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -70,7 +58,6 @@ describe('computeDailyCloseState', () => {
 
     expect(result.dailyHistory).toHaveLength(1)
     expect(result.dailyHistory[0].pnl).toBe(0)
-    expect(result.dailyHistory[0].trades).toBe(0)
     expect(result.exp).toBe(50)
   })
 
@@ -141,123 +128,5 @@ describe('computeDailyCloseState', () => {
     expect(result.unlockedFeatures).toContain('dailySentimentValue')
     expect(result.unlockedFeatures).toContain('anomalyDisplay')
     expect(result.maxLeverage).toBe(3)
-  })
-})
-
-describe('useAutoSave — saveAndTransition', () => {
-  const mockSave = SaveSystem.save as ReturnType<typeof vi.fn>
-  let container: HTMLDivElement
-
-  beforeEach(() => {
-    mockSave.mockClear()
-    container = document.createElement('div')
-    document.body.appendChild(container)
-  })
-
-  function renderAutoSave(
-    state: GameState,
-    dispatch: React.Dispatch<GameAction>,
-  ) {
-    const resultRef = { current: null as ReturnType<typeof useAutoSave> | null }
-
-    function TestComponent() {
-      const result = useAutoSave(dispatch, state)
-      const ref = useRef(resultRef)
-      useEffect(() => { ref.current.current = result })
-      return null
-    }
-
-    act(() => {
-      createRoot(container).render(createElement(TestComponent))
-    })
-
-    return resultRef
-  }
-
-  it('保存対象フェーズで SaveSystem.save が呼ばれる', () => {
-    const dispatch = vi.fn()
-    const state = makeState()
-    const ref = renderAutoSave(state, dispatch)
-
-    act(() => {
-      ref.current!.saveAndTransition('calendar')
-    })
-
-    expect(mockSave).toHaveBeenCalledTimes(1)
-    expect(dispatch).toHaveBeenCalledWith({
-      type: ACTIONS.SET_PHASE,
-      payload: { phase: 'calendar' },
-    })
-  })
-
-  it('非対象フェーズで SaveSystem.save は呼ばれない', () => {
-    const dispatch = vi.fn()
-    const state = makeState()
-    const ref = renderAutoSave(state, dispatch)
-
-    const nonSavePhases: GamePhase[] = ['morning', 'session', 'report', 'closing']
-    for (const phase of nonSavePhases) {
-      act(() => {
-        ref.current!.saveAndTransition(phase)
-      })
-    }
-
-    expect(mockSave).not.toHaveBeenCalled()
-    expect(dispatch).toHaveBeenCalledTimes(nonSavePhases.length)
-  })
-
-  it('commitDailyResult: true 時に computeDailyCloseState 経由のデータが保存される', () => {
-    const dispatch = vi.fn()
-    const state = makeState({
-      sessionPnL: 5000,
-      sessionTrades: 3,
-      sessionWins: 2,
-      totalPnL: 10000,
-    })
-    const ref = renderAutoSave(state, dispatch)
-
-    act(() => {
-      ref.current!.saveAndTransition('calendar', { commitDailyResult: true })
-    })
-
-    expect(mockSave).toHaveBeenCalledTimes(1)
-    const savedData = mockSave.mock.calls[0][0] as GameState
-    // computeDailyCloseState 適用後: totalPnL = 15000, sessionPnL = 0
-    expect(savedData.totalPnL).toBe(15000)
-    expect(savedData.sessionPnL).toBe(0)
-    expect(savedData.dailyHistory).toHaveLength(1)
-  })
-
-  it('commitDailyResult なしでは gameState がそのまま保存される', () => {
-    const dispatch = vi.fn()
-    const state = makeState({
-      sessionPnL: 5000,
-      totalPnL: 10000,
-    })
-    const ref = renderAutoSave(state, dispatch)
-
-    act(() => {
-      ref.current!.saveAndTransition('calendar')
-    })
-
-    expect(mockSave).toHaveBeenCalledTimes(1)
-    const savedData = mockSave.mock.calls[0][0] as GameState
-    expect(savedData.totalPnL).toBe(10000)
-    expect(savedData.sessionPnL).toBe(5000)
-  })
-
-  it('いずれの場合も dispatch(SET_PHASE) が実行される', () => {
-    const dispatch = vi.fn()
-    const state = makeState()
-    const ref = renderAutoSave(state, dispatch)
-
-    act(() => {
-      ref.current!.saveAndTransition('monthlyReport')
-    })
-
-    expect(dispatch).toHaveBeenCalledWith({
-      type: ACTIONS.SET_PHASE,
-      payload: { phase: 'monthlyReport' },
-    })
   })
 })

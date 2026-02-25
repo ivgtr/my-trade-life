@@ -48,12 +48,13 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, phase: (payload as { phase: GameState['phase'] }).phase }
 
     case ACTIONS.INIT_NEW_GAME: {
-      const initPayload = payload as { speed?: number } | undefined
+      const initPayload = payload as { speed?: number; currentDate?: string } | undefined
       return {
         ...initialState,
         balance: 1_000_000,
         peakBalance: 1_000_000,
         ...(initPayload?.speed != null && { speed: initPayload.speed }),
+        ...(initPayload?.currentDate != null && { currentDate: initPayload.currentDate }),
       }
     }
 
@@ -64,6 +65,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         sessionActive: true,
+        preSessionSnapshot: {
+          balance: state.balance,
+          positions: state.positions,
+          currentPrice: state.currentPrice,
+          unrealizedPnL: state.unrealizedPnL,
+          totalTrades: state.totalTrades,
+          totalWins: state.totalWins,
+          peakBalance: state.peakBalance,
+          maxDrawdown: state.maxDrawdown,
+          consecutiveWins: state.consecutiveWins,
+          consecutiveLosses: state.consecutiveLosses,
+          bestTrade: state.bestTrade,
+          worstTrade: state.worstTrade,
+        },
       }
 
     case ACTIONS.SET_DAY_CONTEXT: {
@@ -123,6 +138,21 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         sessionActive: false,
+        preSessionSnapshot: undefined,
+      }
+    }
+
+    case ACTIONS.ABORT_SESSION: {
+      const snap = state.preSessionSnapshot
+      return {
+        ...state,
+        ...(snap ?? {}),
+        phase: 'title',
+        sessionActive: false,
+        sessionPnL: 0,
+        sessionTrades: 0,
+        sessionWins: 0,
+        preSessionSnapshot: undefined,
       }
     }
 
@@ -179,12 +209,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     case ACTIONS.UPDATE_UNREALIZED:
       return { ...state, unrealizedPnL: (payload as { unrealizedPnL: number }).unrealizedPnL }
 
-    case ACTIONS.ADVANCE_DAY:
+    case ACTIONS.ADVANCE_DAY: {
+      const p = payload as { date: string; dayIncrement?: number }
       return {
         ...state,
-        day: state.day + 1,
-        currentDate: (payload as { date: string }).date,
+        day: state.day + (p.dayIncrement ?? 1),
+        currentDate: p.date,
       }
+    }
 
     case ACTIONS.RECORD_DAY: {
       const entry: GameState['dailyHistory'][number] = {
