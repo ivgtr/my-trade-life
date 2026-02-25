@@ -35,8 +35,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     activeNews,
     speed,
     isLunchBreak,
-    handleBuy,
-    handleSell,
+    handleEntry,
     handleClose,
     handleCloseAll,
     handleSetSLTP,
@@ -141,8 +140,8 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
         <div className="flex justify-between items-center px-2.5 py-1.5 bg-bg-panel border-b border-bg-elevated text-xs shrink-0 flex-wrap gap-1">
           <div className="flex justify-between items-center w-full">
             <div className="flex items-center gap-2">
-              <span className="text-base font-bold">{gameTime}</span>
               {dateButton}
+              <span className="text-base font-bold">{gameTime}</span>
             </div>
             <div className="flex gap-2">
               {timeframeButtons}
@@ -193,8 +192,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
           buyingPower={buyingPower}
           maxLeverage={maxLeverage}
           positions={positions}
-          onBuy={handleBuy}
-          onSell={handleSell}
+          onEntry={handleEntry}
           onClose={handleClose}
           onCloseAll={handleCloseAll}
           onSetSLTP={handleSetSLTP}
@@ -212,8 +210,8 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
       <div className="flex justify-between items-center px-4 py-2 bg-bg-panel border-b border-bg-elevated text-sm shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-lg font-bold">{gameTime}</span>
           {dateButton}
+          <span className="text-lg font-bold">{gameTime}</span>
         </div>
         <span>余力: {formatCurrency(buyingPower)}</span>
         {pnlDisplay}
@@ -240,8 +238,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
             buyingPower={buyingPower}
             maxLeverage={maxLeverage}
             positions={positions}
-            onBuy={handleBuy}
-            onSell={handleSell}
+            onEntry={handleEntry}
             onClose={handleClose}
             onCloseAll={handleCloseAll}
             onSetSLTP={handleSetSLTP}

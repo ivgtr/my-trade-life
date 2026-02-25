@@ -27,7 +27,7 @@ function getCtx(): AudioContext {
 // ─── SE 生成関数群 ─────────────────────────────────────────────────
 
 /**
- * entry — BUY/SELLエントリー時のクリック音
+ * entry — LONG/SHORTエントリー時のクリック音
  * 硬質で短いパーカッシブな電子音
  */
 function playEntry(ctx: AudioContext, masterGain: GainNode): void {

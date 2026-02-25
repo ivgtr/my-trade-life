@@ -5,7 +5,7 @@ import { TradingEngine } from '../engine/TradingEngine'
 import { NewsSystem } from '../engine/NewsSystem'
 import { AudioSystem } from '../systems/AudioSystem'
 import type { ChartHandle } from '../components/Chart'
-import type { GameState, GameAction, TickData, RegimeParams, AnomalyParams, SetSLTPFn } from '../types'
+import type { Direction, GameState, GameAction, TickData, RegimeParams, AnomalyParams, SetSLTPFn } from '../types'
 import type { NewsEvent } from '../types/news'
 
 interface UseSessionEngineConfig {
@@ -21,8 +21,7 @@ interface UseSessionEngineReturn {
   activeNews: NewsEvent | null
   speed: number
   isLunchBreak: boolean
-  handleBuy: (shares: number) => void
-  handleSell: (shares: number) => void
+  handleEntry: (direction: Direction, shares: number) => void
   handleClose: (positionId: string) => void
   handleCloseAll: () => void
   handleSetSLTP: SetSLTPFn
@@ -149,20 +148,10 @@ export function useSessionEngine({
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleBuy = useCallback((shares: number) => {
+  const handleEntry = useCallback((direction: Direction, shares: number) => {
     const te = tradingEngineRef.current
     if (!te) return
-    const pos = te.openPosition('LONG', shares, gameState.currentPrice)
-    if (pos) {
-      dispatch({ type: ACTIONS.OPEN_POSITION, payload: { position: pos } })
-      AudioSystem.playSE('entry')
-    }
-  }, [gameState.currentPrice, dispatch])
-
-  const handleSell = useCallback((shares: number) => {
-    const te = tradingEngineRef.current
-    if (!te) return
-    const pos = te.openPosition('SHORT', shares, gameState.currentPrice)
+    const pos = te.openPosition(direction, shares, gameState.currentPrice)
     if (pos) {
       dispatch({ type: ACTIONS.OPEN_POSITION, payload: { position: pos } })
       AudioSystem.playSE('entry')
@@ -214,8 +203,7 @@ export function useSessionEngine({
     activeNews,
     speed,
     isLunchBreak,
-    handleBuy,
-    handleSell,
+    handleEntry,
     handleClose,
     handleCloseAll,
     handleSetSLTP,

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { formatCurrency, formatPnlPercent } from '../utils/formatUtils'
-import type { Position, SetSLTPFn } from '../types'
+import type { Direction, Position, SetSLTPFn } from '../types'
 
 interface TradePanelProps {
   currentPrice: number
@@ -9,8 +9,7 @@ interface TradePanelProps {
   buyingPower: number
   maxLeverage: number
   positions: Position[]
-  onBuy: (shares: number) => void
-  onSell: (shares: number) => void
+  onEntry: (direction: Direction, shares: number) => void
   onClose: (positionId: string) => void
   onCloseAll: () => void
   onSetSLTP: SetSLTPFn
@@ -169,8 +168,7 @@ interface DesktopTradePanelProps {
   positions: Position[]
   shares: number
   setShares: React.Dispatch<React.SetStateAction<number>>
-  onBuy: (shares: number) => void
-  onSell: (shares: number) => void
+  onEntry: (direction: Direction, shares: number) => void
   onClose: (positionId: string) => void
   onCloseAll: () => void
   onSetSLTP: SetSLTPFn
@@ -185,8 +183,7 @@ function DesktopTradePanel({
   positions,
   shares,
   setShares,
-  onBuy,
-  onSell,
+  onEntry,
   onClose,
   onCloseAll,
   onSetSLTP,
@@ -265,21 +262,21 @@ function DesktopTradePanel({
 
       <div className="border-b border-bg-elevated mb-2" />
 
-      {/* BUY/SELL ボタン */}
+      {/* LONG/SHORT ボタン */}
       <div className="flex gap-2 mb-3">
         <button
           className="flex-1 p-2.5 bg-profit text-white border-none rounded-md text-base font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          onClick={() => onBuy(shares)}
+          onClick={() => onEntry('LONG', shares)}
           disabled={isInsufficient}
         >
-          BUY
+          LONG
         </button>
         <button
           className="flex-1 p-2.5 bg-loss text-white border-none rounded-md text-base font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-          onClick={() => onSell(shares)}
+          onClick={() => onEntry('SHORT', shares)}
           disabled={isInsufficient}
         >
-          SELL
+          SHORT
         </button>
       </div>
 
@@ -380,27 +377,27 @@ function MobilePositionSummary({ currentPrice, positions }: MobilePositionSummar
   )
 }
 
-function MobileFooterBar({ onBuyTap, onSellTap }: { onBuyTap: () => void; onSellTap: () => void }) {
+function MobileFooterBar({ onTap }: { onTap: (direction: Direction) => void }) {
   return (
     <div className="flex gap-2 py-2 px-3 bg-bg-panel border-t border-bg-elevated shrink-0 h-14 items-center font-mono">
       <button
         className="flex-1 p-0 text-white border-none rounded-md text-base font-bold cursor-pointer min-h-11 bg-profit"
-        onClick={onBuyTap}
+        onClick={() => onTap('LONG')}
       >
-        BUY
+        LONG
       </button>
       <button
         className="flex-1 p-0 text-white border-none rounded-md text-base font-bold cursor-pointer min-h-11 bg-loss"
-        onClick={onSellTap}
+        onClick={() => onTap('SHORT')}
       >
-        SELL
+        SHORT
       </button>
     </div>
   )
 }
 
 interface OrderModalProps {
-  side: 'BUY' | 'SELL'
+  direction: Direction
   currentPrice: number
   buyingPower: number
   availableCash: number
@@ -412,7 +409,7 @@ interface OrderModalProps {
 }
 
 function OrderModal({
-  side,
+  direction,
   currentPrice,
   buyingPower,
   availableCash,
@@ -422,8 +419,8 @@ function OrderModal({
   onConfirm,
   onCancel,
 }: OrderModalProps) {
-  const isBuy = side === 'BUY'
-  const label = isBuy ? '買い注文' : '売り注文'
+  const isLong = direction === 'LONG'
+  const label = isLong ? 'ロング注文' : 'ショート注文'
 
   const addShares = (amount: number) => setShares((prev) => Math.max(1, prev + amount))
   const maxShares = currentPrice > 0 ? Math.floor(buyingPower / currentPrice) : 0
@@ -443,7 +440,7 @@ function OrderModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center mb-4">
-          <span className={`text-base font-bold ${isBuy ? 'text-profit' : 'text-loss'}`}>{label}</span>
+          <span className={`text-base font-bold ${isLong ? 'text-profit' : 'text-loss'}`}>{label}</span>
           <span className="text-sm">現在値 <span className="font-bold">{formatCurrency(currentPrice)}</span></span>
         </div>
 
@@ -486,12 +483,12 @@ function OrderModal({
 
         <button
           className={`w-full py-3.5 text-white border-none rounded-lg text-lg font-bold cursor-pointer min-h-12 mt-2 disabled:opacity-40 disabled:cursor-not-allowed ${
-            isBuy ? 'bg-profit' : 'bg-loss'
+            isLong ? 'bg-profit' : 'bg-loss'
           }`}
           onClick={() => onConfirm(shares)}
           disabled={isInsufficient}
         >
-          注文確定 ({side})
+          注文確定 ({direction})
         </button>
       </div>
     </div>
@@ -505,15 +502,14 @@ export default function TradePanel({
   buyingPower,
   maxLeverage,
   positions,
-  onBuy,
-  onSell,
+  onEntry,
   onClose,
   onCloseAll,
   onSetSLTP,
   compact = false,
 }: TradePanelProps) {
   const [shares, setShares] = useState(1)
-  const [modalSide, setModalSide] = useState<'BUY' | 'SELL' | null>(null)
+  const [modalDirection, setModalDirection] = useState<Direction | null>(null)
 
   if (!compact) {
     return (
@@ -526,8 +522,7 @@ export default function TradePanel({
         positions={positions}
         shares={shares}
         setShares={setShares}
-        onBuy={onBuy}
-        onSell={onSell}
+        onEntry={onEntry}
         onClose={onClose}
         onCloseAll={onCloseAll}
         onSetSLTP={onSetSLTP}
@@ -536,21 +531,17 @@ export default function TradePanel({
   }
 
   const handleConfirm = (s: number) => {
-    if (modalSide === 'BUY') onBuy(s)
-    else onSell(s)
-    setModalSide(null)
+    if (modalDirection) onEntry(modalDirection, s)
+    setModalDirection(null)
   }
 
   return (
     <>
       <MobilePositionSummary currentPrice={currentPrice} positions={positions} />
-      <MobileFooterBar
-        onBuyTap={() => setModalSide('BUY')}
-        onSellTap={() => setModalSide('SELL')}
-      />
-      {modalSide && (
+      <MobileFooterBar onTap={setModalDirection} />
+      {modalDirection && (
         <OrderModal
-          side={modalSide}
+          direction={modalDirection}
           currentPrice={currentPrice}
           buyingPower={buyingPower}
           availableCash={availableCash}
@@ -558,7 +549,7 @@ export default function TradePanel({
           shares={shares}
           setShares={setShares}
           onConfirm={handleConfirm}
-          onCancel={() => setModalSide(null)}
+          onCancel={() => setModalDirection(null)}
         />
       )}
     </>

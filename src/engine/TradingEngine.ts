@@ -1,4 +1,4 @@
-import type { Position, TradeResult, UnrealizedPnL, BuyingPowerInfo, DailySummary } from '../types/trading'
+import type { Direction, Position, TradeResult, UnrealizedPnL, BuyingPowerInfo, DailySummary } from '../types/trading'
 import { floorToTick, ceilToTick } from './priceGrid'
 
 interface TradingEngineConfig {
@@ -42,7 +42,7 @@ export class TradingEngine {
   }
 
   /** 損益を計算する（ETF信用取引: 価格差 × 株数） */
-  #calcPnL(direction: 'LONG' | 'SHORT', entryPrice: number, exitPrice: number, shares: number): number {
+  #calcPnL(direction: Direction, entryPrice: number, exitPrice: number, shares: number): number {
     const diff = direction === 'LONG'
       ? exitPrice - entryPrice
       : entryPrice - exitPrice
@@ -50,7 +50,7 @@ export class TradingEngine {
   }
 
   /** ポジションを新規建てする */
-  openPosition(direction: 'LONG' | 'SHORT', shares: number, price: number): Position | null {
+  openPosition(direction: Direction, shares: number, price: number): Position | null {
     if (direction !== 'LONG' && direction !== 'SHORT') return null
     if (shares <= 0 || price <= 0) return null
 

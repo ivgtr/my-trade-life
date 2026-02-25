@@ -1,6 +1,8 @@
+export type Direction = 'LONG' | 'SHORT'
+
 export interface Position {
   id: string
-  direction: 'LONG' | 'SHORT'
+  direction: Direction
   shares: number
   entryPrice: number
   leverage: number
