@@ -7,6 +7,7 @@ import { asGameMinutes, toBarTime, createTickMarkFormatter, chartTimeFormatter, 
 import { buildBars, mergeTickIntoBar, generateSessionTimeline } from '../utils/chartBarBuilder'
 import { SESSION_START_MINUTES, SESSION_END_MINUTES, isDuringLunch } from '../constants/sessionTime'
 import { IntervalGridPrimitive } from './GridPrimitive'
+import { useChartAutoScroll } from '../hooks/useChartAutoScroll'
 
 interface ChartProps {
   autoSize?: boolean
@@ -55,6 +56,11 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
   const intervalRef = useRef<number>(0)
   const gridPrimitiveRef = useRef<IntervalGridPrimitive | null>(null)
 
+  const { followIfNeeded, resetToFollowing, rebuildIndexMap } = useChartAutoScroll({
+    chartRef,
+    containerRef,
+  })
+
   function applyInterval(newInterval: number) {
     if (newInterval === intervalRef.current) return
     intervalRef.current = newInterval
@@ -75,6 +81,9 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
       const tf = timeframeRef.current
       const barTime = toBarTime(asGameMinutes(timestamp), tf)
 
+      const prevBarTime = currentBarRef.current?.time ?? null
+      const isNewBar = prevBarTime !== barTime
+
       if (!currentBarRef.current || currentBarRef.current.time !== barTime) {
         currentBarRef.current = mergeTickIntoBar(null, tickData, barTime)
       } else {
@@ -82,6 +91,8 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
       }
 
       seriesRef.current.update({ ...currentBarRef.current }, true)
+
+      if (isNewBar) followIfNeeded(barTime as number)
     },
 
     setTimeframe(tf: Timeframe, history: TickData[]) {
@@ -101,6 +112,9 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
         if ('open' in bars[i]) { lastCandle = { ...bars[i] } as CandlestickData; break }
       }
       currentBarRef.current = lastCandle
+
+      rebuildIndexMap(tf)
+      resetToFollowing()
     },
 
     reset() {
@@ -108,6 +122,7 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
         seriesRef.current.setData(generateSessionTimeline(timeframeRef.current))
       }
       currentBarRef.current = null
+      resetToFollowing()
     },
   }))
 
@@ -150,6 +165,8 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
     const gridPrimitive = new IntervalGridPrimitive(initialInterval)
     series.attachPrimitive(gridPrimitive)
     gridPrimitiveRef.current = gridPrimitive
+
+    rebuildIndexMap(timeframeRef.current)
 
     const handleVisibleRangeChange = (logicalRange: { from: number; to: number } | null) => {
       if (!logicalRange) return
