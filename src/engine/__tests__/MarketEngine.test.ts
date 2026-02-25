@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MarketEngine } from '../MarketEngine'
+import { TICK_UNIT } from '../priceGrid'
 import type { TickData, MarketEngineConfig } from '../../types/market'
 
 function createConfig(overrides?: Partial<MarketEngineConfig>): MarketEngineConfig {
@@ -243,5 +244,61 @@ describe('MarketEngine onLunchStart単発発火', () => {
     vi.advanceTimersByTime(120000)
 
     expect(onLunchStart).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('MarketEngine high/low overshootフロア', () => {
+  function collectTicksWithSeed(config: Partial<MarketEngineConfig>, tickCount: number): TickData[] {
+    vi.useFakeTimers()
+    let seed = 42
+    vi.spyOn(Math, 'random').mockImplementation(() => {
+      seed = (seed * 1664525 + 1013904223) >>> 0
+      return seed / 0x100000000
+    })
+
+    const ticks: TickData[] = []
+    const engine = new MarketEngine(createConfig({
+      onTick: (tick) => ticks.push(tick),
+      speed: 100,
+      ...config,
+    }))
+    engine.start()
+    for (let i = 0; i < tickCount; i++) vi.advanceTimersByTime(10)
+    engine.stop()
+
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+    return ticks
+  }
+
+  it('低ボラ設定で通常tickのhigh >= price + TICK_UNIT かつ low <= price - TICK_UNIT', () => {
+    const ticks = collectTicksWithSeed({
+      openPrice: 36000,
+      regimeParams: { drift: 0, volMult: 0.7, regime: 'range' },
+      anomalyParams: { driftBias: 0, volBias: 0.3, tendency: '' },
+    }, 300)
+
+    // 通常tick（境界tick timestamp=690,750,930 を除外）
+    const normalTicks = ticks.filter(t => t.timestamp !== 690 && t.timestamp !== 750 && t.timestamp !== 930)
+    expect(normalTicks.length).toBeGreaterThan(0)
+
+    for (const tick of normalTicks) {
+      expect(tick.high).toBeGreaterThanOrEqual(tick.price + TICK_UNIT)
+      expect(tick.low).toBeLessThanOrEqual(tick.price - TICK_UNIT)
+    }
+  })
+
+  it('高ボラ設定で通常tickの過半数がスプレッド TICK_UNIT * 2 超である', () => {
+    const ticks = collectTicksWithSeed({
+      openPrice: 36000,
+      regimeParams: { drift: 0, volMult: 1.5, regime: 'range' },
+      anomalyParams: { driftBias: 0, volBias: 1.5, tendency: '' },
+    }, 300)
+
+    const normalTicks = ticks.filter(t => t.timestamp !== 690 && t.timestamp !== 750 && t.timestamp !== 930)
+    expect(normalTicks.length).toBeGreaterThan(0)
+
+    const wideSpreadCount = normalTicks.filter(t => (t.high - t.low) > TICK_UNIT * 2).length
+    expect(wideSpreadCount / normalTicks.length).toBeGreaterThan(0.5)
   })
 })

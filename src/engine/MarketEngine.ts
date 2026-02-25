@@ -3,7 +3,7 @@ import {
   TICK_INTERVAL, PRICE_MOVE, MOMENTUM, VOL_TRANSITION, TIME_OF_DAY,
   INTRADAY_SCENARIOS, SCENARIO_REGIME_BIAS, MEAN_REVERSION, EXTREME_EVENT,
 } from './marketParams'
-import { roundPrice } from './priceGrid'
+import { roundPrice, TICK_UNIT } from './priceGrid'
 import { SESSION_START_MINUTES, SESSION_END_MINUTES, LUNCH_START_MINUTES, LUNCH_END_MINUTES } from '../constants/sessionTime'
 import type {
   VolState, TimeZone, TickData, GameTime, MarketEngineConfig,
@@ -261,7 +261,10 @@ export class MarketEngine {
 
   /** tick内の推定高値/安値を現在価格中心に対称に生成する。 */
   #estimateTickHighLow(newPrice: number, effectiveVol: number): { high: number; low: number } {
-    const overshoot = Math.abs(gaussRandom()) * effectiveVol * 0.5
+    const overshoot = Math.max(
+      Math.abs(gaussRandom()) * effectiveVol * 0.5,
+      TICK_UNIT,
+    )
     return {
       high: roundPrice(newPrice + overshoot),
       low: roundPrice(newPrice - overshoot),
