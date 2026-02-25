@@ -16,10 +16,12 @@ import { buildReportHealing } from './reportHealing'
 import { buildGameover } from './gameover'
 import { buildGameoverDirge } from './gameoverDirge'
 import { buildGameoverDescend } from './gameoverDescend'
+import { buildLunch } from './lunch'
 
 export const SCENE_BUILDERS: Record<BGMSceneId, BGMBuilder[]> = {
   title:    [buildTitle, buildTitlePrelude, buildTitleOcarina],
   trading:  [buildTrading, buildTradingDecisive, buildTradingInfiltrate],
+  lunch:    [buildLunch],
   calendar: [buildCalendar, buildCalendarMyLife, buildCalendarVillage, buildCalendarOverworld],
   report:   [buildReport, buildReportFanfare, buildReportHealing],
   gameover: [buildGameover, buildGameoverDirge, buildGameoverDescend],

@@ -3,7 +3,7 @@ import {
   TICK_INTERVAL, PRICE_MOVE, MOMENTUM, VOL_TRANSITION, TIME_OF_DAY,
   INTRADAY_SCENARIOS, SCENARIO_REGIME_BIAS, MEAN_REVERSION, EXTREME_EVENT,
 } from './marketParams'
-import { SESSION_START_MINUTES, SESSION_END_MINUTES } from '../constants/sessionTime'
+import { SESSION_START_MINUTES, SESSION_END_MINUTES, LUNCH_START_MINUTES, LUNCH_END_MINUTES } from '../constants/sessionTime'
 import type {
   VolState, TimeZone, TickData, GameTime, MarketEngineConfig,
   RegimeParams, AnomalyParams, RegimeName,
@@ -12,9 +12,6 @@ import type {
 
 /** 通常時間帯の圧縮レート（ゲーム内分/ms） — 3分セッション用 */
 const NORMAL_RATE = 330 / 174750
-
-/** 昼休みの圧縮レート — 3分セッション用 */
-const LUNCH_RATE = 60 / 5250
 
 /** 外部イベント力の減衰係数 */
 const FORCE_DECAY = 0.7
@@ -45,6 +42,7 @@ export class MarketEngine {
   #extremeEvent: ExtremeEventState | null
   #lastTickHigh: number
   #lastTickLow: number
+  #onLunchStart: (() => void) | null
 
   constructor(config: MarketEngineConfig) {
     this.#regimeParams = config.regimeParams
@@ -65,6 +63,7 @@ export class MarketEngine {
     this.#extremeEvent = null
     this.#lastTickHigh = config.openPrice
     this.#lastTickLow = config.openPrice
+    this.#onLunchStart = config.onLunchStart ?? null
   }
 
   /** エンジンを開始する。 */
@@ -113,6 +112,15 @@ export class MarketEngine {
     this.#scheduleNextTick()
   }
 
+  /** 昼休み終了後に12:30から再開する。12:30境界tickを即時発行してから通常ループに入る。 */
+  resumeFromLunch(): void {
+    this.#gameTime = LUNCH_END_MINUTES
+    this.#paused = false
+    this.#resetTickHighLow()
+    this.#emitTick()
+    this.#scheduleNextTick()
+  }
+
   /** 現在のゲーム内時刻を取得する。 */
   getCurrentTime(): GameTime {
     const totalMinutes = this.#gameTime
@@ -120,6 +128,12 @@ export class MarketEngine {
     const minutes = Math.floor(totalMinutes % 60)
     const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
     return { hours, minutes, totalMinutes, formatted }
+  }
+
+  /** 境界tick発行前にhigh/lowを現在価格でリセットする。 */
+  #resetTickHighLow(): void {
+    this.#lastTickHigh = this.#currentPrice
+    this.#lastTickLow = this.#currentPrice
   }
 
   /** 次のTickをスケジュールする。 */
@@ -145,9 +159,17 @@ export class MarketEngine {
     if (!this.#running || this.#paused) return
 
     // ゲーム内時刻更新（固定刻み: 環境非依存で決定論的に進行）
-    const timeZone = this.#getTimeZone(this.#gameTime)
-    const rate = timeZone === 'lunch' ? LUNCH_RATE : NORMAL_RATE
-    this.#gameTime += TICK_INTERVAL[this.#volState].mean * rate
+    this.#gameTime += TICK_INTERVAL[this.#volState].mean * NORMAL_RATE
+
+    // 昼休み到達チェック（11:30 = 690分）
+    if (this.#gameTime >= LUNCH_START_MINUTES && this.#gameTime < LUNCH_END_MINUTES) {
+      this.#gameTime = LUNCH_START_MINUTES
+      this.#resetTickHighLow()
+      this.#emitTick()
+      this.pause()
+      this.#onLunchStart?.()
+      return
+    }
 
     // 15:30（930分）到達チェック
     if (this.#gameTime >= SESSION_END_MINUTES) {
@@ -394,8 +416,8 @@ export class MarketEngine {
   /** ゲーム内時刻から時間帯を判定する。 */
   #getTimeZone(gameTime: number): TimeZone {
     if (gameTime < 570) return 'open'
-    if (gameTime < 690) return 'morning'
-    if (gameTime < 750) return 'lunch'
+    if (gameTime <= LUNCH_START_MINUTES) return 'morning'
+    if (gameTime < LUNCH_END_MINUTES) return 'lunch'
     if (gameTime < 870) return 'afternoon'
     return 'close'
   }

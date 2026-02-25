@@ -28,6 +28,7 @@ export interface MarketEngineConfig {
   speed: number
   onTick: (tick: TickData) => void
   onSessionEnd: () => void
+  onLunchStart?: () => void
 }
 
 export interface DailyCondition {

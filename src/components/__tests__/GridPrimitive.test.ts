@@ -31,8 +31,8 @@ describe('collectBoundaryCoordinates', () => {
     const toCoord = (t: Time) => (t as number) / 100
     const coords15 = collectBoundaryCoordinates(times15, toCoord)
     const coords30 = collectBoundaryCoordinates(times30, toCoord)
-    expect(coords15.length).toBe(27)
-    expect(coords30.length).toBe(14)
+    expect(coords15.length).toBe(24)
+    expect(coords30.length).toBe(13)
   })
 })
 

@@ -20,6 +20,7 @@ interface UseSessionEngineReturn {
   gameTime: string
   activeNews: NewsEvent | null
   speed: number
+  isLunchBreak: boolean
   handleBuy: (shares: number) => void
   handleSell: (shares: number) => void
   handleClose: (positionId: string) => void
@@ -43,6 +44,8 @@ export function useSessionEngine({
   const [gameTime, setGameTime] = useState('09:00')
   const [activeNews, setActiveNews] = useState<NewsEvent | null>(null)
   const [speed, setSpeed] = useState(gameState.speed ?? 1)
+  const [isLunchBreak, setIsLunchBreak] = useState(false)
+  const lunchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const regimeParams: RegimeParams = gameState.regimeParams ?? { drift: 0, volMult: 1.0, regime: 'range' as const }
@@ -78,6 +81,16 @@ export function useSessionEngine({
       regimeParams,
       anomalyParams,
       speed,
+      onLunchStart: () => {
+        setIsLunchBreak(true)
+        AudioSystem.playBGM('lunch')
+        lunchTimerRef.current = setTimeout(() => {
+          setIsLunchBreak(false)
+          AudioSystem.playBGM('trading')
+          marketEngineRef.current?.resumeFromLunch()
+          lunchTimerRef.current = null
+        }, 2500)
+      },
       onTick: (tickData) => {
         tickHistoryRef.current.push(tickData)
         chartRef.current?.updateTick(tickData)
@@ -132,6 +145,7 @@ export function useSessionEngine({
 
     return () => {
       marketEngine.stop()
+      if (lunchTimerRef.current) clearTimeout(lunchTimerRef.current)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -199,6 +213,7 @@ export function useSessionEngine({
     gameTime,
     activeNews,
     speed,
+    isLunchBreak,
     handleBuy,
     handleSell,
     handleClose,

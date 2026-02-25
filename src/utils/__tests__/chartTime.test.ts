@@ -229,21 +229,29 @@ describe('isLabelBoundary', () => {
 })
 
 describe('generateBoundaryTimes', () => {
-  it('interval=15 → 27個（09:00〜15:30の15分刻み）', () => {
+  it('interval=15 → 24個（09:00〜15:30の15分刻み、昼休み除外）', () => {
     const times = generateBoundaryTimes(15)
-    expect(times).toHaveLength(27)
+    expect(times).toHaveLength(24)
     expect(times[0]).toBe(32400)   // 09:00
     expect(times[times.length - 1]).toBe(55800)  // 15:30
   })
 
-  it('interval=30 → 14個（09:00〜15:30の30分刻み）', () => {
+  it('interval=30 → 13個（09:00〜15:30の30分刻み、昼休み除外）', () => {
     const times = generateBoundaryTimes(30)
-    expect(times).toHaveLength(14)
+    expect(times).toHaveLength(13)
   })
 
-  it('interval=60 → 7個（09:00〜15:00の60分刻み）', () => {
+  it('interval=60 → 6個（09:00〜15:00の60分刻み、昼休み除外）', () => {
     const times = generateBoundaryTimes(60)
-    expect(times).toHaveLength(7)
+    expect(times).toHaveLength(6)
+  })
+
+  it('昼休み帯の時刻が含まれない', () => {
+    const times15 = generateBoundaryTimes(15)
+    const lunchTimes = [41700, 42600, 43500, 44400] // 11:35, 11:50, 12:05, 12:20 (秒)
+    for (const lt of lunchTimes) {
+      expect(times15).not.toContain(lt)
+    }
   })
 })
 

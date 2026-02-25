@@ -7,6 +7,7 @@ import {
   generateSessionTimeline,
   buildBars,
 } from '../chartBarBuilder'
+import { LUNCH_START_MINUTES, LUNCH_END_MINUTES } from '../../constants/sessionTime'
 
 function makeTick(timestamp: number, price: number, high?: number, low?: number): TickData {
   return {
@@ -43,21 +44,30 @@ describe('mergeTickIntoBar', () => {
 })
 
 describe('generateSessionTimeline', () => {
-  it('tf=1 → 391個、先頭=32400、末尾=55800', () => {
+  it('tf=1 → 332個、先頭=32400、末尾=55800', () => {
     const timeline = generateSessionTimeline(1)
-    expect(timeline).toHaveLength(391)
+    expect(timeline).toHaveLength(332)
     expect(timeline[0].time).toBe(32400)
     expect(timeline[timeline.length - 1].time).toBe(55800)
   })
 
-  it('tf=5 → 79個', () => {
+  it('tf=5 → 68個', () => {
     const timeline = generateSessionTimeline(5)
-    expect(timeline).toHaveLength(79)
+    expect(timeline).toHaveLength(68)
   })
 
-  it('tf=15 → 27個', () => {
+  it('tf=15 → 24個', () => {
     const timeline = generateSessionTimeline(15)
-    expect(timeline).toHaveLength(27)
+    expect(timeline).toHaveLength(24)
+  })
+
+  it('11:30の次エントリが12:30である（昼休み帯スキップ）', () => {
+    const timeline = generateSessionTimeline(1)
+    const lunchStartSeconds = LUNCH_START_MINUTES * 60 // 41400
+    const lunchEndSeconds = LUNCH_END_MINUTES * 60     // 45000
+    const lunchStartIdx = timeline.findIndex(e => (e.time as number) === lunchStartSeconds)
+    expect(lunchStartIdx).toBeGreaterThan(-1)
+    expect(timeline[lunchStartIdx + 1].time).toBe(lunchEndSeconds)
   })
 
   it('全エントリがWhitespaceData（openプロパティなし）', () => {
@@ -73,10 +83,17 @@ describe('session timeline integrity', () => {
     const timeline = generateSessionTimeline(tf)
     const timelineSet = new Set(timeline.map(e => e.time as number))
 
-    for (const timestamp of [540, 720, 930]) {
+    for (const timestamp of [540, 690, 750, 930]) {
       const barTime = toBarTime(asGameMinutes(timestamp), tf)
       expect(timelineSet.has(barTime as number)).toBe(true)
     }
+  })
+
+  it.each([1, 5, 15] as const)('tf=%i: 昼休み帯(720=12:00)のbarTimeはタイムラインに含まれない', (tf) => {
+    const timeline = generateSessionTimeline(tf)
+    const timelineSet = new Set(timeline.map(e => e.time as number))
+    const barTime = toBarTime(asGameMinutes(720), tf)
+    expect(timelineSet.has(barTime as number)).toBe(false)
   })
 
   it('範囲外tick(539=08:59)のbarTimeはタイムラインに含まれない', () => {
@@ -100,7 +117,7 @@ describe('buildBars', () => {
       makeTick(542, 108, 110, 106),    // 09:02
     ]
     const bars = buildBars(ticks, 1)
-    expect(bars).toHaveLength(391) // tf=1のセッション全体
+    expect(bars).toHaveLength(332) // tf=1のセッション全体（昼休み除外）
     expect((bars[0] as CandlestickData).open).toBe(100)
     expect('open' in bars[1]).toBe(false) // 09:01はWhitespaceData
     expect((bars[2] as CandlestickData).open).toBe(108)
@@ -112,7 +129,7 @@ describe('buildBars', () => {
       makeTick(540.5, 102, 108, 93),
     ]
     const bars = buildBars(ticks, 1)
-    expect(bars).toHaveLength(391)
+    expect(bars).toHaveLength(332)
     const bar = bars[0] as CandlestickData
     expect(bar.open).toBe(100)
     expect(bar.high).toBe(108)
@@ -129,7 +146,7 @@ describe('buildBars', () => {
   it('範囲外tick(539=08:59) → timestamp判定で明示除外、タイムライン長は変化なし', () => {
     const ticks = [makeTick(539, 100)]
     const bars = buildBars(ticks, 1)
-    expect(bars).toHaveLength(391)
+    expect(bars).toHaveLength(332)
     // 全エントリがWhitespaceData（範囲外tickは除外されているため）
     for (const entry of bars) {
       expect('open' in entry).toBe(false)
@@ -139,9 +156,20 @@ describe('buildBars', () => {
   it('範囲外tick(931=15:31, tf=15) → barTimeは15:30に丸められるがtimestamp判定で除外', () => {
     const ticks = [makeTick(931, 100)]
     const bars = buildBars(ticks, 15)
-    expect(bars).toHaveLength(27)
+    expect(bars).toHaveLength(24)
     // 15:30バー（末尾）もWhitespaceDataのまま
     const lastEntry = bars[bars.length - 1]
     expect('open' in lastEntry).toBe(false)
+  })
+
+  it('昼休みtick(720=12:00) → isDuringLunch判定で除外', () => {
+    const ticks = [makeTick(540, 100), makeTick(720, 200)]
+    const bars = buildBars(ticks, 1)
+    expect(bars).toHaveLength(332)
+    // 09:00バーにはデータあり
+    expect('open' in bars[0]).toBe(true)
+    // 昼休みtickはバーに反映されない — 全バーの中でprice=200のバーは存在しない
+    const hasLunchBar = bars.some(b => 'close' in b && (b as CandlestickData).close === 200)
+    expect(hasLunchBar).toBe(false)
   })
 })

@@ -27,6 +27,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     gameTime,
     activeNews,
     speed,
+    isLunchBreak,
     handleBuy,
     handleSell,
     handleClose,
@@ -97,6 +98,15 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     </span>
   )
 
+  const lunchOverlay = isLunchBreak && (
+    <div className="fixed inset-0 z-[var(--z-news)] flex items-center justify-center bg-black/60 pointer-events-none">
+      <div className="bg-bg-panel border border-bg-elevated rounded-lg px-8 py-6 text-center">
+        <p className="text-lg font-bold text-text-primary">昼休み</p>
+        <p className="text-sm text-text-secondary mt-2">11:30 - 12:30</p>
+      </div>
+    </div>
+  )
+
   if (isMobile) {
     return (
       <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
@@ -161,6 +171,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
         />
 
         <NewsOverlay newsEvent={activeNews} onComplete={handleNewsComplete} />
+        {lunchOverlay}
       </div>
     )
   }
@@ -204,6 +215,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
       </div>
 
       <NewsOverlay newsEvent={activeNews} onComplete={handleNewsComplete} />
+      {lunchOverlay}
     </div>
   )
 }

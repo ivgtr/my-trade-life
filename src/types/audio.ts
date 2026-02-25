@@ -1,4 +1,4 @@
-export type BGMSceneId = 'title' | 'trading' | 'calendar' | 'report' | 'gameover'
+export type BGMSceneId = 'title' | 'trading' | 'lunch' | 'calendar' | 'report' | 'gameover'
 
 export type SEId =
   | 'entry'

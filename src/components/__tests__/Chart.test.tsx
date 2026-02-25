@@ -101,7 +101,7 @@ describe('Chart updateTick', () => {
     const data = mockSetData.mock.calls[0][0]
     expect(data[0].time).toBe(32400)   // 09:00
     expect(data[data.length - 1].time).toBe(55800) // 15:30
-    expect(data).toHaveLength(391) // tf=1のデフォルト
+    expect(data).toHaveLength(332) // tf=1のデフォルト（昼休み除外）
   })
 
   it('範囲内tick(540=09:00) → series.update(bar, true)が呼ばれる', () => {
@@ -127,6 +127,27 @@ describe('Chart updateTick', () => {
       ref.current!.updateTick(makeTick(931, 100))
     })
     expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('昼休みtick(720=12:00) → isDuringLunchガードで除外、series.updateが呼ばれない', () => {
+    act(() => {
+      ref.current!.updateTick(makeTick(720, 100))
+    })
+    expect(mockUpdate).not.toHaveBeenCalled()
+  })
+
+  it('11:30境界tick(690) → series.updateが呼ばれる（前場最終）', () => {
+    act(() => {
+      ref.current!.updateTick(makeTick(690, 100))
+    })
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('12:30境界tick(750) → series.updateが呼ばれる（後場開始）', () => {
+    act(() => {
+      ref.current!.updateTick(makeTick(750, 100))
+    })
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -230,7 +251,7 @@ describe('Chart setTimeframe経路', () => {
   })
 
   it('setTimeframe(5, history) → rangeが返る場合applyOptionsとsetIntervalが呼ばれる', () => {
-    // 初期interval=30（tf=1, 391bars）。range指定で異なるintervalにする
+    // 初期interval=30（tf=1, 332bars）。range指定で異なるintervalにする
     mockGetVisibleLogicalRange.mockReturnValue({ from: 0, to: 9 })
     mockApplyOptions.mockClear()
     mockGridSetInterval.mockClear()
@@ -262,7 +283,7 @@ describe('Chart setTimeframe経路', () => {
       ref.current!.setTimeframe(15, [makeTick(540, 100)])
     })
 
-    // tf=15 totalBars=27 → computeGridInterval(15, 27) = 30 ≠ 5 → 更新される
+    // tf=15 totalBars=24 → computeGridInterval(15, 24) = 30 ≠ 5 → 更新される
     expect(mockGridSetInterval).toHaveBeenCalledWith(30)
   })
 })

@@ -5,7 +5,7 @@ import type { TickData, Timeframe } from '../types'
 import { ConfigManager } from '../systems/ConfigManager'
 import { asGameMinutes, toBarTime, createTickMarkFormatter, chartTimeFormatter, computeGridInterval, toVisibleBarCount } from '../utils/chartTime'
 import { buildBars, mergeTickIntoBar, generateSessionTimeline } from '../utils/chartBarBuilder'
-import { SESSION_START_MINUTES, SESSION_END_MINUTES } from '../constants/sessionTime'
+import { SESSION_START_MINUTES, SESSION_END_MINUTES, isDuringLunch } from '../constants/sessionTime'
 import { IntervalGridPrimitive } from './GridPrimitive'
 
 interface ChartProps {
@@ -70,6 +70,7 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
 
       const { timestamp } = tickData
       if (timestamp < SESSION_START_MINUTES || timestamp > SESSION_END_MINUTES) return
+      if (isDuringLunch(timestamp)) return
 
       const tf = timeframeRef.current
       const barTime = toBarTime(asGameMinutes(timestamp), tf)

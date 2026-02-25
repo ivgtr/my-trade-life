@@ -1,7 +1,7 @@
 import type { CandlestickData, WhitespaceData, UTCTimestamp } from 'lightweight-charts'
 import type { TickData, Timeframe } from '../types'
 import { asGameMinutes, toBarTime, SESSION_START_SECONDS, SESSION_END_SECONDS } from './chartTime'
-import { SESSION_START_MINUTES, SESSION_END_MINUTES } from '../constants/sessionTime'
+import { SESSION_START_MINUTES, SESSION_END_MINUTES, isDuringLunch, isDuringLunchSeconds } from '../constants/sessionTime'
 
 export type BarEntry = CandlestickData | WhitespaceData
 
@@ -10,6 +10,7 @@ export function generateSessionTimeline(tf: Timeframe): WhitespaceData[] {
   const step = tf * 60
   const entries: WhitespaceData[] = []
   for (let t = SESSION_START_SECONDS; t <= SESSION_END_SECONDS; t += step) {
+    if (isDuringLunchSeconds(t)) continue
     entries.push({ time: t as UTCTimestamp })
   }
   return entries
@@ -36,6 +37,7 @@ export function buildBars(history: TickData[], tf: Timeframe): BarEntry[] {
   const barMap = new Map<number, CandlestickData>()
   for (const tick of history) {
     if (tick.timestamp < SESSION_START_MINUTES || tick.timestamp > SESSION_END_MINUTES) continue
+    if (isDuringLunch(tick.timestamp)) continue
     const barTime = toBarTime(asGameMinutes(tick.timestamp), tf)
     barMap.set(barTime, mergeTickIntoBar(barMap.get(barTime) ?? null, tick, barTime))
   }

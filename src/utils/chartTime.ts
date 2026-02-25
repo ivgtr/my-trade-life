@@ -1,6 +1,6 @@
 import type { UTCTimestamp, Time, TickMarkType } from 'lightweight-charts'
 import type { Timeframe } from '../types'
-import { SESSION_START_MINUTES, SESSION_END_MINUTES } from '../constants/sessionTime'
+import { SESSION_START_MINUTES, SESSION_END_MINUTES, isDuringLunchSeconds } from '../constants/sessionTime'
 
 export const SESSION_START_SECONDS = SESSION_START_MINUTES * 60
 export const SESSION_END_SECONDS = SESSION_END_MINUTES * 60
@@ -68,6 +68,7 @@ export function generateBoundaryTimes(intervalMinutes: number): number[] {
   const stepSeconds = intervalMinutes * 60
   const times: number[] = []
   for (let t = SESSION_START_SECONDS; t <= SESSION_END_SECONDS; t += stepSeconds) {
+    if (isDuringLunchSeconds(t)) continue
     times.push(t)
   }
   return times
