@@ -10,7 +10,7 @@ const DIMINISHING_THRESHOLD = 10
 const BONUS_EXP_PER_TRADE = 5
 
 /** レベルごとの必要累計経験値 */
-const EXP_TABLE: Record<number, number> = {
+export const EXP_TABLE: Record<number, number> = {
   2: 100,
   3: 300,
   4: 600,
@@ -21,7 +21,7 @@ const EXP_TABLE: Record<number, number> = {
 }
 
 /** 最大レベル */
-const MAX_LEVEL = 8
+export const MAX_LEVEL = 8
 
 interface UnlockEntry {
   features: string[]

@@ -4,6 +4,7 @@ import { AudioSystem } from '../systems/AudioSystem'
 import MonthlyPnLChart from '../components/MonthlyPnLChart'
 import { formatDate, formatCurrency, parseLocalDate } from '../utils/formatUtils'
 import { buildMonthlySummary } from '../utils/calendarSummary'
+import { EXP_TABLE, MAX_LEVEL } from '../engine/GrowthSystem'
 
 interface CalendarScreenProps {
   onAdvance?: () => void
@@ -27,6 +28,14 @@ export default function CalendarScreen({ onAdvance }: CalendarScreenProps) {
 
   const summary = buildMonthlySummary(history, currentDate)
 
+  const yearNumber = Math.ceil(gameState.day / 365)
+  const level = gameState.level
+  const exp = gameState.exp
+  const nextLevelExp = level < MAX_LEVEL ? EXP_TABLE[level + 1] : null
+  const winRate = gameState.totalTrades > 0
+    ? Math.round((gameState.totalWins / gameState.totalTrades) * 100)
+    : 0
+
   const handleAdvance = () => {
     if (onAdvance) {
       onAdvance()
@@ -46,6 +55,13 @@ export default function CalendarScreen({ onAdvance }: CalendarScreenProps) {
           前日損益: {formatCurrency(lastPnL)}
         </div>
       )}
+
+      <div className="flex gap-4 text-xs text-text-secondary mb-4">
+        <span>{yearNumber}年目</span>
+        <span>{gameState.day}日目</span>
+        <span>Lv.{level}{nextLevelExp != null ? ` (${exp}/${nextLevelExp})` : ' MAX'}</span>
+        <span>勝率 {winRate}%({gameState.totalTrades}回)</span>
+      </div>
 
       <MonthlyPnLChart data={summary.monthHistory} className="w-80 mb-6" />
 
