@@ -7,14 +7,15 @@ import { ACTIONS } from '../../state/actions'
 import type { GameState, GameAction } from '../../types'
 import type { Direction } from '../../types/trading'
 
-const { mockOpenPosition, mockPlaySE } = vi.hoisted(() => ({
+const { mockOpenPosition, mockPlaySE, mockMarketStart } = vi.hoisted(() => ({
   mockOpenPosition: vi.fn(),
   mockPlaySE: vi.fn(),
+  mockMarketStart: vi.fn(),
 }))
 
 vi.mock('../../engine/MarketEngine', () => ({
   MarketEngine: class {
-    start() {}
+    start = mockMarketStart
     stop() {}
     setSpeed() {}
     getCurrentTime() { return { formatted: '09:00' } }
@@ -156,5 +157,50 @@ describe('useSessionEngine handleEntry', () => {
     )
     expect(openPositionCalls).toHaveLength(0)
     expect(mockPlaySE).not.toHaveBeenCalledWith('entry')
+  })
+})
+
+describe('useSessionEngine — re-render でエンジン再初期化されない', () => {
+  const dispatch = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('親の state 変更による re-render で MarketEngine.start() が1回のみ呼ばれる', () => {
+    const gameState = createGameState()
+    const chartRef = { current: null }
+    const rerenderRef = { current: () => {} }
+
+    function WrapperComponent() {
+      const [, setState] = require('react').useState(0)
+      useEffect(() => {
+        rerenderRef.current = () => setState((c: number) => c + 1)
+      })
+      return createElement(InnerComponent)
+    }
+
+    function InnerComponent() {
+      useSessionEngine({ gameState, dispatch, chartRef })
+      return null
+    }
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+
+    act(() => {
+      root.render(createElement(WrapperComponent))
+    })
+
+    const initialCallCount = mockMarketStart.mock.calls.length
+
+    // 親の state 変更で re-render を発生させる
+    act(() => {
+      rerenderRef.current()
+    })
+
+    // MarketEngine.start() は最初のマウント時のみ呼ばれ、re-render では追加呼び出しされない
+    expect(mockMarketStart.mock.calls.length).toBe(initialCallCount)
   })
 })
