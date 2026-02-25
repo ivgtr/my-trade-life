@@ -1,4 +1,3 @@
-import { gaussRandom } from '../utils/mathUtils'
 import {
   TICK_INTERVAL, PRICE_MOVE, MOMENTUM, VOL_TRANSITION, TIME_OF_DAY,
   INTRADAY_SCENARIOS, SCENARIO_REGIME_BIAS, MEAN_REVERSION, EXTREME_EVENT,
@@ -7,9 +6,11 @@ import {
 import { SESSION_START_MINUTES, SESSION_END_MINUTES, LUNCH_START_MINUTES, LUNCH_END_MINUTES } from '../constants/sessionTime'
 import { MicrostructureEngine } from './MicrostructureEngine'
 import { VolumeModel } from './VolumeModel'
+import { OrderFlowPatternEngine } from './OrderFlowPatternEngine'
+import { Rng } from '../utils/Rng'
 import type {
   VolState, TimeZone, TickData, GameTime, MarketEngineConfig,
-  RegimeParams, AnomalyParams, RegimeName, MicroResult,
+  RegimeParams, AnomalyParams, RegimeName, MicroResult, AlgoOverride,
   IntradayScenario, IntradayPhaseEntry, ExtremeEventState,
 } from '../types/market'
 
@@ -47,9 +48,17 @@ export class MarketEngine {
   #scheduledInterval: number
   #microstructure: MicrostructureEngine
   #volumeModel: VolumeModel
+  #orderFlow: OrderFlowPatternEngine
   #lastMicroResult: MicroResult | null
+  #priceRng: Rng
 
   constructor(config: MarketEngineConfig) {
+    const seed = config.seed ?? Date.now()
+    this.#priceRng = new Rng(seed)
+    const volumeRng = new Rng(seed + 1)
+    const microRng = new Rng(seed + 2)
+    const patternRng = new Rng(seed + 3)
+
     this.#regimeParams = config.regimeParams
     this.#anomalyParams = config.anomalyParams
     this.#onTick = config.onTick
@@ -70,8 +79,9 @@ export class MarketEngine {
     this.#lastTickLow = config.openPrice
     this.#onLunchStart = config.onLunchStart ?? null
     this.#scheduledInterval = TICK_INTERVAL.normal.mean
-    this.#microstructure = new MicrostructureEngine(config.openPrice)
-    this.#volumeModel = new VolumeModel()
+    this.#microstructure = new MicrostructureEngine(config.openPrice, microRng)
+    this.#volumeModel = new VolumeModel(volumeRng)
+    this.#orderFlow = new OrderFlowPatternEngine(patternRng)
     this.#lastMicroResult = null
   }
 
@@ -158,9 +168,13 @@ export class MarketEngine {
    */
   #calcNextInterval(): number {
     const { mean, sd } = TICK_INTERVAL[this.#volState]
-    const raw = mean + gaussRandom() * sd
-    this.#scheduledInterval = Math.max(20, raw)
-    return Math.max(20, raw / this.#speed)
+    // 物理dt: 正規分布ベース（ゲーム内時刻進行の基準）
+    const physics = Math.max(20, mean + this.#priceRng.gaussian() * sd)
+    // 表示間隔: 指数分布でバースト/沈黙を表現
+    const displayRaw = mean * -Math.log(1 - this.#priceRng.next())
+    const display = Math.max(20, Math.min(displayRaw, mean * 3))
+    this.#scheduledInterval = physics
+    return Math.max(20, display / this.#speed)
   }
 
   /**
@@ -203,8 +217,11 @@ export class MarketEngine {
     // 価格変動計算
     this.#updatePrice(dt)
 
+    // OrderFlowパターン更新
+    const algoOverride = this.#orderFlow.update(dt, this.#volState)
+
     // Tick発行
-    this.#emitTick()
+    this.#emitTick(algoOverride)
 
     // 次Tickスケジュール
     this.#scheduleNextTick()
@@ -230,14 +247,14 @@ export class MarketEngine {
     const drift = driftRate * dt * this.#currentPrice
 
     // ショック: dt未適用（ティック増でボラ増、意図的）
-    const shock = gaussRandom() * this.#currentPrice * PRICE_MOVE.sdPct *
+    const shock = this.#priceRng.gaussian() * this.#currentPrice * PRICE_MOVE.sdPct *
       combinedVolMult
 
     // ファットテール: 確率をscaleProb
     let fatTail = 0
-    if (Math.random() < scaleProb(PRICE_MOVE.fatTailP, dt)) {
-      const multiplier = 3 + Math.random() * 2
-      fatTail = gaussRandom() * this.#currentPrice * PRICE_MOVE.sdPct * multiplier
+    if (this.#priceRng.chance(scaleProb(PRICE_MOVE.fatTailP, dt))) {
+      const multiplier = this.#priceRng.range(3, 5)
+      fatTail = this.#priceRng.gaussian() * this.#currentPrice * PRICE_MOVE.sdPct * multiplier
     }
 
     // 外部力: 適用量は線形、減衰は指数
@@ -299,7 +316,7 @@ export class MarketEngine {
       w: s.weight * (biasTable[s.name] ?? 1.0),
     }))
     const totalWeight = weighted.reduce((sum, { w }) => sum + w, 0)
-    let rand = Math.random() * totalWeight
+    let rand = this.#priceRng.next() * totalWeight
     for (const { scenario, w } of weighted) {
       rand -= w
       if (rand <= 0) return scenario
@@ -341,10 +358,10 @@ export class MarketEngine {
     const gameTimePerRefTick = REFERENCE_TICK_MEAN * NORMAL_RATE
 
     if (this.#extremeEvent === null) {
-      if (Math.random() < scaleProb(EXTREME_EVENT.triggerProb, dt)) {
-        const isCrash = Math.random() < 0.5
+      if (this.#priceRng.chance(scaleProb(EXTREME_EVENT.triggerProb, dt))) {
+        const isCrash = this.#priceRng.chance(0.5)
         const { activeDurationMin: min, activeDurationMax: max } = EXTREME_EVENT
-        const refTicks = min + Math.floor(Math.random() * (max - min + 1))
+        const refTicks = this.#priceRng.intInclusive(min, max)
         const durationMinutes = refTicks * gameTimePerRefTick
         const forcePct = isCrash ? EXTREME_EVENT.crashForcePct : EXTREME_EVENT.meltUpForcePct
         this.#extremeEvent = {
@@ -361,13 +378,13 @@ export class MarketEngine {
     const event = this.#extremeEvent
 
     if (event.phase === 'active') {
-      const jitter = 0.7 + Math.random() * 0.6
+      const jitter = this.#priceRng.jitter(1.0, 0.6)
       const forceThisTick = event.force * gameTimeDelta * jitter
       event.totalDisplacement += forceThisTick
       event.timeRemaining -= gameTimeDelta
       if (event.timeRemaining <= 0) {
         const { recoveryDurationMin: rMin, recoveryDurationMax: rMax } = EXTREME_EVENT
-        const recoveryRefTicks = rMin + Math.floor(Math.random() * (rMax - rMin + 1))
+        const recoveryRefTicks = this.#priceRng.intInclusive(rMin, rMax)
         const recoveryMinutes = recoveryRefTicks * gameTimePerRefTick
         event.phase = 'recovery'
         event.force = -(event.totalDisplacement * EXTREME_EVENT.recoveryRatio) / recoveryMinutes
@@ -377,7 +394,7 @@ export class MarketEngine {
     }
 
     // recovery phase
-    const jitter = 0.8 + Math.random() * 0.4
+    const jitter = this.#priceRng.jitter(1.0, 0.4)
     const forceThisTick = event.force * gameTimeDelta * jitter
     event.timeRemaining -= gameTimeDelta
     if (event.timeRemaining <= 0) {
@@ -396,7 +413,7 @@ export class MarketEngine {
     const biasTarget = todParams.volPhBias
 
     const transitions = this.#getTransitionsForState(this.#volState, biasTarget, dt)
-    const rand = Math.random()
+    const rand = this.#priceRng.next()
     let cumulative = 0
 
     for (const { target, prob } of transitions) {
@@ -451,7 +468,7 @@ export class MarketEngine {
   }
 
   /** TickDataを生成してonTickコールバックに通知する。 */
-  #emitTick(): void {
+  #emitTick(algoOverride?: AlgoOverride): void {
     const timeZone = this.#getTimeZone(this.#gameTime)
     const volume = this.#volumeModel.generate({
       volState: this.#volState,
@@ -460,7 +477,7 @@ export class MarketEngine {
       currentPrice: this.#currentPrice,
       ignitionActive: this.#lastMicroResult?.ignitionActive ?? false,
       priceChanged: this.#lastMicroResult?.priceChanged ?? true,
-    })
+    }, algoOverride)
     const tickData: TickData = {
       price: this.#currentPrice,
       high: this.#lastTickHigh,

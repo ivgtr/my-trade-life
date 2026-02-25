@@ -264,23 +264,18 @@ describe('MarketEngine onLunchStart単発発火', () => {
 describe('MarketEngine high/low overshootフロア', () => {
   function collectTicksWithSeed(config: Partial<MarketEngineConfig>, tickCount: number): TickData[] {
     vi.useFakeTimers()
-    let seed = 42
-    vi.spyOn(Math, 'random').mockImplementation(() => {
-      seed = (seed * 1664525 + 1013904223) >>> 0
-      return seed / 0x100000000
-    })
 
     const ticks: TickData[] = []
     const engine = new MarketEngine(createConfig({
       onTick: (tick) => ticks.push(tick),
       speed: 100,
+      seed: 42,
       ...config,
     }))
     engine.start()
     for (let i = 0; i < tickCount; i++) vi.advanceTimersByTime(10)
     engine.stop()
 
-    vi.restoreAllMocks()
     vi.useRealTimers()
     return ticks
   }

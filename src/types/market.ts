@@ -29,6 +29,7 @@ export interface MarketEngineConfig {
   onTick: (tick: TickData) => void
   onSessionEnd: () => void
   onLunchStart?: () => void
+  seed?: number
 }
 
 export interface DailyCondition {
@@ -128,10 +129,16 @@ export interface VolumeContext {
   priceChanged: boolean
 }
 
+/** アルゴパターンからのオーバーライド */
+export interface AlgoOverride {
+  volume: number
+}
+
 /** イグニション状態（MicrostructureEngine内部） */
 export interface IgnitionState {
   direction: number
   timeRemaining: number
+  totalDuration: number
   forcePerGameMinute: number
 }
 

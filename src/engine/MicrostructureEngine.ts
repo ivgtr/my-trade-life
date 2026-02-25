@@ -1,10 +1,10 @@
-import { gaussRandom } from '../utils/mathUtils'
 import {
   STICKY_PRICE, ROUND_NUMBER, IGNITION, STOP_HUNT,
   scaleProb,
 } from './marketParams'
 import { roundPrice, tickUnit } from './priceGrid'
 import type { MicroContext, MicroResult, IgnitionState, StopHuntState, VolState } from '../types/market'
+import type { Rng } from '../utils/Rng'
 
 /** テスト用にオーバーライド可能なパラメータ群 */
 export interface MicrostructureParams {
@@ -12,7 +12,8 @@ export interface MicrostructureParams {
     releaseMultMin: number
     releaseMultMax: number
     maxAccumulationMult: number
-    volStateMaxTicks: Record<VolState, number>
+    releaseHazardRate: Record<VolState, number>
+    emergencyMaxTicks: Record<VolState, number>
   }
   ROUND_NUMBER: {
     attractionZone: number
@@ -29,9 +30,11 @@ export interface MicrostructureParams {
   STOP_HUNT: {
     proximityZone: number
     triggerProb: number
-    pierceDuration: number
+    pierceDurationMin: number
+    pierceDurationMax: number
     pierceForcePct: number
-    reversalDuration: number
+    reversalDurationMin: number
+    reversalDurationMax: number
     reversalForcePct: number
   }
 }
@@ -51,18 +54,18 @@ const DEFAULT_PARAMS: MicrostructureParams = {
 export class MicrostructureEngine {
   #pendingPressure = 0
   #stickyCounter = 0
-  #stickyThreshold: number
   #ignition: IgnitionState | null = null
   #stopHunt: StopHuntState | null = null
   #sessionHigh: number
   #sessionLow: number
   #params: MicrostructureParams
+  #rng: Rng
 
-  constructor(openPrice: number, paramsOverride?: Partial<MicrostructureParams>) {
+  constructor(openPrice: number, rng: Rng, paramsOverride?: Partial<MicrostructureParams>) {
     this.#sessionHigh = openPrice
     this.#sessionLow = openPrice
     this.#params = { ...DEFAULT_PARAMS, ...paramsOverride }
-    this.#stickyThreshold = this.#rollStickyThreshold('normal')
+    this.#rng = rng
   }
 
   /** 毎ティック呼ばれるメインメソッド */
@@ -139,27 +142,20 @@ export class MicrostructureEngine {
       Math.sign(prevPressure) !== Math.sign(this.#pendingPressure)
 
     // 解放条件
-    const releaseMult = params.releaseMultMin +
-      Math.random() * (params.releaseMultMax - params.releaseMultMin)
+    const releaseMult = this.#rng.range(params.releaseMultMin, params.releaseMultMax)
     const releaseThreshold = tick * releaseMult
     const pressureExceeded = Math.abs(this.#pendingPressure) >= releaseThreshold
-    const tickLimitReached = this.#stickyCounter >= this.#stickyThreshold
+    const hazardRelease = this.#rng.chance(params.releaseHazardRate[volState])
+    const emergencyRelease = this.#stickyCounter >= params.emergencyMaxTicks[volState]
 
-    if (forceRelease || pressureExceeded || tickLimitReached || signFlipped) {
+    if (forceRelease || pressureExceeded || hazardRelease || emergencyRelease || signFlipped) {
       const released = this.#pendingPressure
       this.#pendingPressure = 0
       this.#stickyCounter = 0
-      this.#stickyThreshold = this.#rollStickyThreshold(volState)
       return { price: released, changed: true }
     }
 
     return { price: 0, changed: false }
-  }
-
-  /** 滞留閾値をランダムに決定する */
-  #rollStickyThreshold(volState: VolState): number {
-    const maxTicks = this.#params.STICKY_PRICE.volStateMaxTicks[volState]
-    return 1 + Math.floor(Math.random() * maxTicks)
   }
 
   /**
@@ -221,9 +217,14 @@ export class MicrostructureEngine {
 
     // アクティブなイグニションの処理
     if (this.#ignition !== null) {
-      const { direction, forcePerGameMinute } = this.#ignition
-      const jitter = 0.7 + Math.random() * 0.6
-      const force = direction * forcePerGameMinute * ctx.gameTimeDelta * jitter
+      const { direction, forcePerGameMinute, totalDuration } = this.#ignition
+      // 段階加速: 放物線カーブ (0.3 ~ 1.0)
+      const progress = totalDuration === 0 ? 1 : 1 - this.#ignition.timeRemaining / totalDuration
+      const curve = 0.3 + 0.7 * 4 * progress * (1 - progress)
+      // 小戻し: 20%の確率で逆行
+      const dir = this.#rng.chance(0.2) ? -direction : direction
+      const jitter = this.#rng.jitter(1.0, 0.6)
+      const force = dir * forcePerGameMinute * ctx.gameTimeDelta * jitter * curve
       this.#ignition.timeRemaining -= ctx.gameTimeDelta
       if (this.#ignition.timeRemaining <= 0) {
         this.#ignition = null
@@ -235,29 +236,29 @@ export class MicrostructureEngine {
     if (ctx.extremeEventActive) return 0
 
     const prob = scaleProb(params.triggerProb * params.volStateMult[ctx.volState], ctx.dt)
-    if (Math.random() >= prob) return 0
+    if (!this.#rng.chance(prob)) return 0
 
     // 発火
-    const refTicks = params.durationMin +
-      Math.floor(Math.random() * (params.durationMax - params.durationMin + 1))
+    const refTicks = this.#rng.intInclusive(params.durationMin, params.durationMax)
     const durationMinutes = refTicks * ctx.gameTimePerRefTick
 
     // 方向: momentumSign方向に60%偏向
     const direction = ctx.momentumSign !== 0
-      ? (Math.random() < 0.6 ? ctx.momentumSign : -ctx.momentumSign)
-      : (Math.random() < 0.5 ? 1 : -1)
+      ? (this.#rng.chance(0.6) ? ctx.momentumSign : -ctx.momentumSign)
+      : (this.#rng.chance(0.5) ? 1 : -1)
 
     const forcePerGameMinute = (ctx.currentPrice * params.forcePct) / ctx.gameTimePerRefTick
 
     this.#ignition = {
       direction,
       timeRemaining: durationMinutes,
+      totalDuration: durationMinutes,
       forcePerGameMinute,
     }
 
-    // 初回ティックの力
-    const jitter = 0.7 + Math.random() * 0.6
-    return direction * forcePerGameMinute * ctx.gameTimeDelta * jitter
+    // 初回ティックの力 (progress≈0 → curve=0.3)
+    const jitter = this.#rng.jitter(1.0, 0.6)
+    return direction * forcePerGameMinute * ctx.gameTimeDelta * jitter * 0.3
   }
 
   /** ストップハンティング処理 */
@@ -266,7 +267,7 @@ export class MicrostructureEngine {
 
     // アクティブなストップハンティングの処理
     if (this.#stopHunt !== null) {
-      const jitter = 0.7 + Math.random() * 0.6
+      const jitter = this.#rng.jitter(1.0, 0.6)
       const force = this.#stopHunt.direction * this.#stopHunt.forcePerGameMinute *
         ctx.gameTimeDelta * jitter
       this.#stopHunt.timeRemaining -= ctx.gameTimeDelta
@@ -274,12 +275,14 @@ export class MicrostructureEngine {
       if (this.#stopHunt.timeRemaining <= 0) {
         if (this.#stopHunt.phase === 'pierce') {
           // pierce → reversal遷移
-          const reversalMinutes = params.reversalDuration * ctx.gameTimePerRefTick
+          const reversalTicks = this.#rng.intInclusive(params.reversalDurationMin, params.reversalDurationMax)
+          const reversalMinutes = reversalTicks * ctx.gameTimePerRefTick
+          const reversalForceJitter = this.#rng.jitter(1.0, 0.6)
           this.#stopHunt = {
             phase: 'reversal',
             direction: -this.#stopHunt.direction,
             timeRemaining: reversalMinutes,
-            forcePerGameMinute: (ctx.currentPrice * params.reversalForcePct) / ctx.gameTimePerRefTick,
+            forcePerGameMinute: (ctx.currentPrice * params.reversalForcePct * reversalForceJitter) / ctx.gameTimePerRefTick,
           }
         } else {
           this.#stopHunt = null
@@ -301,20 +304,22 @@ export class MicrostructureEngine {
 
     if (!nearHigh && !nearLow) return 0
 
-    if (Math.random() >= scaleProb(params.triggerProb, ctx.dt)) return 0
+    if (!this.#rng.chance(scaleProb(params.triggerProb, ctx.dt))) return 0
 
     // 発火: 高値近傍なら上方向にpierce、安値近傍なら下方向にpierce
     const pierceDirection = nearHigh ? 1 : -1
-    const pierceMinutes = params.pierceDuration * ctx.gameTimePerRefTick
+    const pierceTicks = this.#rng.intInclusive(params.pierceDurationMin, params.pierceDurationMax)
+    const pierceMinutes = pierceTicks * ctx.gameTimePerRefTick
+    const pierceForceJitter = this.#rng.jitter(1.0, 0.6)
 
     this.#stopHunt = {
       phase: 'pierce',
       direction: pierceDirection,
       timeRemaining: pierceMinutes,
-      forcePerGameMinute: (ctx.currentPrice * params.pierceForcePct) / ctx.gameTimePerRefTick,
+      forcePerGameMinute: (ctx.currentPrice * params.pierceForcePct * pierceForceJitter) / ctx.gameTimePerRefTick,
     }
 
-    const jitter = 0.7 + Math.random() * 0.6
+    const jitter = this.#rng.jitter(1.0, 0.6)
     return pierceDirection * this.#stopHunt.forcePerGameMinute * ctx.gameTimeDelta * jitter
   }
 
@@ -323,7 +328,7 @@ export class MicrostructureEngine {
     const tick = tickUnit(price)
     const minOvershoot = tickUnit(price + tick)
     const overshoot = Math.max(
-      Math.abs(gaussRandom()) * effectiveVol * 0.5,
+      Math.abs(this.#rng.gaussian()) * effectiveVol * 0.5,
       minOvershoot,
     )
     return {

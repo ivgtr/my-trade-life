@@ -590,10 +590,15 @@ export const STICKY_PRICE = {
   releaseMultMin: 1.0,
   releaseMultMax: 2.5,
   maxAccumulationMult: 5.0,
-  volStateMaxTicks: {
-    high: 2,
-    normal: 4,
-    low: 7,
+  releaseHazardRate: {
+    high: 0.50,
+    normal: 0.20,
+    low: 0.10,
+  } as Record<import('../types/market').VolState, number>,
+  emergencyMaxTicks: {
+    high: 8,
+    normal: 20,
+    low: 40,
   } as Record<import('../types/market').VolState, number>,
 } as const
 
@@ -629,8 +634,17 @@ export const VOLUME_DYNAMICS = {
 export const STOP_HUNT = {
   proximityZone: 0.001,
   triggerProb: 0.03,
-  pierceDuration: 2,
+  pierceDurationMin: 1,
+  pierceDurationMax: 4,
   pierceForcePct: 0.0008,
-  reversalDuration: 5,
+  reversalDurationMin: 3,
+  reversalDurationMax: 8,
   reversalForcePct: 0.0005,
+} as const
+
+/** アルゴリズム取引パターンパラメータ */
+export const ALGO_PATTERN = {
+  twap: { triggerProb: 0.01, ticksMin: 10, ticksMax: 30, volumeMin: 100, volumeMax: 300, tickVariation: 0.1 },
+  iceberg: { triggerProb: 0.005, ticksMin: 5, ticksMax: 15, volumeMin: 500, volumeMax: 2000, tickVariation: 0.2 },
+  hft: { triggerProb: 0.003, ticksMin: 3, ticksMax: 6, volumeMultMin: 3, volumeMultMax: 8 },
 } as const
