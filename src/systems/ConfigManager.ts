@@ -1,4 +1,4 @@
-const CONFIG_KEY = 'daytraderlife_config'
+const CONFIG_KEY = 'mytradelife_config'
 
 interface GameConfig {
   bgmVolume: number

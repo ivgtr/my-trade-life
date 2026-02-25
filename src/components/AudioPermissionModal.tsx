@@ -7,7 +7,7 @@ export default function AudioPermissionModal({ onChoice, previouslyMuted }: Audi
   return (
     <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-bg-deepest font-mono">
       <div className="text-3xl font-bold tracking-[4px] mb-4 text-gold [text-shadow:0_0_20px_rgba(255,215,0,0.3)]">
-        DAY TRADER LIFE
+        MY TRADE LIFE
       </div>
       <p className="text-text-secondary text-sm mb-10">
         {previouslyMuted ? '音声はミュートに設定されています' : '音声の再生設定を選択してください'}

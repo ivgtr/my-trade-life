@@ -83,7 +83,7 @@ export default function TitleScreen({ onNewGame, onLoadGame }: TitleScreenProps)
   return (
     <div className="flex flex-col items-center justify-center min-h-dvh bg-bg-deepest text-text-primary font-mono px-6">
       <div className="text-3xl sm:text-4xl font-bold tracking-[4px] mb-12 text-gold [text-shadow:0_0_20px_rgba(255,215,0,0.3)] text-center">
-        DAY TRADER LIFE
+        MY TRADE LIFE
       </div>
       <div className="w-full max-w-[320px] rounded-xl overflow-hidden border border-bg-button bg-bg-panel">
         <button

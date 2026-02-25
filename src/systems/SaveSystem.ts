@@ -3,7 +3,7 @@ import type { DayHistoryEntry } from '../types/calendar'
 import type { Position } from '../types/trading'
 import { generateHash, verifyHash } from '../utils/hashUtils'
 
-const SAVE_KEY = 'daytraderlife_save'
+const SAVE_KEY = 'mytradelife_save'
 const CURRENT_VERSION = '1.0'
 const DAILY_HISTORY_LIMIT = 366
 
@@ -92,7 +92,7 @@ export const SaveSystem = {
 
     const a = document.createElement('a')
     a.href = url
-    a.download = `daytraderlife_save_${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `mytradelife_save_${new Date().toISOString().slice(0, 10)}.json`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)

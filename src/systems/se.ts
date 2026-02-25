@@ -1,5 +1,5 @@
 /**
- * se.ts — DAY TRADER LIFE プロシージャルSE
+ * se.ts — MY TRADE LIFE プロシージャルSE
  *
  * Web Audio APIで全SEをリアルタイム生成する。
  * 外部音源ファイル不要。差し替えはこのファイルの実装を置き換えるだけでよい。
