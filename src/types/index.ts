@@ -1,4 +1,4 @@
-export type { Position, TradeResult, UnrealizedPnL, BuyingPowerInfo, DailySummary } from './trading'
+export type { Position, TradeResult, UnrealizedPnL, BuyingPowerInfo, DailySummary, SetSLTPFn } from './trading'
 export type {
   Timeframe,
   VolState, TimeZone, RegimeName,

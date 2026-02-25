@@ -40,3 +40,5 @@ export interface DailySummary {
   totalPnL: number
   closedTrades: TradeResult[]
 }
+
+export type SetSLTPFn = (positionId: string, stopLoss?: number, takeProfit?: number) => boolean

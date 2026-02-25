@@ -7,6 +7,7 @@
 import type { VolState, TimeZone, RegimeName, GapResult, IntradayScenario } from '../types/market'
 import type { PreviewEvent } from '../types/news'
 import { gaussRandom } from '../utils/mathUtils'
+import { roundToTick, roundPrice } from './priceGrid'
 
 /** ボラティリティフェーズごとのティック間隔 (ms) */
 export const TICK_INTERVAL = {
@@ -115,8 +116,8 @@ export function calcGap(
   if (previewEvent) {
     gapPct += (Math.random() - 0.5) * 1.2 * GAP_NEWS_IMPACT_MULT
   }
-  const gapAmount = Math.round(closePrice * gapPct)
-  const openPrice = Math.max(10, closePrice + gapAmount)
+  const gapAmount = roundToTick(closePrice * gapPct)
+  const openPrice = roundPrice(closePrice + gapAmount)
   return {
     openPrice,
     gapAmount: openPrice - closePrice,

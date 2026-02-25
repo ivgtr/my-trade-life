@@ -5,7 +5,7 @@ import { TradingEngine } from '../engine/TradingEngine'
 import { NewsSystem } from '../engine/NewsSystem'
 import { AudioSystem } from '../systems/AudioSystem'
 import type { ChartHandle } from '../components/Chart'
-import type { GameState, GameAction, TickData, RegimeParams, AnomalyParams } from '../types'
+import type { GameState, GameAction, TickData, RegimeParams, AnomalyParams, SetSLTPFn } from '../types'
 import type { NewsEvent } from '../types/news'
 
 interface UseSessionEngineConfig {
@@ -25,7 +25,7 @@ interface UseSessionEngineReturn {
   handleSell: (shares: number) => void
   handleClose: (positionId: string) => void
   handleCloseAll: () => void
-  handleSetSLTP: (positionId: string, stopLoss?: number, takeProfit?: number) => void
+  handleSetSLTP: SetSLTPFn
   handleSpeedChange: (newSpeed: number) => void
   handleNewsComplete: () => void
   getTickHistory: () => TickData[]
@@ -169,8 +169,8 @@ export function useSessionEngine({
     }
   }, [gameState.currentPrice, dispatch])
 
-  const handleSetSLTP = useCallback((positionId: string, stopLoss?: number, takeProfit?: number) => {
-    tradingEngineRef.current?.setSLTP(positionId, stopLoss, takeProfit)
+  const handleSetSLTP: SetSLTPFn = useCallback((positionId: string, stopLoss?: number, takeProfit?: number): boolean => {
+    return tradingEngineRef.current?.setSLTP(positionId, stopLoss, takeProfit) ?? false
   }, [])
 
   const handleClose = useCallback((positionId: string) => {

@@ -3,6 +3,7 @@ import {
   TICK_INTERVAL, PRICE_MOVE, MOMENTUM, VOL_TRANSITION, TIME_OF_DAY,
   INTRADAY_SCENARIOS, SCENARIO_REGIME_BIAS, MEAN_REVERSION, EXTREME_EVENT,
 } from './marketParams'
+import { roundPrice } from './priceGrid'
 import { SESSION_START_MINUTES, SESSION_END_MINUTES, LUNCH_START_MINUTES, LUNCH_END_MINUTES } from '../constants/sessionTime'
 import type {
   VolState, TimeZone, TickData, GameTime, MarketEngineConfig,
@@ -243,8 +244,8 @@ export class MarketEngine {
       this.#momentum + meanRevForce + extremeForce
     let newPrice = this.#currentPrice + totalChange
 
-    // 1円刻み丸め、最小10円
-    newPrice = Math.max(10, Math.round(newPrice))
+    // 5円刻み丸め、最小10円
+    newPrice = roundPrice(newPrice)
     this.#currentPrice = newPrice
 
     // tick内high/low推定
@@ -265,8 +266,8 @@ export class MarketEngine {
     const minP = Math.min(prevPrice, newPrice)
     const overshoot = Math.abs(gaussRandom()) * effectiveVol * 0.5
     return {
-      high: Math.round(maxP + overshoot),
-      low: Math.max(10, Math.round(minP - overshoot)),
+      high: roundPrice(maxP + overshoot),
+      low: roundPrice(minP - overshoot),
     }
   }
 

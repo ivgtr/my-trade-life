@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { formatCurrency, formatPnlPercent } from '../utils/formatUtils'
-import type { Position } from '../types'
+import type { Position, SetSLTPFn } from '../types'
 
 interface TradePanelProps {
   currentPrice: number
@@ -13,7 +13,7 @@ interface TradePanelProps {
   onSell: (shares: number) => void
   onClose: (positionId: string) => void
   onCloseAll: () => void
-  onSetSLTP: (positionId: string, stopLoss?: number, takeProfit?: number) => void
+  onSetSLTP: SetSLTPFn
   compact?: boolean
 }
 
@@ -25,13 +25,15 @@ function getPnlClass(value: number) {
 
 interface SLTPFormProps {
   position: Position
-  onSetSLTP: (positionId: string, stopLoss?: number, takeProfit?: number) => void
+  onSetSLTP: SetSLTPFn
 }
 
 function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
   const [expanded, setExpanded] = useState(false)
   const [slInput, setSlInput] = useState(position.stopLoss?.toString() ?? '')
   const [tpInput, setTpInput] = useState(position.takeProfit?.toString() ?? '')
+
+  const [engineError, setEngineError] = useState('')
 
   const hasSLTP = position.stopLoss != null || position.takeProfit != null
 
@@ -55,10 +57,15 @@ function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
   }
 
   const handleSet = () => {
+    setEngineError('')
     const { sl, tp, error } = validate()
     if (error) return
     if (sl == null && tp == null) return
-    onSetSLTP(position.id, sl, tp)
+    const ok = onSetSLTP(position.id, sl, tp)
+    if (!ok) {
+      setEngineError('5円刻みに丸めた結果、設定できません')
+      return
+    }
     setExpanded(false)
   }
 
@@ -108,6 +115,7 @@ function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
         <span className="text-[10px] text-loss min-w-[18px]">SL</span>
         <input
           type="number"
+          step={5}
           value={slInput}
           onChange={(e) => setSlInput(e.target.value)}
           placeholder={position.direction === 'LONG' ? `< ${position.entryPrice}` : `> ${position.entryPrice}`}
@@ -116,6 +124,7 @@ function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
         <span className="text-[10px] text-profit min-w-[18px]">TP</span>
         <input
           type="number"
+          step={5}
           value={tpInput}
           onChange={(e) => setTpInput(e.target.value)}
           placeholder={position.direction === 'LONG' ? `> ${position.entryPrice}` : `< ${position.entryPrice}`}
@@ -123,6 +132,7 @@ function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
         />
       </div>
       {error && <div className="text-[10px] text-loss">{error}</div>}
+      {engineError && <div className="text-[10px] text-loss">{engineError}</div>}
       <div className="flex gap-1">
         <button
           className="py-0.5 px-2 bg-accent text-white border-none rounded text-[10px] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
@@ -163,7 +173,7 @@ interface DesktopTradePanelProps {
   onSell: (shares: number) => void
   onClose: (positionId: string) => void
   onCloseAll: () => void
-  onSetSLTP: (positionId: string, stopLoss?: number, takeProfit?: number) => void
+  onSetSLTP: SetSLTPFn
 }
 
 function DesktopTradePanel({
