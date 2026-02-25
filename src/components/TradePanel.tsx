@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { formatCurrency, formatPnlPercent } from '../utils/formatUtils'
 import { MIN_PRICE } from '../engine/priceGrid'
+import PositionSheet from './PositionSheet'
 import type { Direction, Position, SetSLTPFn } from '../types'
 
 interface TradePanelProps {
@@ -28,7 +29,7 @@ interface SLTPFormProps {
   onSetSLTP: SetSLTPFn
 }
 
-function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
+export function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
   const [expanded, setExpanded] = useState(false)
   const [slInput, setSlInput] = useState(position.stopLoss?.toString() ?? '')
   const [tpInput, setTpInput] = useState(position.takeProfit?.toString() ?? '')
@@ -334,10 +335,13 @@ function DesktopTradePanel({
 interface MobilePositionSummaryProps {
   currentPrice: number
   positions: Position[]
+  onTap?: () => void
 }
 
-function MobilePositionSummary({ currentPrice, positions }: MobilePositionSummaryProps) {
-  if (!positions || positions.length === 0) {
+function MobilePositionSummary({ currentPrice, positions, onTap }: MobilePositionSummaryProps) {
+  const hasPositions = positions && positions.length > 0
+
+  if (!hasPositions) {
     return (
       <div className="flex items-center py-1.5 px-3 bg-bg-panel border-t border-bg-elevated text-xs font-mono text-text-primary shrink-0">
         <span className="font-bold">{formatCurrency(currentPrice)}</span>
@@ -354,23 +358,29 @@ function MobilePositionSummary({ currentPrice, positions }: MobilePositionSummar
   const tpCount = positions.filter((p) => p.takeProfit != null).length
 
   return (
-    <div className="flex justify-between items-center py-1.5 px-3 bg-bg-panel border-t border-bg-elevated text-xs font-mono text-text-primary shrink-0">
+    <div
+      className="flex justify-between items-center py-1.5 px-3 bg-bg-panel border-t border-bg-elevated text-xs font-mono text-text-primary shrink-0 cursor-pointer active:bg-bg-elevated"
+      onClick={onTap}
+    >
       <span className="font-bold">{formatCurrency(currentPrice)}</span>
-      <span>
-        <span className={direction === 'LONG' ? 'text-profit' : 'text-loss'}>
-          {direction}
-        </span>{' '}
-        {totalShares}株{' '}
-        <span className={getPnlClass(totalPnl)}>
-          {formatCurrency(totalPnl)}({formatPnlPercent(totalPnl, totalCost)})
-        </span>
-        {(slCount > 0 || tpCount > 0) && (
-          <span className="ml-1 text-[10px] text-text-secondary">
-            {slCount > 0 && <span className="text-loss">SL</span>}
-            {slCount > 0 && tpCount > 0 && '/'}
-            {tpCount > 0 && <span className="text-profit">TP</span>}
+      <span className="flex items-center gap-1">
+        <span>
+          <span className={direction === 'LONG' ? 'text-profit' : 'text-loss'}>
+            {direction}
+          </span>{' '}
+          {totalShares}株{' '}
+          <span className={getPnlClass(totalPnl)}>
+            {formatCurrency(totalPnl)}({formatPnlPercent(totalPnl, totalCost)})
           </span>
-        )}
+          {(slCount > 0 || tpCount > 0) && (
+            <span className="ml-1 text-[10px] text-text-secondary">
+              {slCount > 0 && <span className="text-loss">SL</span>}
+              {slCount > 0 && tpCount > 0 && '/'}
+              {tpCount > 0 && <span className="text-profit">TP</span>}
+            </span>
+          )}
+        </span>
+        <span className="text-text-secondary text-sm ml-1">›</span>
       </span>
     </div>
   )
@@ -509,6 +519,7 @@ export default function TradePanel({
 }: TradePanelProps) {
   const [shares, setShares] = useState(1)
   const [modalDirection, setModalDirection] = useState<Direction | null>(null)
+  const [showPositionSheet, setShowPositionSheet] = useState(false)
 
   if (!compact) {
     return (
@@ -536,8 +547,12 @@ export default function TradePanel({
 
   return (
     <>
-      <MobilePositionSummary currentPrice={currentPrice} positions={positions} />
-      <MobileFooterBar onTap={setModalDirection} />
+      <MobilePositionSummary
+        currentPrice={currentPrice}
+        positions={positions}
+        onTap={() => setShowPositionSheet(true)}
+      />
+      <MobileFooterBar onTap={(dir) => { setShowPositionSheet(false); setModalDirection(dir) }} />
       {modalDirection && (
         <OrderModal
           direction={modalDirection}
@@ -549,6 +564,16 @@ export default function TradePanel({
           setShares={setShares}
           onConfirm={handleConfirm}
           onCancel={() => setModalDirection(null)}
+        />
+      )}
+      {showPositionSheet && !modalDirection && positions.length > 0 && (
+        <PositionSheet
+          positions={positions}
+          currentPrice={currentPrice}
+          onClose={onClose}
+          onCloseAll={onCloseAll}
+          onSetSLTP={onSetSLTP}
+          onDismiss={() => setShowPositionSheet(false)}
         />
       )}
     </>
