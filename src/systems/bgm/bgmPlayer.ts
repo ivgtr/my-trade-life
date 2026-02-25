@@ -17,25 +17,36 @@ function getCtx(): AudioContext {
 export const bgmPlayer: {
   _ctx: AudioContext | null
   _nodes: BGMNodeSet | null
-  _masterGain: GainNode | null
+  _fadeGain: GainNode | null
+  _volumeGain: GainNode | null
   _normGain: GainNode | null
   _volume: number
   _currentScene: BGMSceneId | null
-  _fadingOut: boolean
+  _transitioning: boolean
+  _pending: (() => void) | null
+  _epoch: number
+  _expectedEnd: number
   play(sceneId: BGMSceneId): void
   playBuilder(builder: BGMBuilder): void
   stop(): void
   setVolume(volume: number): void
   _playWith(builder: BGMBuilder): void
+  _fadeOutThen(ctx: AudioContext, duration: number, action: () => void): void
+  _completeTransition(): void
+  _resolveStalled(): void
   _stopNodes(): void
 } = {
-  _ctx:          null,
-  _nodes:        null,
-  _masterGain:   null,
-  _normGain:     null,
-  _volume:       0.5,
-  _currentScene: null,
-  _fadingOut:    false,
+  _ctx:           null,
+  _nodes:         null,
+  _fadeGain:      null,
+  _volumeGain:    null,
+  _normGain:      null,
+  _volume:        0.5,
+  _currentScene:  null,
+  _transitioning: false,
+  _pending:       null,
+  _epoch:         0,
+  _expectedEnd:   0,
 
   play(sceneId: BGMSceneId): void {
     if (this._currentScene === sceneId) return
@@ -52,72 +63,102 @@ export const bgmPlayer: {
 
   _playWith(builder: BGMBuilder): void {
     const ctx = getCtx()
+    this._resolveStalled()
 
     const startNew = (): void => {
       this._stopNodes()
-      const master = ctx.createGain()
-      master.gain.value = 0
-      master.connect(ctx.destination)
-      this._masterGain = master
 
-      // 曲別の音量正規化ノードを挿入: builder → normGain → masterGain → destination
+      // オーディオグラフ: builder → normGain → volumeGain → fadeGain → destination
+      const fade = ctx.createGain()
+      fade.gain.value = 0
+      fade.connect(ctx.destination)
+      this._fadeGain = fade
+
+      const vol = ctx.createGain()
+      vol.gain.value = this._volume
+      vol.connect(fade)
+      this._volumeGain = vol
+
       const normFactor = BUILDER_GAIN.get(builder) ?? 1.0
       const normGain = ctx.createGain()
       normGain.gain.value = normFactor
-      normGain.connect(master)
+      normGain.connect(vol)
       this._normGain = normGain
 
       const nodeSet = builder(ctx, normGain, () => this._nodes === nodeSet)
       this._nodes = nodeSet
 
-      fadeIn(master, ctx, 1.4)
-      master.gain.value = 0  // fadeIn内で設定される
-      // 音量を反映
-      setTimeout(() => {
-        if (this._masterGain === master) {
-          master.gain.cancelScheduledValues(ctx.currentTime)
-          master.gain.linearRampToValueAtTime(
-            this._volume,
-            ctx.currentTime + 0.1
-          )
-        }
-      }, 1450)
+      fadeIn(fade, ctx, 1.4)
     }
 
-    if (this._nodes && !this._fadingOut) {
-      this._fadingOut = true
-      fadeOut(this._masterGain!, ctx, 0.9, () => {
-        this._fadingOut = false
-        startNew()
-      })
-    } else if (!this._fadingOut) {
+    if (this._transitioning) {
+      this._pending = startNew
+      return
+    }
+
+    if (this._nodes) {
+      this._fadeOutThen(ctx, 0.9, startNew)
+    } else {
       startNew()
     }
   },
 
   stop(): void {
-    if (!this._nodes) return
+    this._resolveStalled()
     this._currentScene = null
+
+    if (this._transitioning) {
+      this._pending = () => this._stopNodes()
+      return
+    }
+
+    if (!this._nodes) return
     const ctx = getCtx()
-    if (this._masterGain && !this._fadingOut) {
-      this._fadingOut = true
-      fadeOut(this._masterGain, ctx, 1.0, () => {
-        this._fadingOut = false
-        this._stopNodes()
-      })
+    if (this._fadeGain) {
+      this._fadeOutThen(ctx, 1.0, () => this._stopNodes())
     }
   },
 
   setVolume(volume: number): void {
     this._volume = Math.max(0, Math.min(1, volume))
-    if (this._masterGain && !this._fadingOut) {
+    if (this._volumeGain) {
       const ctx = getCtx()
-      this._masterGain.gain.cancelScheduledValues(ctx.currentTime)
-      this._masterGain.gain.linearRampToValueAtTime(
+      this._volumeGain.gain.cancelScheduledValues(ctx.currentTime)
+      this._volumeGain.gain.linearRampToValueAtTime(
         this._volume,
         ctx.currentTime + 0.1
       )
     }
+  },
+
+  _fadeOutThen(ctx: AudioContext, duration: number, action: () => void): void {
+    const epoch = ++this._epoch
+    this._transitioning = true
+    this._pending = action
+    this._expectedEnd = ctx.currentTime + duration
+    fadeOut(this._fadeGain!, ctx, duration, () => {
+      if (this._epoch !== epoch) return
+      this._completeTransition()
+    })
+  },
+
+  _completeTransition(): void {
+    this._transitioning = false
+    this._expectedEnd = 0
+    const action = this._pending
+    this._pending = null
+    action?.()
+  },
+
+  _resolveStalled(): void {
+    if (!this._transitioning || this._expectedEnd <= 0) return
+    const ctx = this._ctx
+    if (!ctx || ctx.currentTime < this._expectedEnd) return
+    this._epoch++
+    this._transitioning = false
+    this._expectedEnd = 0
+    this._pending = null
+    this._stopNodes()
   },
 
   _stopNodes(): void {
@@ -132,7 +173,8 @@ export const bgmPlayer: {
       } catch { /* audio node cleanup may fail silently */ }
     })
     this._nodes      = null
-    this._masterGain = null
-    this._normGain   = null
+    this._fadeGain    = null
+    this._volumeGain  = null
+    this._normGain    = null
   },
 }

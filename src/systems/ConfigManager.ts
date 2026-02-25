@@ -58,16 +58,6 @@ export const ConfigManager = {
     return { ...cachedConfig! }
   },
 
-  getBGMVolume01(): number {
-    if (!cachedConfig) this.load()
-    return cachedConfig!.bgmVolume / 100
-  },
-
-  getSEVolume01(): number {
-    if (!cachedConfig) this.load()
-    return cachedConfig!.seVolume / 100
-  },
-
   applyColorTheme(): void {
     if (!cachedConfig) this.load()
     const inverted = cachedConfig!.invertColors
