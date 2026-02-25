@@ -1,12 +1,13 @@
 import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react'
 import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts'
-import type { CandlestickData, ISeriesApi, LineData } from 'lightweight-charts'
+import type { AutoscaleInfo, CandlestickData, ISeriesApi, LineData } from 'lightweight-charts'
 import type { TickData, Timeframe } from '../types'
 import { ConfigManager } from '../systems/ConfigManager'
 import { asGameMinutes, toBarTime, createTickMarkFormatter, chartTimeFormatter, computeGridInterval, toVisibleBarCount } from '../utils/chartTime'
 import { buildBars, mergeTickIntoBar, generateSessionTimeline } from '../utils/chartBarBuilder'
 import { SESSION_START_MINUTES, SESSION_END_MINUTES, isDuringLunch } from '../constants/sessionTime'
 import { IntervalGridPrimitive } from './GridPrimitive'
+import { ensureMinPriceRange } from '../utils/chartScale'
 import { useChartAutoScroll } from '../hooks/useChartAutoScroll'
 import { MA_SPECS } from '../constants/maSpecs'
 import type { MAPeriod } from '../constants/maSpecs'
@@ -52,6 +53,10 @@ const CHART_OPTIONS = {
   },
   rightPriceScale: {
     borderColor: '#2a2a3e',
+    scaleMargins: {
+      top: 0.3,
+      bottom: 0.2,
+    },
   },
 }
 
@@ -184,6 +189,7 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
       borderDownColor: down,
       wickUpColor: up,
       wickDownColor: down,
+      autoscaleInfoProvider: (base: () => AutoscaleInfo | null) => ensureMinPriceRange(base()),
     })
     seriesRef.current = series
     series.setData(generateSessionTimeline(timeframeRef.current))

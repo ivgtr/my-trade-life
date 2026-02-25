@@ -25,10 +25,12 @@ const mockGetVisibleLogicalRange = vi.fn().mockReturnValue(null)
 const mockMASetData = vi.fn()
 const mockMAUpdate = vi.fn()
 const mockMAApplyOptions = vi.fn()
+const mockAddSeriesOptions = vi.fn()
 
 vi.mock('lightweight-charts', () => ({
   createChart: () => ({
-    addSeries: (type: symbol) => {
+    addSeries: (type: symbol, options?: Record<string, unknown>) => {
+      mockAddSeriesOptions(type, options)
       if (type === Symbol.for('LineSeries')) {
         return {
           setData: mockMASetData,
@@ -323,5 +325,29 @@ describe('Chart 初期timeframe props反映', () => {
     expect(data[1].time - data[0].time).toBe(300)
     // 5分足のbar数はtf=1の332本より大幅に少ない
     expect(data.length).toBeLessThan(332)
+  })
+})
+
+describe('Chart autoscaleInfoProvider 配線', () => {
+  it('CandlestickSeries に autoscaleInfoProvider が設定されている', async () => {
+    mockAddSeriesOptions.mockClear()
+
+    const { default: Chart } = await import('../Chart')
+    const ref = createRef<ChartHandle>()
+    const container = document.createElement('div')
+    Object.defineProperty(container, 'clientWidth', { value: 800 })
+    Object.defineProperty(container, 'clientHeight', { value: 400 })
+    document.body.appendChild(container)
+
+    await act(() => {
+      createRoot(container).render(<Chart ref={ref} autoSize={false} width={800} height={400} timeframe={1} />)
+    })
+
+    const candlestickCall = mockAddSeriesOptions.mock.calls.find(
+      (args: unknown[]) => args[0] !== Symbol.for('LineSeries'),
+    )
+    expect(candlestickCall).toBeDefined()
+    const options = candlestickCall![1] as Record<string, unknown>
+    expect(typeof options.autoscaleInfoProvider).toBe('function')
   })
 })
