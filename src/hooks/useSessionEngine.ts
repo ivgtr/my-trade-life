@@ -89,7 +89,7 @@ export function useSessionEngine({
           AudioSystem.playBGM('trading')
           marketEngineRef.current?.resumeFromLunch()
           lunchTimerRef.current = null
-        }, 2500)
+        }, 5000)
       },
       onTick: (tickData) => {
         tickHistoryRef.current.push(tickData)
