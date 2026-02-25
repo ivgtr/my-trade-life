@@ -38,6 +38,8 @@ Play: https://ivgtr.github.io/my-trade-life/
 - ヘッダーから 1x / 2x の速度切り替えが可能
 - 持ち越したポジションは翌日の始値で自動決済される
 
+<img width="400" src="https://github.com/user-attachments/assets/9175b243-277c-474a-abca-20a729b7c006" />
+
 ## ゲームの特徴
 
 - リアルタイムに変動する株価チャートを見ながらトレード
