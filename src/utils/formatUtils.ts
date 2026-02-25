@@ -27,3 +27,15 @@ export function formatPnlPercent(pnl: number, cost: number): string {
   const sign = pct > 0 ? '+' : ''
   return `${sign}${pct.toFixed(1)}%`
 }
+
+/** YYYY-MM-DD文字列をローカルタイムゾーンのDateに変換する */
+export function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+/** 日付を「4/1(火)」形式にフォーマットする */
+export function formatDateShort(date: Date): string {
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+  return `${date.getMonth() + 1}/${date.getDate()}(${weekdays[date.getDay()]})`
+}

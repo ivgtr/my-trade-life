@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { useGameContext } from '../hooks/useGameContext'
 import { AudioSystem } from '../systems/AudioSystem'
-import { formatDate, formatCurrency } from '../utils/formatUtils'
+import MonthlyPnLChart from '../components/MonthlyPnLChart'
+import { formatDate, formatCurrency, parseLocalDate } from '../utils/formatUtils'
+import { buildMonthlySummary } from '../utils/calendarSummary'
 
 interface CalendarScreenProps {
   onAdvance?: () => void
@@ -14,7 +16,7 @@ export default function CalendarScreen({ onAdvance }: CalendarScreenProps) {
     AudioSystem.playSE('calendarFlip')
   }, [])
 
-  const currentDate = gameState.currentDate ? new Date(gameState.currentDate) : new Date()
+  const currentDate = gameState.currentDate ? parseLocalDate(gameState.currentDate) : new Date()
   const dayOfWeek = currentDate.getDay()
   const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5
   const isSaturday = dayOfWeek === 6
@@ -23,14 +25,7 @@ export default function CalendarScreen({ onAdvance }: CalendarScreenProps) {
   const lastDay = history.length > 0 ? history[history.length - 1] : null
   const lastPnL = lastDay?.pnl ?? 0
 
-  const currentMonth = currentDate.getMonth()
-  const monthHistory = history.filter((d) => {
-    if (!d.date) return false
-    const date = new Date(d.date)
-    return date.getMonth() === currentMonth
-  })
-
-  const maxAbsPnl = Math.max(1, ...monthHistory.map((d) => Math.abs(d.pnl ?? 0)))
+  const summary = buildMonthlySummary(history, currentDate)
 
   const handleAdvance = () => {
     if (onAdvance) {
@@ -52,23 +47,7 @@ export default function CalendarScreen({ onAdvance }: CalendarScreenProps) {
         </div>
       )}
 
-      {monthHistory.length > 0 && (
-        <div className="w-80 mb-6">
-          {monthHistory.map((d, i) => {
-            const pnl = d.pnl ?? 0
-            const width = Math.max(2, (Math.abs(pnl) / maxAbsPnl) * 100)
-            return (
-              <div key={i} className="flex items-center mb-0.5 text-[11px]">
-                <span className="w-7 text-text-secondary text-right mr-1.5">{i + 1}</span>
-                <div
-                  className={`h-2 rounded-sm ${pnl >= 0 ? 'bg-profit' : 'bg-loss'}`}
-                  style={{ width: `${width}%` }}
-                />
-              </div>
-            )
-          })}
-        </div>
-      )}
+      <MonthlyPnLChart data={summary.monthHistory} className="w-80 mb-6" />
 
       {isWeekday && (
         <button

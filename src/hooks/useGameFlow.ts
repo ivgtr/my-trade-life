@@ -9,6 +9,7 @@ import { TradingEngine } from '../engine/TradingEngine'
 import { calcGap } from '../engine/marketParams'
 import { SaveSystem } from '../systems/SaveSystem'
 import { ConfigManager } from '../systems/ConfigManager'
+import { parseLocalDate } from '../utils/formatUtils'
 import type { GameState } from '../types/game'
 import type { GapResult } from '../types/market'
 import type { SaveData } from '../types/save'
@@ -284,7 +285,7 @@ export function useGameFlow(): UseGameFlowReturn {
 
       const monthStats = calendar.calcMonthlyStats()
       const monthPreview = regimeRef.current?.getNextMonthPreview()
-      const month = new Date(gameState.currentDate!).getMonth() + 2
+      const month = parseLocalDate(gameState.currentDate!).getMonth() + 2
       const anomalyInfo = regimeRef.current?.getVisibleAnomalyInfo(
         month > 12 ? month - 12 : month,
         gameState.level,
@@ -312,7 +313,7 @@ export function useGameFlow(): UseGameFlowReturn {
   const closeMonthlyReport = useCallback(() => {
     SaveSystem.save(gameState as any)
 
-    const date = gameState.currentDate ? new Date(gameState.currentDate) : null
+    const date = gameState.currentDate ? parseLocalDate(gameState.currentDate) : null
     if (date && date.getMonth() === 11) {
       const cal = calendarRef.current
       const yearStats = cal?.calcYearlyStats() ?? { totalPnL: 0, totalTrades: 0, winRate: 0, maxDrawdown: 0 }

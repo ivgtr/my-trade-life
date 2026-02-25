@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useMemo } from 'react'
 import { useGameContext } from '../hooks/useGameContext'
 import { useSessionEngine } from '../hooks/useSessionEngine'
 import { useResponsive } from '../hooks/useMediaQuery'
@@ -6,8 +6,9 @@ import Chart from '../components/Chart'
 import TradePanel from '../components/TradePanel'
 import TickerTape from '../components/TickerTape'
 import NewsOverlay from '../components/NewsOverlay'
+import SessionCalendarPopup from '../components/SessionCalendarPopup'
 import { ACTIONS } from '../state/actions'
-import { formatCurrency } from '../utils/formatUtils'
+import { formatCurrency, parseLocalDate, formatDateShort } from '../utils/formatUtils'
 import type { ChartHandle } from '../components/Chart'
 import type { Timeframe } from '../types'
 
@@ -21,6 +22,12 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   const chartRef = useRef<ChartHandle | null>(null)
   const [mobileTab, setMobileTab] = useState('chart')
   const [timeframe, setTimeframe] = useState<Timeframe>(gameState.timeframe ?? 1)
+  const [showCalendar, setShowCalendar] = useState(false)
+
+  const currentDate = useMemo(
+    () => gameState.currentDate ? parseLocalDate(gameState.currentDate) : new Date(),
+    [gameState.currentDate],
+  )
 
   const {
     ticks,
@@ -98,6 +105,27 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     </span>
   )
 
+  const dateButton = (
+    <button
+      className="text-text-secondary text-sm border-none bg-transparent cursor-pointer font-mono border-b border-dashed border-text-secondary"
+      onClick={() => setShowCalendar(true)}
+    >
+      {formatDateShort(currentDate)}
+    </button>
+  )
+
+  const calendarPopup = showCalendar && (
+    <SessionCalendarPopup
+      currentDate={currentDate}
+      balance={gameState.balance}
+      dailyHistory={gameState.dailyHistory}
+      sessionPnL={gameState.sessionPnL}
+      sessionTrades={gameState.sessionTrades}
+      sessionWins={gameState.sessionWins}
+      onClose={() => setShowCalendar(false)}
+    />
+  )
+
   const lunchOverlay = isLunchBreak && (
     <div className="fixed inset-0 z-[var(--z-news)] flex items-center justify-center bg-black/60 pointer-events-none">
       <div className="bg-bg-panel border border-bg-elevated rounded-lg px-8 py-6 text-center">
@@ -112,7 +140,10 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
       <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
         <div className="flex justify-between items-center px-2.5 py-1.5 bg-bg-panel border-b border-bg-elevated text-xs shrink-0 flex-wrap gap-1">
           <div className="flex justify-between items-center w-full">
-            <span className="text-base font-bold">{gameTime}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-base font-bold">{gameTime}</span>
+              {dateButton}
+            </div>
             <div className="flex gap-2">
               {timeframeButtons}
               {speedButtons}
@@ -172,6 +203,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
 
         <NewsOverlay newsEvent={activeNews} onComplete={handleNewsComplete} />
         {lunchOverlay}
+        {calendarPopup}
       </div>
     )
   }
@@ -179,7 +211,10 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   return (
     <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
       <div className="flex justify-between items-center px-4 py-2 bg-bg-panel border-b border-bg-elevated text-sm shrink-0">
-        <span className="text-lg font-bold">{gameTime}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-bold">{gameTime}</span>
+          {dateButton}
+        </div>
         <span>余力: {formatCurrency(buyingPower)}</span>
         {pnlDisplay}
         <div className="flex gap-2">
@@ -216,6 +251,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
 
       <NewsOverlay newsEvent={activeNews} onComplete={handleNewsComplete} />
       {lunchOverlay}
+      {calendarPopup}
     </div>
   )
 }

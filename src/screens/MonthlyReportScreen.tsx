@@ -1,5 +1,7 @@
 import { useGameContext } from '../hooks/useGameContext'
-import { formatCurrency, formatPercent } from '../utils/formatUtils'
+import MonthlyPnLChart from '../components/MonthlyPnLChart'
+import { formatCurrency, formatPercent, parseLocalDate } from '../utils/formatUtils'
+import { buildMonthlySummary } from '../utils/calendarSummary'
 
 interface MonthlyReportScreenProps {
   onNext?: () => void
@@ -8,15 +10,12 @@ interface MonthlyReportScreenProps {
 export default function MonthlyReportScreen({ onNext }: MonthlyReportScreenProps) {
   const { gameState } = useGameContext()
 
-  const monthStats = (gameState.monthlyStats ?? {}) as any
-  const monthPnL = monthStats.totalPnL ?? 0
-  const monthTrades = monthStats.totalTrades ?? 0
-  const monthWins = monthStats.totalWins ?? 0
-  const winRate = monthTrades > 0 ? monthWins / monthTrades : 0
+  const currentDate = gameState.currentDate ? parseLocalDate(gameState.currentDate) : new Date()
+  const summary = buildMonthlySummary(gameState.dailyHistory, currentDate)
+  const monthPnL = summary.totalPnL
+  const monthTrades = summary.totalTrades
+  const winRate = summary.winRate
   const avgPnL = monthTrades > 0 ? monthPnL / monthTrades : 0
-
-  const monthHistory: { pnl?: number }[] = monthStats.dailyHistory ?? []
-  const maxAbsPnl = Math.max(1, ...monthHistory.map((d) => Math.abs(d.pnl ?? 0)))
 
   const monthPreview = gameState.monthPreview
   const anomalyInfo = gameState.anomalyInfo
@@ -54,23 +53,7 @@ export default function MonthlyReportScreen({ onNext }: MonthlyReportScreenProps
         </div>
       </div>
 
-      {monthHistory.length > 0 && (
-        <div className="w-[360px] mb-4">
-          {monthHistory.map((d, i) => {
-            const pnl = d.pnl ?? 0
-            const width = Math.max(2, (Math.abs(pnl) / maxAbsPnl) * 100)
-            return (
-              <div key={i} className="flex items-center mb-[3px] text-[11px]">
-                <span className="w-7 text-text-secondary text-right mr-1.5">{i + 1}</span>
-                <div
-                  className={`h-1.5 rounded-sm ${pnl >= 0 ? 'bg-profit' : 'bg-loss'}`}
-                  style={{ width: `${width}%` }}
-                />
-              </div>
-            )
-          })}
-        </div>
-      )}
+      <MonthlyPnLChart data={summary.monthHistory} barHeight="h-1.5" className="w-[360px] mb-4" />
 
       {monthPreview && (
         <div className="bg-bg-panel p-4 rounded-lg w-[360px] mb-4">
