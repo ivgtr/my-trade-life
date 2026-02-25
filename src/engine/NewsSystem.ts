@@ -1,4 +1,5 @@
 import { PRICE_MOVE } from './marketParams'
+import { SESSION_START_MINUTES, SESSION_END_MINUTES } from '../constants/sessionTime'
 import type { RegimeName } from '../types/market'
 import type { NewsEvent, PreviewEvent, WeekendNews } from '../types/news'
 
@@ -60,9 +61,6 @@ const MAX_EVENTS: Record<string, number> = Object.freeze({
   crash:     3,
 })
 
-/** セッションのゲーム内時間帯（分） */
-const SESSION_START = 540  // 9:00
-const SESSION_END = 930    // 15:30
 
 /** 続報の最小間隔（ゲーム内分） */
 const FOLLOW_UP_MIN_GAP = 30
@@ -300,7 +298,7 @@ export class NewsSystem {
 
   /** ランダムなセッション内発動時刻を生成する。 */
   #randomTriggerTime(): number {
-    return SESSION_START + Math.floor(Math.random() * (SESSION_END - SESSION_START))
+    return SESSION_START_MINUTES + Math.floor(Math.random() * (SESSION_END_MINUTES - SESSION_START_MINUTES))
   }
 
   /**
@@ -314,7 +312,7 @@ export class NewsSystem {
 
     const lastTime = this.#scheduledEvents[this.#scheduledEvents.length - 1].triggerTime
     const minTime = lastTime + FOLLOW_UP_MIN_GAP
-    const maxTime = SESSION_END - 10
+    const maxTime = SESSION_END_MINUTES - 10
 
     if (minTime >= maxTime) {
       return maxTime

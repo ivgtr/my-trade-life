@@ -3,6 +3,7 @@ import {
   TICK_INTERVAL, PRICE_MOVE, MOMENTUM, VOL_TRANSITION, TIME_OF_DAY,
   INTRADAY_SCENARIOS, SCENARIO_REGIME_BIAS, MEAN_REVERSION, EXTREME_EVENT,
 } from './marketParams'
+import { SESSION_START_MINUTES, SESSION_END_MINUTES } from '../constants/sessionTime'
 import type {
   VolState, TimeZone, TickData, GameTime, MarketEngineConfig,
   RegimeParams, AnomalyParams, RegimeName,
@@ -55,7 +56,7 @@ export class MarketEngine {
     this.#momentum = 0
     this.#volState = 'normal'
     this.#speed = config.speed
-    this.#gameTime = 540
+    this.#gameTime = SESSION_START_MINUTES
     this.#externalForce = 0
     this.#timerId = null
     this.#paused = false
@@ -149,8 +150,8 @@ export class MarketEngine {
     this.#gameTime += TICK_INTERVAL[this.#volState].mean * rate
 
     // 15:30（930分）到達チェック
-    if (this.#gameTime >= 930) {
-      this.#gameTime = 930
+    if (this.#gameTime >= SESSION_END_MINUTES) {
+      this.#gameTime = SESSION_END_MINUTES
       this.#emitTick()
       this.#running = false
       this.#onSessionEnd()
