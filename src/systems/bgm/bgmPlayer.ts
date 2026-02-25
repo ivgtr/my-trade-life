@@ -1,5 +1,5 @@
 import type { BGMSceneId } from '../../types/audio'
-import type { BGMNodeSet } from './types'
+import type { BGMBuilder, BGMNodeSet } from './types'
 import { fadeIn, fadeOut } from './audioUtils'
 import { SCENE_BUILDERS } from './scenes'
 
@@ -22,8 +22,10 @@ export const bgmPlayer: {
   _currentScene: BGMSceneId | null
   _fadingOut: boolean
   play(sceneId: BGMSceneId): void
+  playBuilder(builder: BGMBuilder): void
   stop(): void
   setVolume(volume: number): void
+  _playWith(builder: BGMBuilder): void
   _stopNodes(): void
 } = {
   _ctx:          null,
@@ -37,9 +39,17 @@ export const bgmPlayer: {
     if (this._currentScene === sceneId) return
     const builders = SCENE_BUILDERS[sceneId]
     if (!builders?.length) return
-
-    const ctx = getCtx()
     this._currentScene = sceneId
+    this._playWith(builders[Math.floor(Math.random() * builders.length)])
+  },
+
+  playBuilder(builder: BGMBuilder): void {
+    this._currentScene = null
+    this._playWith(builder)
+  },
+
+  _playWith(builder: BGMBuilder): void {
+    const ctx = getCtx()
 
     const startNew = (): void => {
       this._stopNodes()
@@ -48,7 +58,6 @@ export const bgmPlayer: {
       master.connect(ctx.destination)
       this._masterGain = master
 
-      const builder = builders[Math.floor(Math.random() * builders.length)]
       const nodeSet = builder(ctx, master, () => this._nodes === nodeSet)
       this._nodes = nodeSet
 

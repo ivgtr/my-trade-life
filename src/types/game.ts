@@ -17,6 +17,7 @@ export type GamePhase =
   | 'yearlyReport'
   | 'gameOver'
   | 'billionaire'
+  | 'bgmTheater'
 
 export interface GameState {
   phase: GamePhase

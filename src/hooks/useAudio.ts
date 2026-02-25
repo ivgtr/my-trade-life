@@ -18,6 +18,7 @@ export function useAudio(): void {
 
   // phase変更時にBGMを自動切替
   useEffect(() => {
+    if (gameState.phase === 'bgmTheater') return
     const sceneId = AudioSystem.getBGMSceneForPhase(gameState.phase)
     if (sceneId === null) {
       AudioSystem.stopBGM()

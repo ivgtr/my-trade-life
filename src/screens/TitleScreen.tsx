@@ -66,6 +66,12 @@ export default function TitleScreen({ onNewGame, onLoadGame }: TitleScreenProps)
         >
           Import / Export
         </button>
+        <button
+          className="py-3.5 px-6 text-base bg-bg-panel text-text-primary border border-bg-button rounded-lg cursor-pointer text-left transition-colors duration-200 hover:bg-bg-elevated"
+          onClick={() => dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'bgmTheater' } })}
+        >
+          BGM Theater
+        </button>
       </div>
 
       {showConfirm && (

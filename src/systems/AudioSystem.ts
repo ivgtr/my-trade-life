@@ -1,4 +1,5 @@
 import type { BGMSceneId, SEId } from '../types/audio'
+import type { BGMBuilder } from './bgm/types'
 import { bgmPlayer } from './bgm'
 import { sePlayer } from './se'
 
@@ -30,6 +31,12 @@ export const AudioSystem = {
     this._pendingScene = sceneId
     if (!this._audioUnlocked || !this._audioPreferred) return
     bgmPlayer.play(sceneId)
+  },
+
+  playBGMBuilder(builder: BGMBuilder): void {
+    this._pendingScene = null
+    if (!this._audioUnlocked || !this._audioPreferred) return
+    bgmPlayer.playBuilder(builder)
   },
 
   stopBGM(): void {
