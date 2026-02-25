@@ -4,7 +4,7 @@ import { useGameFlow } from './hooks/useGameFlow'
 import { useAudio } from './hooks/useAudio'
 import { ConfigManager } from './systems/ConfigManager'
 import { AudioSystem } from './systems/AudioSystem'
-import { applyBgmPreference } from './systems/bgmPreference'
+import { applyAudioPreference } from './systems/audioPreference'
 
 import TitleScreen from './screens/TitleScreen'
 import ConfigScreen from './screens/ConfigScreen'
@@ -28,10 +28,10 @@ function AppContent() {
   useAudio()
 
   const [showAudioModal, setShowAudioModal] = useState(true)
-  const [previouslyMuted] = useState(() => !ConfigManager.getAll().bgmEnabled)
+  const [previouslyMuted] = useState(() => !ConfigManager.getAll().audioEnabled)
 
-  function handleAudioChoice(bgmEnabled: boolean) {
-    applyBgmPreference(bgmEnabled)
+  function handleAudioChoice(audioEnabled: boolean) {
+    applyAudioPreference(audioEnabled)
     AudioSystem.unlockAudio()
     setShowAudioModal(false)
   }

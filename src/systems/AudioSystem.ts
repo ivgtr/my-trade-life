@@ -23,12 +23,12 @@ const PHASE_TO_BGM: Record<string, BGMSceneId | null> = {
  */
 export const AudioSystem = {
   _audioUnlocked: false,
-  _bgmPreferred: true,
+  _audioPreferred: true,
   _pendingScene: null as BGMSceneId | null,
 
   playBGM(sceneId: BGMSceneId): void {
     this._pendingScene = sceneId
-    if (!this._audioUnlocked || !this._bgmPreferred) return
+    if (!this._audioUnlocked || !this._audioPreferred) return
     bgmPlayer.play(sceneId)
   },
 
@@ -38,6 +38,7 @@ export const AudioSystem = {
   },
 
   playSE(seId: SEId): void {
+    if (!this._audioUnlocked || !this._audioPreferred) return
     sePlayer.play(seId)
   },
 
@@ -51,13 +52,13 @@ export const AudioSystem = {
 
   unlockAudio(): void {
     this._audioUnlocked = true
-    if (this._bgmPreferred && this._pendingScene) {
+    if (this._audioPreferred && this._pendingScene) {
       bgmPlayer.play(this._pendingScene)
     }
   },
 
-  setBGMPreferred(preferred: boolean): void {
-    this._bgmPreferred = preferred
+  setAudioPreferred(preferred: boolean): void {
+    this._audioPreferred = preferred
     if (this._audioUnlocked && preferred && this._pendingScene) {
       bgmPlayer.play(this._pendingScene)
     } else if (!preferred) {
@@ -65,10 +66,10 @@ export const AudioSystem = {
     }
   },
 
-  initFromConfig(config: { bgmVolume?: number; seVolume?: number; bgmEnabled?: boolean }): void {
+  initFromConfig(config: { bgmVolume?: number; seVolume?: number; audioEnabled?: boolean }): void {
     bgmPlayer.setVolume((config.bgmVolume ?? 50) / 100)
     sePlayer.setVolume((config.seVolume ?? 70) / 100)
-    this._bgmPreferred = config.bgmEnabled ?? true
+    this._audioPreferred = config.audioEnabled ?? true
   },
 
   getBGMSceneForPhase(phase: string): BGMSceneId | null {

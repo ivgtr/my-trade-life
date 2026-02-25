@@ -3,15 +3,15 @@ import { useGameContext } from '../hooks/useGameContext'
 import { ACTIONS } from '../state/actions'
 import { ConfigManager } from '../systems/ConfigManager'
 import { AudioSystem } from '../systems/AudioSystem'
-import { applyBgmPreference } from '../systems/bgmPreference'
+import { applyAudioPreference } from '../systems/audioPreference'
 
 export default function ConfigScreen() {
   const { dispatch } = useGameContext()
   const [config, setConfig] = useState(() => ConfigManager.load())
 
-  const handleBGMEnabled = (enabled: boolean) => {
-    applyBgmPreference(enabled)
-    setConfig((c) => ({ ...c, bgmEnabled: enabled }))
+  const handleAudioEnabled = (enabled: boolean) => {
+    applyAudioPreference(enabled)
+    setConfig((c) => ({ ...c, audioEnabled: enabled }))
   }
 
   const handleBGMVolume = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,25 +44,25 @@ export default function ConfigScreen() {
       <div className="text-2xl font-bold mb-8">Config</div>
       <div className="flex flex-col gap-5 w-80">
         <div className="flex justify-between items-center">
-          <span className="text-sm">BGM</span>
+          <span className="text-sm">音声</span>
           <div className="flex gap-2">
             <button
               className={`py-2 px-4 border rounded-md cursor-pointer text-sm ${
-                config.bgmEnabled
+                config.audioEnabled
                   ? 'bg-accent text-white border-accent'
                   : 'bg-bg-panel text-text-secondary border-bg-button'
               }`}
-              onClick={() => handleBGMEnabled(true)}
+              onClick={() => handleAudioEnabled(true)}
             >
               ON
             </button>
             <button
               className={`py-2 px-4 border rounded-md cursor-pointer text-sm ${
-                !config.bgmEnabled
+                !config.audioEnabled
                   ? 'bg-accent text-white border-accent'
                   : 'bg-bg-panel text-text-secondary border-bg-button'
               }`}
-              onClick={() => handleBGMEnabled(false)}
+              onClick={() => handleAudioEnabled(false)}
             >
               OFF
             </button>

@@ -1,5 +1,5 @@
 interface AudioPermissionModalProps {
-  onChoice: (bgmEnabled: boolean) => void
+  onChoice: (audioEnabled: boolean) => void
   previouslyMuted: boolean
 }
 
@@ -10,14 +10,14 @@ export default function AudioPermissionModal({ onChoice, previouslyMuted }: Audi
         DAY TRADER LIFE
       </div>
       <p className="text-text-secondary text-sm mb-10">
-        {previouslyMuted ? 'BGMはミュートに設定されています' : 'BGMの再生設定を選択してください'}
+        {previouslyMuted ? '音声はミュートに設定されています' : '音声の再生設定を選択してください'}
       </p>
       <div className="flex flex-col gap-3 w-[260px]">
         <button
           className="py-3.5 px-6 text-base bg-bg-panel text-text-primary border border-bg-button rounded-lg cursor-pointer text-center transition-colors duration-200 hover:bg-bg-elevated"
           onClick={() => onChoice(true)}
         >
-          BGMを再生する
+          音声を再生する
         </button>
         <button
           className="py-3.5 px-6 text-base bg-bg-panel text-text-secondary border border-bg-button rounded-lg cursor-pointer text-center transition-colors duration-200 hover:bg-bg-elevated"

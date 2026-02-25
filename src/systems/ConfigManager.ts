@@ -5,7 +5,7 @@ interface GameConfig {
   seVolume: number
   defaultSpeed: number
   invertColors: boolean
-  bgmEnabled: boolean
+  audioEnabled: boolean
   [key: string]: unknown
 }
 
@@ -14,7 +14,7 @@ const DEFAULT_CONFIG: GameConfig = {
   seVolume: 70,
   defaultSpeed: 1,
   invertColors: false,
-  bgmEnabled: true,
+  audioEnabled: true,
 }
 
 const PROFIT_COLOR = '#26a69a'
