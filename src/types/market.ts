@@ -127,6 +127,7 @@ export interface VolumeContext {
   currentPrice: number
   ignitionActive: boolean
   priceChanged: boolean
+  activityMult: number  // regimeParams.volMult * anomalyParams.volBias
 }
 
 /** アルゴパターンからのオーバーライド */

@@ -23,7 +23,7 @@ export class OrderFlowPatternEngine {
     this.#rng = rng
   }
 
-  update(dt: number, volState: VolState): AlgoOverride | undefined {
+  update(dt: number, volState: VolState, activityMult: number): AlgoOverride | undefined {
     // アクティブパターンの処理
     if (this.#activePattern !== null) {
       this.#activePattern.ticksRemaining--
@@ -34,8 +34,10 @@ export class OrderFlowPatternEngine {
       return { volume }
     }
 
+    const clampProb = (p: number) => Math.min(1, Math.max(0, p))
+
     // 発火判定（優先順: hft → iceberg → twap）
-    if (this.#rng.chance(scaleProb(ALGO_PATTERN.hft.triggerProb, dt))) {
+    if (this.#rng.chance(scaleProb(clampProb(ALGO_PATTERN.hft.triggerProb * activityMult), dt))) {
       const p = ALGO_PATTERN.hft
       this.#activePattern = {
         type: 'hft',
@@ -45,7 +47,7 @@ export class OrderFlowPatternEngine {
       return undefined
     }
 
-    if (this.#rng.chance(scaleProb(ALGO_PATTERN.iceberg.triggerProb, dt))) {
+    if (this.#rng.chance(scaleProb(clampProb(ALGO_PATTERN.iceberg.triggerProb * activityMult), dt))) {
       const p = ALGO_PATTERN.iceberg
       this.#activePattern = {
         type: 'iceberg',
@@ -55,7 +57,7 @@ export class OrderFlowPatternEngine {
       return undefined
     }
 
-    if (this.#rng.chance(scaleProb(ALGO_PATTERN.twap.triggerProb, dt))) {
+    if (this.#rng.chance(scaleProb(clampProb(ALGO_PATTERN.twap.triggerProb * activityMult), dt))) {
       const p = ALGO_PATTERN.twap
       this.#activePattern = {
         type: 'twap',

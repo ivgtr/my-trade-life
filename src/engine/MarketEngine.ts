@@ -218,7 +218,7 @@ export class MarketEngine {
     this.#updatePrice(dt)
 
     // OrderFlowパターン更新
-    const algoOverride = this.#orderFlow.update(dt, this.#volState)
+    const algoOverride = this.#orderFlow.update(dt, this.#volState, this.#getActivityMult())
 
     // Tick発行
     this.#emitTick(algoOverride)
@@ -458,6 +458,11 @@ export class MarketEngine {
     })
   }
 
+  /** regime + anomaly 由来の市場活動度倍率。出来高・アルゴ発火の共通係数。 */
+  #getActivityMult(): number {
+    return this.#regimeParams.volMult * this.#anomalyParams.volBias
+  }
+
   /** ゲーム内時刻から時間帯を判定する。 */
   #getTimeZone(gameTime: number): TimeZone {
     if (gameTime < 570) return 'open'
@@ -477,6 +482,7 @@ export class MarketEngine {
       currentPrice: this.#currentPrice,
       ignitionActive: this.#lastMicroResult?.ignitionActive ?? false,
       priceChanged: this.#lastMicroResult?.priceChanged ?? true,
+      activityMult: this.#getActivityMult(),
     }, algoOverride)
     const tickData: TickData = {
       price: this.#currentPrice,

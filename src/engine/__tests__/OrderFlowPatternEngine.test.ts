@@ -9,7 +9,7 @@ describe('OrderFlowPatternEngine', () => {
     let overrideCount = 0
 
     for (let i = 0; i < 5000; i++) {
-      const result = engine.update(1.0, 'normal')
+      const result = engine.update(1.0, 'normal', 1.0)
       if (result !== undefined) overrideCount++
     }
 
@@ -21,7 +21,7 @@ describe('OrderFlowPatternEngine', () => {
     const rng = new Rng(42)
     const engine = new OrderFlowPatternEngine(rng)
     // dt=0 → scaleProb(prob, 0) = 0 → 発火しない
-    const result = engine.update(0, 'normal')
+    const result = engine.update(0, 'normal', 1.0)
     expect(result).toBeUndefined()
   })
 
@@ -35,7 +35,7 @@ describe('OrderFlowPatternEngine', () => {
     let foundPattern = false
 
     for (let i = 0; i < 10000; i++) {
-      const result = engine.update(1.0, 'normal')
+      const result = engine.update(1.0, 'normal', 1.0)
       if (inPattern) {
         if (result !== undefined) {
           patternTicks++
@@ -63,7 +63,7 @@ describe('OrderFlowPatternEngine', () => {
     const engine1 = new OrderFlowPatternEngine(rng1)
     let count1 = 0
     for (let i = 0; i < N; i++) {
-      if (engine1.update(2.0, 'normal') !== undefined) count1++
+      if (engine1.update(2.0, 'normal', 1.0) !== undefined) count1++
     }
 
     // dt=0.5
@@ -71,10 +71,39 @@ describe('OrderFlowPatternEngine', () => {
     const engine2 = new OrderFlowPatternEngine(rng2)
     let count2 = 0
     for (let i = 0; i < N; i++) {
-      if (engine2.update(0.5, 'normal') !== undefined) count2++
+      if (engine2.update(0.5, 'normal', 1.0) !== undefined) count2++
     }
 
     // dt=2.0の方が発火+持続override共にカウント多い傾向
     expect(count1).toBeGreaterThan(count2)
+  })
+
+  it('activityMult感応性: activityMult=3.0 の発火回数が activityMult=0.3 より多い', () => {
+    const N = 5000
+
+    const countFires = (mult: number) => {
+      const rng = new Rng(42)
+      const engine = new OrderFlowPatternEngine(rng)
+      let count = 0
+      for (let i = 0; i < N; i++) {
+        if (engine.update(1.0, 'normal', mult) !== undefined) count++
+      }
+      return count
+    }
+
+    expect(countFires(3.0)).toBeGreaterThan(countFires(0.3))
+  })
+
+  it('clamp境界: activityMult=1000 でもNaN化せず発火する', () => {
+    const rng = new Rng(42)
+    const engine = new OrderFlowPatternEngine(rng)
+    let overrideCount = 0
+
+    for (let i = 0; i < 100; i++) {
+      const result = engine.update(1.0, 'normal', 1000)
+      if (result !== undefined) overrideCount++
+    }
+
+    expect(overrideCount).toBeGreaterThan(0)
   })
 })

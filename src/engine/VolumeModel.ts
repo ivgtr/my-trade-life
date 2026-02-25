@@ -39,7 +39,7 @@ export class VolumeModel {
         ? 1.0
         : VOLUME_DYNAMICS.stickyMult
 
-    const raw = base * todParams.volMult * randomFactor * changeMult * eventMult
+    const raw = base * todParams.volMult * randomFactor * changeMult * eventMult * ctx.activityMult
     return Math.round(cap * Math.tanh(raw / cap))
   }
 }

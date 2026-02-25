@@ -12,6 +12,7 @@ function baseCtx(overrides?: Partial<VolumeContext>): VolumeContext {
     currentPrice: 30000,
     ignitionActive: false,
     priceChanged: true,
+    activityMult: 1.0,
     ...overrides,
   }
 }
@@ -75,6 +76,22 @@ describe('VolumeModel', () => {
     expect(p50).toBeLessThan(BASE_VOLUME.normal * 2.0)
     expect(p90).toBeGreaterThan(BASE_VOLUME.normal * 0.8)
     expect(p90).toBeLessThan(BASE_VOLUME.normal * 5.0)
+  })
+
+  it('activityMult乗算: activityMult=2.5 で出来高平均が activityMult=1.0 の2.0倍以上', () => {
+    const N = 100
+    const sampleAvg = (mult: number) => {
+      const rng = new Rng(42)
+      const model = new VolumeModel(rng)
+      let sum = 0
+      for (let i = 0; i < N; i++) {
+        sum += model.generate(baseCtx({ activityMult: mult }))
+      }
+      return sum / N
+    }
+    const avg1 = sampleAvg(1.0)
+    const avg25 = sampleAvg(2.5)
+    expect(avg25 / avg1).toBeGreaterThan(2.0)
   })
 
   it('algoOverride時は既存倍率をバイパスする', () => {
