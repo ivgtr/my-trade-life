@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
-import { TICK_UNIT, roundToTick, floorToTick, ceilToTick, roundPrice } from '../priceGrid'
+import { tickUnit, roundToTick, floorToTick, ceilToTick, roundPrice, MIN_PRICE } from '../priceGrid'
 import { MarketEngine } from '../MarketEngine'
 import { TradingEngine } from '../TradingEngine'
 import { calcGap } from '../marketParams'
@@ -7,88 +7,148 @@ import type { MarketEngineConfig, TickData } from '../../types/market'
 
 // ─── priceGrid 単体テスト ───
 
+describe('tickUnit', () => {
+  it('≤ 3,000 → 1円', () => {
+    expect(tickUnit(1)).toBe(1)
+    expect(tickUnit(100)).toBe(1)
+    expect(tickUnit(3000)).toBe(1)
+  })
+
+  it('≤ 5,000 → 5円', () => {
+    expect(tickUnit(3001)).toBe(5)
+    expect(tickUnit(5000)).toBe(5)
+  })
+
+  it('≤ 30,000 → 10円', () => {
+    expect(tickUnit(5001)).toBe(10)
+    expect(tickUnit(30000)).toBe(10)
+  })
+
+  it('≤ 50,000 → 50円', () => {
+    expect(tickUnit(30001)).toBe(50)
+    expect(tickUnit(50000)).toBe(50)
+  })
+
+  it('≤ 100,000 → 100円', () => {
+    expect(tickUnit(50001)).toBe(100)
+    expect(tickUnit(100000)).toBe(100)
+  })
+
+  it('≤ 300,000 → 500円', () => {
+    expect(tickUnit(100001)).toBe(500)
+    expect(tickUnit(300000)).toBe(500)
+  })
+
+  it('> 300,000 → 1,000円', () => {
+    expect(tickUnit(300001)).toBe(1000)
+    expect(tickUnit(500000)).toBe(1000)
+  })
+})
+
 describe('roundToTick', () => {
-  it('正値を最寄りのTICK_UNIT倍数に丸める', () => {
-    expect(roundToTick(7)).toBe(5)
-    expect(roundToTick(8)).toBe(10)
-    expect(roundToTick(10)).toBe(10)
-    expect(roundToTick(12)).toBe(10)
-    expect(roundToTick(13)).toBe(15)
+  it('正値を最寄りのtick倍数に丸める', () => {
+    expect(roundToTick(7, 5)).toBe(5)
+    expect(roundToTick(8, 5)).toBe(10)
+    expect(roundToTick(10, 5)).toBe(10)
+    expect(roundToTick(12, 5)).toBe(10)
+    expect(roundToTick(13, 5)).toBe(15)
   })
 
   it('負値を対称に丸める', () => {
-    expect(roundToTick(-7)).toBe(-5)
-    expect(roundToTick(-8)).toBe(-10)
-    expect(roundToTick(-10)).toBe(-10)
+    expect(roundToTick(-7, 5)).toBe(-5)
+    expect(roundToTick(-8, 5)).toBe(-10)
+    expect(roundToTick(-10, 5)).toBe(-10)
   })
 
   it('境界値（±2.5）を正しく丸める', () => {
-    expect(roundToTick(2.5)).toBe(5)
-    expect(roundToTick(-2.5)).toBe(-5)
+    expect(roundToTick(2.5, 5)).toBe(5)
+    expect(roundToTick(-2.5, 5)).toBe(-5)
   })
 
   it('ゼロはゼロのまま', () => {
-    expect(roundToTick(0)).toBe(0)
+    expect(roundToTick(0, 5)).toBe(0)
+  })
+
+  it('tick=10で丸める', () => {
+    expect(roundToTick(24, 10)).toBe(20)
+    expect(roundToTick(25, 10)).toBe(30)
+    expect(roundToTick(30, 10)).toBe(30)
+  })
+
+  it('tick=50で丸める', () => {
+    expect(roundToTick(120, 50)).toBe(100)
+    expect(roundToTick(125, 50)).toBe(150)
   })
 })
 
 describe('floorToTick', () => {
-  it('正値を切り下げる', () => {
-    expect(floorToTick(7)).toBe(5)
-    expect(floorToTick(10)).toBe(10)
-    expect(floorToTick(11)).toBe(10)
+  it('≤3000帯（tick=1）で切り下げ', () => {
+    expect(floorToTick(2999.7)).toBe(2999)
+    expect(floorToTick(3000)).toBe(3000)
   })
 
-  it('負値を切り下げる', () => {
-    expect(floorToTick(-3)).toBe(-5)
-    expect(floorToTick(-5)).toBe(-5)
-    expect(floorToTick(-10)).toBe(-10)
+  it('≤30000帯（tick=10）で切り下げ', () => {
+    expect(floorToTick(10007)).toBe(10000)
+    expect(floorToTick(10010)).toBe(10010)
+    expect(floorToTick(10011)).toBe(10010)
+  })
+
+  it('≤50000帯（tick=50）で切り下げ', () => {
+    expect(floorToTick(30020)).toBe(30000)
+    expect(floorToTick(30050)).toBe(30050)
   })
 })
 
 describe('ceilToTick', () => {
-  it('正値を切り上げる', () => {
-    expect(ceilToTick(3)).toBe(5)
-    expect(ceilToTick(5)).toBe(5)
-    expect(ceilToTick(6)).toBe(10)
+  it('≤3000帯（tick=1）で切り上げ', () => {
+    expect(ceilToTick(2999.3)).toBe(3000)
+    expect(ceilToTick(3000)).toBe(3000)
   })
 
-  it('負値を切り上げる', () => {
-    expect(ceilToTick(-7)).toBe(-5)
-    expect(ceilToTick(-5)).toBe(-5)
-    expect(ceilToTick(-11)).toBe(-10)
+  it('≤30000帯（tick=10）で切り上げ', () => {
+    expect(ceilToTick(10001)).toBe(10010)
+    expect(ceilToTick(10010)).toBe(10010)
+    expect(ceilToTick(10011)).toBe(10020)
+  })
+
+  it('≤50000帯（tick=50）で切り上げ', () => {
+    expect(ceilToTick(30001)).toBe(30050)
+    expect(ceilToTick(30050)).toBe(30050)
   })
 })
 
 describe('roundPrice', () => {
   it('最小10円を保証する', () => {
-    expect(roundPrice(3)).toBe(10)
-    expect(roundPrice(-100)).toBe(10)
-    expect(roundPrice(0)).toBe(10)
+    expect(roundPrice(3)).toBe(MIN_PRICE)
+    expect(roundPrice(-100)).toBe(MIN_PRICE)
+    expect(roundPrice(0)).toBe(MIN_PRICE)
   })
 
-  it('通常の丸めを行う', () => {
-    expect(roundPrice(30002)).toBe(30000)
-    expect(roundPrice(30003)).toBe(30005)
-    expect(roundPrice(30007)).toBe(30005)
-    expect(roundPrice(30008)).toBe(30010)
+  it('≤3000帯（tick=1）で丸める', () => {
+    expect(roundPrice(2999.4)).toBe(2999)
+    expect(roundPrice(2999.6)).toBe(3000)
   })
-})
 
-describe('TICK_UNIT', () => {
-  it('5であること', () => {
-    expect(TICK_UNIT).toBe(5)
+  it('≤30000帯（tick=10）で丸める', () => {
+    expect(roundPrice(10004)).toBe(10000)
+    expect(roundPrice(10005)).toBe(10010)
+    expect(roundPrice(10008)).toBe(10010)
+  })
+
+  it('≤50000帯（tick=50）で丸める', () => {
+    expect(roundPrice(30020)).toBe(30000)
+    expect(roundPrice(30025)).toBe(30050)
+    expect(roundPrice(30040)).toBe(30050)
   })
 })
 
 // ─── MarketEngine 統合テスト ───
 
-describe('MarketEngine 5円刻み', () => {
+describe('MarketEngine 呼値整合', () => {
   const collectedTicks: TickData[] = []
 
   beforeAll(() => {
     vi.useFakeTimers()
-    // 決定論的乱数（線形合同法）
     let seed = 42
     vi.spyOn(Math, 'random').mockImplementation(() => {
       seed = (seed * 1664525 + 1013904223) >>> 0
@@ -115,35 +175,38 @@ describe('MarketEngine 5円刻み', () => {
     vi.useRealTimers()
   })
 
-  it('全tickのprice/high/lowが5の倍数である', () => {
+  it('全tickのprice/high/lowがそれぞれ自身の呼値の倍数である', () => {
     expect(collectedTicks.length).toBeGreaterThan(0)
 
     for (const tick of collectedTicks) {
-      expect(tick.price % TICK_UNIT).toBe(0)
-      expect(tick.high % TICK_UNIT).toBe(0)
-      expect(tick.low % TICK_UNIT).toBe(0)
-      expect(tick.price).toBeGreaterThanOrEqual(10)
-      expect(tick.low).toBeGreaterThanOrEqual(10)
+      expect(tick.price % tickUnit(tick.price)).toBe(0)
+      expect(tick.high % tickUnit(tick.high)).toBe(0)
+      expect(tick.low % tickUnit(tick.low)).toBe(0)
+      expect(tick.price).toBeGreaterThanOrEqual(MIN_PRICE)
+      expect(tick.low).toBeGreaterThanOrEqual(MIN_PRICE)
     }
   })
 
-  it('tickのhigh/lowがprice中心に対称であること（前tick依存がないことの検証）', () => {
+  it('tickのhigh/lowがprice中心に概ね対称であること', () => {
     for (const tick of collectedTicks) {
       const upperWick = tick.high - tick.price
       const lowerWick = tick.price - tick.low
-      expect(Math.abs(upperWick - lowerWick)).toBeLessThanOrEqual(TICK_UNIT)
+      // 境界跨ぎ: overshootが上位の呼値ゾーンに入り引き戻される非対称性を許容
+      // high+1で次ゾーンのtickを確認（例: high=30000 → tickUnit(30001)=50）
+      const tolerance = Math.max(tickUnit(tick.high + 1), tickUnit(tick.low))
+      expect(Math.abs(upperWick - lowerWick)).toBeLessThanOrEqual(tolerance)
     }
   })
 })
 
 // ─── calcGap テスト ───
 
-describe('calcGap 5円刻み', () => {
-  it('openPriceが5の倍数かつ10以上である', () => {
+describe('calcGap 呼値整合', () => {
+  it('openPriceが自身の呼値の倍数かつ10以上である', () => {
     for (let i = 0; i < 100; i++) {
       const result = calcGap(30000, 'range', null)
-      expect(result.openPrice % TICK_UNIT).toBe(0)
-      expect(result.openPrice).toBeGreaterThanOrEqual(10)
+      expect(result.openPrice % tickUnit(result.openPrice)).toBe(0)
+      expect(result.openPrice).toBeGreaterThanOrEqual(MIN_PRICE)
     }
   })
 
@@ -154,9 +217,8 @@ describe('calcGap 5円刻み', () => {
       const result = calcGap(30000, 'bullish', null)
       if (result.isGapUp) gapUpCount++
       else gapDownCount++
-      expect(result.openPrice % TICK_UNIT).toBe(0)
+      expect(result.openPrice % tickUnit(result.openPrice)).toBe(0)
     }
-    // bullishレジームではギャップアップの方が多い（確率的）
     expect(gapUpCount).toBeGreaterThan(gapDownCount)
   })
 
@@ -167,21 +229,20 @@ describe('calcGap 5円刻み', () => {
       const result = calcGap(30000, 'bearish', null)
       if (result.isGapUp) gapUpCount++
       else gapDownCount++
-      expect(result.openPrice % TICK_UNIT).toBe(0)
+      expect(result.openPrice % tickUnit(result.openPrice)).toBe(0)
     }
-    // bearishレジームではギャップダウンの方が多い（確率的）
     expect(gapDownCount).toBeGreaterThan(gapUpCount)
   })
 })
 
 // ─── TradingEngine SL/TP テスト ───
 
-describe('TradingEngine setSLTP 5円刻み', () => {
+describe('TradingEngine setSLTP 呼値丸め', () => {
   function createEngine() {
     return new TradingEngine({ balance: 1_000_000, maxLeverage: 3 })
   }
 
-  it('LONG: SLがfloor、TPがceilで丸められる', () => {
+  it('LONG: SLがfloor、TPがceilで丸められる（entryPrice=30000、境界値）', () => {
     const engine = createEngine()
     const pos = engine.openPosition('LONG', 10, 30000)!
     expect(pos).not.toBeNull()
@@ -191,13 +252,13 @@ describe('TradingEngine setSLTP 5円刻み', () => {
 
     const positions = engine.getPositions()
     const updated = positions.find(p => p.id === pos.id)!
-    // LONG SL: floor(29993) = 29990
+    // LONG SL: 29993 → tickUnit(29993)=10 → floor(29993/10)*10 = 29990
     expect(updated.stopLoss).toBe(29990)
-    // LONG TP: ceil(30008) = 30010
-    expect(updated.takeProfit).toBe(30010)
+    // LONG TP: 30008 → tickUnit(30008)=50 → ceil(30008/50)*50 = 30050
+    expect(updated.takeProfit).toBe(30050)
   })
 
-  it('SHORT: SLがceil、TPがfloorで丸められる', () => {
+  it('SHORT: SLがceil、TPがfloorで丸められる（entryPrice=30000、境界値）', () => {
     const engine = createEngine()
     const pos = engine.openPosition('SHORT', 10, 30000)!
     expect(pos).not.toBeNull()
@@ -207,9 +268,9 @@ describe('TradingEngine setSLTP 5円刻み', () => {
 
     const positions = engine.getPositions()
     const updated = positions.find(p => p.id === pos.id)!
-    // SHORT SL: ceil(30008) = 30010
-    expect(updated.stopLoss).toBe(30010)
-    // SHORT TP: floor(29993) = 29990
+    // SHORT SL: 30008 → tickUnit(30008)=50 → ceil(30008/50)*50 = 30050
+    expect(updated.stopLoss).toBe(30050)
+    // SHORT TP: 29993 → tickUnit(29993)=10 → floor(29993/10)*10 = 29990
     expect(updated.takeProfit).toBe(29990)
   })
 
@@ -217,12 +278,10 @@ describe('TradingEngine setSLTP 5円刻み', () => {
     const engine = createEngine()
     const pos = engine.openPosition('LONG', 10, 30000)!
 
-    // SL=29998 → floor → 29995 (OK), TP=30002 → ceil → 30005 (OK) のはず
-    // でもSL=30001 → floor → 30000 → >= entryPrice なので拒否
+    // SL=30001 → tickUnit(30001)=50 → floor(30001/50)*50 = 30000 → >= entryPrice なので拒否
     const ok = engine.setSLTP(pos.id, 30001, 30008)
     expect(ok).toBe(false)
 
-    // 原子性確認: SL/TPいずれも変更されていない
     const positions = engine.getPositions()
     const updated = positions.find(p => p.id === pos.id)!
     expect(updated.stopLoss).toBeUndefined()
@@ -233,7 +292,7 @@ describe('TradingEngine setSLTP 5円刻み', () => {
     const engine = createEngine()
     const pos = engine.openPosition('LONG', 10, 30000)!
 
-    // SL=29990 (OK), TP=29999 → ceil → 30000 → <= entryPrice なので拒否
+    // SL=29990 (OK), TP=29999 → tickUnit(29999)=10 → ceil(29999/10)*10 = 30000 → <= entryPrice なので拒否
     const ok = engine.setSLTP(pos.id, 29990, 29999)
     expect(ok).toBe(false)
 
@@ -243,18 +302,20 @@ describe('TradingEngine setSLTP 5円刻み', () => {
     expect(updated.takeProfit).toBeUndefined()
   })
 
-  it('stopLoss <= 0 は拒否される', () => {
+  it('stopLoss < MIN_PRICE は拒否される', () => {
     const engine = createEngine()
     const pos = engine.openPosition('LONG', 10, 30000)!
     expect(engine.setSLTP(pos.id, 0)).toBe(false)
     expect(engine.setSLTP(pos.id, -100)).toBe(false)
+    expect(engine.setSLTP(pos.id, 5)).toBe(false)
   })
 
-  it('takeProfit <= 0 は拒否される', () => {
+  it('takeProfit < MIN_PRICE は拒否される', () => {
     const engine = createEngine()
     const pos = engine.openPosition('LONG', 10, 30000)!
     expect(engine.setSLTP(pos.id, undefined, 0)).toBe(false)
     expect(engine.setSLTP(pos.id, undefined, -50)).toBe(false)
+    expect(engine.setSLTP(pos.id, undefined, 5)).toBe(false)
   })
 
   it('undefinedを渡すとSL/TPが解除される', () => {

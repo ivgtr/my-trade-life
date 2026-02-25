@@ -1,5 +1,5 @@
 import type { Direction, Position, TradeResult, UnrealizedPnL, BuyingPowerInfo, DailySummary } from '../types/trading'
-import { floorToTick, ceilToTick } from './priceGrid'
+import { floorToTick, ceilToTick, MIN_PRICE } from './priceGrid'
 
 interface TradingEngineConfig {
   balance: number
@@ -120,7 +120,7 @@ export class TradingEngine {
     return { availableCash, creditMargin, buyingPower }
   }
 
-  /** ポジションにSL/TPを設定する。undefinedを渡すと解除。5円刻みに丸め、方向整合性を検証する。 */
+  /** ポジションにSL/TPを設定する。undefinedを渡すと解除。呼値に丸め、方向整合性を検証する。 */
   setSLTP(positionId: string, stopLoss?: number, takeProfit?: number): boolean {
     const position = this.#positions.get(positionId)
     if (!position) return false
@@ -129,21 +129,21 @@ export class TradingEngine {
     let roundedTP: number | undefined
 
     if (stopLoss != null) {
-      if (stopLoss <= 0) return false
+      if (stopLoss < MIN_PRICE) return false
       roundedSL = position.direction === 'LONG'
         ? floorToTick(stopLoss)
         : ceilToTick(stopLoss)
-      if (roundedSL <= 0) return false
+      if (roundedSL < MIN_PRICE) return false
       if (position.direction === 'LONG' && roundedSL >= position.entryPrice) return false
       if (position.direction === 'SHORT' && roundedSL <= position.entryPrice) return false
     }
 
     if (takeProfit != null) {
-      if (takeProfit <= 0) return false
+      if (takeProfit < MIN_PRICE) return false
       roundedTP = position.direction === 'LONG'
         ? ceilToTick(takeProfit)
         : floorToTick(takeProfit)
-      if (roundedTP <= 0) return false
+      if (roundedTP < MIN_PRICE) return false
       if (position.direction === 'LONG' && roundedTP <= position.entryPrice) return false
       if (position.direction === 'SHORT' && roundedTP >= position.entryPrice) return false
     }

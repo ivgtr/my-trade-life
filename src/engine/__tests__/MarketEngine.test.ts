@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MarketEngine } from '../MarketEngine'
-import { TICK_UNIT } from '../priceGrid'
+import { tickUnit } from '../priceGrid'
 import type { TickData, MarketEngineConfig } from '../../types/market'
 
 function createConfig(overrides?: Partial<MarketEngineConfig>): MarketEngineConfig {
@@ -271,9 +271,9 @@ describe('MarketEngine high/low overshootフロア', () => {
     return ticks
   }
 
-  it('低ボラ設定で通常tickのhigh >= price + TICK_UNIT かつ low <= price - TICK_UNIT', () => {
+  it('低ボラ設定で通常tickのhigh >= price + tickUnit かつ low <= price - tickUnit', () => {
     const ticks = collectTicksWithSeed({
-      openPrice: 36000,
+      openPrice: 25000,
       regimeParams: { drift: 0, volMult: 0.7, regime: 'range' },
       anomalyParams: { driftBias: 0, volBias: 0.3, tendency: '' },
     }, 300)
@@ -283,14 +283,14 @@ describe('MarketEngine high/low overshootフロア', () => {
     expect(normalTicks.length).toBeGreaterThan(0)
 
     for (const tick of normalTicks) {
-      expect(tick.high).toBeGreaterThanOrEqual(tick.price + TICK_UNIT)
-      expect(tick.low).toBeLessThanOrEqual(tick.price - TICK_UNIT)
+      expect(tick.high).toBeGreaterThanOrEqual(tick.price + tickUnit(tick.price))
+      expect(tick.low).toBeLessThanOrEqual(tick.price - tickUnit(tick.price))
     }
   })
 
-  it('高ボラ設定で通常tickの過半数がスプレッド TICK_UNIT * 2 超である', () => {
+  it('高ボラ設定で通常tickの過半数がスプレッド tickUnit * 2 超である', () => {
     const ticks = collectTicksWithSeed({
-      openPrice: 36000,
+      openPrice: 25000,
       regimeParams: { drift: 0, volMult: 1.5, regime: 'range' },
       anomalyParams: { driftBias: 0, volBias: 1.5, tendency: '' },
     }, 300)
@@ -298,7 +298,7 @@ describe('MarketEngine high/low overshootフロア', () => {
     const normalTicks = ticks.filter(t => t.timestamp !== 690 && t.timestamp !== 750 && t.timestamp !== 930)
     expect(normalTicks.length).toBeGreaterThan(0)
 
-    const wideSpreadCount = normalTicks.filter(t => (t.high - t.low) > TICK_UNIT * 2).length
+    const wideSpreadCount = normalTicks.filter(t => (t.high - t.low) > tickUnit(t.price) * 2).length
     expect(wideSpreadCount / normalTicks.length).toBeGreaterThan(0.5)
   })
 })

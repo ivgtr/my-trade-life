@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { formatCurrency, formatPnlPercent } from '../utils/formatUtils'
+import { MIN_PRICE } from '../engine/priceGrid'
 import type { Direction, Position, SetSLTPFn } from '../types'
 
 interface TradePanelProps {
@@ -40,8 +41,8 @@ function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
     const sl = slInput.trim() ? Number(slInput) : undefined
     const tp = tpInput.trim() ? Number(tpInput) : undefined
 
-    if (sl != null && (isNaN(sl) || sl <= 0)) return { error: 'SL値が不正です' }
-    if (tp != null && (isNaN(tp) || tp <= 0)) return { error: 'TP値が不正です' }
+    if (sl != null && (isNaN(sl) || sl < MIN_PRICE)) return { error: 'SL値が不正です' }
+    if (tp != null && (isNaN(tp) || tp < MIN_PRICE)) return { error: 'TP値が不正です' }
 
     if (position.direction === 'LONG') {
       if (sl != null && sl >= position.entryPrice) return { error: 'SLはエントリー価格より下' }
@@ -62,7 +63,7 @@ function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
     if (sl == null && tp == null) return
     const ok = onSetSLTP(position.id, sl, tp)
     if (!ok) {
-      setEngineError('5円刻みに丸めた結果、設定できません')
+      setEngineError('呼値に丸めた結果、設定できません')
       return
     }
     setExpanded(false)
@@ -114,7 +115,6 @@ function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
         <span className="text-[10px] text-loss min-w-[18px]">SL</span>
         <input
           type="number"
-          step={5}
           value={slInput}
           onChange={(e) => setSlInput(e.target.value)}
           placeholder={position.direction === 'LONG' ? `< ${position.entryPrice}` : `> ${position.entryPrice}`}
@@ -123,7 +123,6 @@ function SLTPForm({ position, onSetSLTP }: SLTPFormProps) {
         <span className="text-[10px] text-profit min-w-[18px]">TP</span>
         <input
           type="number"
-          step={5}
           value={tpInput}
           onChange={(e) => setTpInput(e.target.value)}
           placeholder={position.direction === 'LONG' ? `> ${position.entryPrice}` : `< ${position.entryPrice}`}
