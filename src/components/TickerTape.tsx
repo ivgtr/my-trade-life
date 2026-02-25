@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
+import { useStore } from 'zustand'
 import { formatCurrency } from '../utils/formatUtils'
+import type { TickStore } from '../stores/tickStore'
 
 interface TickerTapeProps {
-  ticks: Array<{ price: number; timestamp: number; volume: number }>
+  tickStore: TickStore
   maxDisplay?: number
   compact?: boolean
 }
@@ -19,8 +21,36 @@ function getPriceClass(current: number, prev: number) {
   return 'text-text-secondary'
 }
 
-export default function TickerTape({ ticks, maxDisplay = 50, compact = false }: TickerTapeProps) {
+interface TickRowProps {
+  price: number
+  timestamp: number
+  volume: number
+  prevPrice: number
+  compact: boolean
+}
+
+const TickRow = memo(function TickRow({ price, timestamp, volume, prevPrice, compact }: TickRowProps) {
+  const priceClass = getPriceClass(price, prevPrice)
+  return (
+    <div
+      className={`flex justify-between border-b border-border-ticker ${
+        compact ? 'py-px px-0.5' : 'py-0.5 px-1'
+      }`}
+    >
+      <span className={`text-text-secondary ${compact ? 'min-w-9' : 'min-w-[42px]'}`}>
+        {formatTime(timestamp)}
+      </span>
+      <span className={priceClass}>{formatCurrency(price)}</span>
+      <span className={`text-text-secondary text-right ${compact ? 'min-w-10' : 'min-w-[50px]'}`}>
+        {volume.toLocaleString()}
+      </span>
+    </div>
+  )
+})
+
+export default memo(function TickerTape({ tickStore, maxDisplay = 50, compact = false }: TickerTapeProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const ticks = useStore(tickStore, (s) => s.ticks)
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -44,25 +74,17 @@ export default function TickerTape({ ticks, maxDisplay = 50, compact = false }: 
       </div>
       {displayTicks.map((tick, i) => {
         const prevPrice = i > 0 ? displayTicks[i - 1].price : tick.price
-        const priceClass = getPriceClass(tick.price, prevPrice)
-
         return (
-          <div
-            key={i}
-            className={`flex justify-between border-b border-border-ticker ${
-              compact ? 'py-px px-0.5' : 'py-0.5 px-1'
-            }`}
-          >
-            <span className={`text-text-secondary ${compact ? 'min-w-9' : 'min-w-[42px]'}`}>
-              {formatTime(tick.timestamp)}
-            </span>
-            <span className={priceClass}>{formatCurrency(tick.price)}</span>
-            <span className={`text-text-secondary text-right ${compact ? 'min-w-10' : 'min-w-[50px]'}`}>
-              {tick.volume.toLocaleString()}
-            </span>
-          </div>
+          <TickRow
+            key={tick.timestamp}
+            price={tick.price}
+            timestamp={tick.timestamp}
+            volume={tick.volume}
+            prevPrice={prevPrice}
+            compact={compact}
+          />
         )
       })}
     </div>
   )
-}
+})

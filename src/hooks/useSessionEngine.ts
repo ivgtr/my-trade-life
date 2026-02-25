@@ -4,6 +4,10 @@ import { MarketEngine } from '../engine/MarketEngine'
 import { TradingEngine } from '../engine/TradingEngine'
 import { NewsSystem } from '../engine/NewsSystem'
 import { AudioSystem } from '../systems/AudioSystem'
+import { createTickStore } from '../stores/tickStore'
+import { createSessionStore } from '../stores/sessionStore'
+import type { TickStore } from '../stores/tickStore'
+import type { SessionStore } from '../stores/sessionStore'
 import type { ChartHandle } from '../components/Chart'
 import type { Direction, GameState, GameAction, TickData, RegimeParams, AnomalyParams, SetSLTPFn } from '../types'
 import type { NewsEvent } from '../types/news'
@@ -17,8 +21,8 @@ interface UseSessionEngineConfig {
 }
 
 interface UseSessionEngineReturn {
-  ticks: TickData[]
-  gameTime: string
+  tickStore: TickStore
+  sessionStore: SessionStore
   activeNews: NewsEvent | null
   speed: number
   isLunchBreak: boolean
@@ -41,14 +45,31 @@ export function useSessionEngine({
   const marketEngineRef = useRef<MarketEngine | null>(null)
   const tradingEngineRef = useRef<TradingEngine | null>(null)
   const tickHistoryRef = useRef<TickData[]>([])
-  const [ticks, setTicks] = useState<TickData[]>([])
-  const [gameTime, setGameTime] = useState('09:00')
   const [activeNews, setActiveNews] = useState<NewsEvent | null>(null)
   const [speed, setSpeed] = useState(gameState.speed ?? 1)
   const [isLunchBreak, setIsLunchBreak] = useState(false)
   const lunchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const onTickCallbackRef = useRef(onTickCallback)
   onTickCallbackRef.current = onTickCallback
+
+  const maxLeverage = gameState.maxLeverage ?? 1
+  const initialAvailableCash = gameState.availableCash ?? gameState.balance
+  const tickStoreRef = useRef<TickStore>(null!)
+  if (tickStoreRef.current === null) {
+    tickStoreRef.current = createTickStore()
+  }
+  const sessionStoreRef = useRef<SessionStore>(null!)
+  if (sessionStoreRef.current === null) {
+    sessionStoreRef.current = createSessionStore({
+      currentPrice: gameState.currentPrice ?? 0,
+      unrealizedPnL: 0,
+      availableCash: initialAvailableCash,
+      creditMargin: gameState.creditMargin ?? initialAvailableCash * (maxLeverage - 1),
+      buyingPower: gameState.buyingPower ?? initialAvailableCash * maxLeverage,
+      positions: gameState.positions ?? [],
+      gameTime: '09:00',
+    })
+  }
 
   useEffect(() => {
     const regimeParams: RegimeParams = gameState.regimeParams ?? { drift: 0, volMult: 1.0, regime: 'range' as const }
@@ -79,6 +100,9 @@ export function useSessionEngine({
     })
     tradingEngineRef.current = tradingEngine
 
+    const sessionStore = sessionStoreRef.current
+    const tickStore = tickStoreRef.current
+
     const marketEngine = new MarketEngine({
       openPrice,
       regimeParams,
@@ -97,10 +121,7 @@ export function useSessionEngine({
       onTick: (tickData) => {
         tickHistoryRef.current.push(tickData)
         chartRef.current?.updateTick(tickData)
-        setTicks((prev) => [...prev.slice(-99), tickData])
-
-        const time = marketEngine.getCurrentTime()
-        if (time) setGameTime(time.formatted)
+        tickStore.getState().push(tickData)
 
         const triggeredIds = tradingEngine.checkSLTP(tickData.price)
         for (const id of triggeredIds) {
@@ -112,17 +133,16 @@ export function useSessionEngine({
         }
 
         const { total: unrealizedPnL, availableCash, creditMargin, buyingPower } = tradingEngine.recalculateUnrealized(tickData.price)
+        const time = marketEngine.getCurrentTime()
 
-        dispatch({
-          type: ACTIONS.TICK_UPDATE,
-          payload: {
-            currentPrice: tickData.price,
-            unrealizedPnL,
-            availableCash,
-            creditMargin,
-            buyingPower,
-            positions: tradingEngine.getPositions(),
-          },
+        sessionStore.setState({
+          currentPrice: tickData.price,
+          unrealizedPnL,
+          availableCash,
+          creditMargin,
+          buyingPower,
+          positions: tradingEngine.getPositions(),
+          gameTime: time?.formatted ?? sessionStore.getState().gameTime,
         })
 
         newsSystem.checkTriggers(tickData.timestamp)
@@ -131,6 +151,19 @@ export function useSessionEngine({
       },
       onSessionEnd: () => {
         const summary = tradingEngine.getDailySummary()
+        const ss = sessionStore.getState()
+
+        dispatch({
+          type: ACTIONS.SYNC_SESSION_END,
+          payload: {
+            currentPrice: ss.currentPrice,
+            unrealizedPnL: ss.unrealizedPnL,
+            positions: ss.positions,
+            availableCash: ss.availableCash,
+            creditMargin: ss.creditMargin,
+            buyingPower: ss.buyingPower,
+          },
+        })
 
         if (onEndSession) {
           onEndSession({ results: [], summary })
@@ -151,18 +184,20 @@ export function useSessionEngine({
     return () => {
       marketEngine.stop()
       if (lunchTimerRef.current) clearTimeout(lunchTimerRef.current)
+      tickStore.getState().clear()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEntry = useCallback((direction: Direction, shares: number) => {
     const te = tradingEngineRef.current
     if (!te) return
-    const pos = te.openPosition(direction, shares, gameState.currentPrice)
+    const price = sessionStoreRef.current.getState().currentPrice
+    const pos = te.openPosition(direction, shares, price)
     if (pos) {
       dispatch({ type: ACTIONS.OPEN_POSITION, payload: { position: pos } })
       AudioSystem.playSE('entry')
     }
-  }, [gameState.currentPrice, dispatch])
+  }, [dispatch])
 
   const handleSetSLTP: SetSLTPFn = useCallback((positionId: string, stopLoss?: number, takeProfit?: number): boolean => {
     return tradingEngineRef.current?.setSLTP(positionId, stopLoss, takeProfit) ?? false
@@ -171,17 +206,19 @@ export function useSessionEngine({
   const handleClose = useCallback((positionId: string) => {
     const te = tradingEngineRef.current
     if (!te) return
-    const result = te.closePosition(positionId, gameState.currentPrice)
+    const price = sessionStoreRef.current.getState().currentPrice
+    const result = te.closePosition(positionId, price)
     if (result) {
       dispatch({ type: ACTIONS.CLOSE_POSITION, payload: result })
       AudioSystem.playSE(result.pnl >= 0 ? 'profit' : 'loss')
     }
-  }, [gameState.currentPrice, dispatch])
+  }, [dispatch])
 
   const handleCloseAll = useCallback(() => {
     const te = tradingEngineRef.current
     if (!te) return
-    const results = te.forceCloseAll(gameState.currentPrice)
+    const price = sessionStoreRef.current.getState().currentPrice
+    const results = te.forceCloseAll(price)
     if (results.length === 0) return
     let totalPnl = 0
     for (const result of results) {
@@ -189,7 +226,7 @@ export function useSessionEngine({
       totalPnl += result.pnl
     }
     AudioSystem.playSE(totalPnl >= 0 ? 'profit' : 'loss')
-  }, [gameState.currentPrice, dispatch])
+  }, [dispatch])
 
   const handleSpeedChange = useCallback((newSpeed: number) => {
     setSpeed(newSpeed)
@@ -204,8 +241,8 @@ export function useSessionEngine({
   const getTickHistory = useCallback(() => tickHistoryRef.current, [])
 
   return {
-    ticks,
-    gameTime,
+    tickStore: tickStoreRef.current,
+    sessionStore: sessionStoreRef.current,
     activeNews,
     speed,
     isLunchBreak,

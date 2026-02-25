@@ -5,13 +5,14 @@ import { useMAOverlay } from '../hooks/useMAOverlay'
 import { useResponsive } from '../hooks/useMediaQuery'
 import Chart from '../components/Chart'
 import ChartControls from '../components/ChartControls'
-import TradePanel from '../components/TradePanel'
+import SessionHeader from '../components/SessionHeader'
+import SessionTradePanel from '../components/SessionTradePanel'
 import TickerTape from '../components/TickerTape'
 import NewsOverlay from '../components/NewsOverlay'
 import SessionCalendarPopup from '../components/SessionCalendarPopup'
 import { ConfigManager } from '../systems/ConfigManager'
 import { ACTIONS } from '../state/actions'
-import { formatCurrency, parseLocalDate, formatDateShort } from '../utils/formatUtils'
+import { parseLocalDate } from '../utils/formatUtils'
 import type { ChartHandle } from '../components/Chart'
 import type { Timeframe } from '../types'
 
@@ -44,8 +45,8 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   })
 
   const {
-    ticks,
-    gameTime,
+    tickStore,
+    sessionStore,
     activeNews,
     speed,
     isLunchBreak,
@@ -58,13 +59,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     getTickHistory,
   } = useSessionEngine({ gameState, dispatch, chartRef, onEndSession, onTickCallback: handleTick })
 
-  const unrealizedPnL = gameState.unrealizedPnL ?? 0
-  const positions = gameState.positions ?? []
   const maxLeverage = gameState.maxLeverage ?? 1
-  const availableCash = gameState.availableCash ?? gameState.balance
-  const creditMargin = gameState.creditMargin ?? availableCash * (maxLeverage - 1)
-  const buyingPower = gameState.buyingPower ?? availableCash * maxLeverage
-  const currentPrice = gameState.currentPrice ?? 0
 
   const handleTimeframeChange = useCallback((tf: Timeframe) => {
     setTimeframe(tf)
@@ -77,44 +72,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     ConfigManager.set('maVisible', visible)
   }, [])
 
-  const speedButtons = (
-    <div className="flex gap-1">
-      <button
-        className={`sm:py-1.5 sm:px-3 py-1 px-2 border-none rounded cursor-pointer font-mono sm:text-[13px] text-xs ${
-          speed === 1 ? 'bg-accent text-white' : 'bg-bg-button text-text-primary'
-        }`}
-        onClick={() => handleSpeedChange(1)}
-      >
-        1x
-      </button>
-      <button
-        className={`sm:py-1.5 sm:px-3 py-1 px-2 border-none rounded cursor-pointer font-mono sm:text-[13px] text-xs ${
-          speed === 2 ? 'bg-accent text-white' : 'bg-bg-button text-text-primary'
-        }`}
-        onClick={() => handleSpeedChange(2)}
-      >
-        2x
-      </button>
-    </div>
-  )
-
-  const pnlDisplay = (
-    <span>
-      損益:{' '}
-      <span className={unrealizedPnL >= 0 ? 'text-profit' : 'text-loss'}>
-        {unrealizedPnL >= 0 ? '+' : ''}{formatCurrency(unrealizedPnL)}
-      </span>
-    </span>
-  )
-
-  const dateButton = (
-    <button
-      className="text-text-secondary text-sm border-none bg-transparent cursor-pointer font-mono border-b border-dashed border-text-secondary"
-      onClick={() => setShowCalendar(true)}
-    >
-      {formatDateShort(currentDate)}
-    </button>
-  )
+  const handleDateClick = useCallback(() => setShowCalendar(true), [])
 
   const calendarPopup = showCalendar && (
     <SessionCalendarPopup
@@ -140,21 +98,14 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   if (isMobile) {
     return (
       <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
-        <div className="flex justify-between items-center px-2.5 py-1.5 bg-bg-panel border-b border-bg-elevated text-xs shrink-0 flex-wrap gap-1">
-          <div className="flex justify-between items-center w-full">
-            <div className="flex items-center gap-2">
-              {dateButton}
-              <span className="text-base font-bold">{gameTime}</span>
-            </div>
-            <div className="flex gap-2">
-              {speedButtons}
-            </div>
-          </div>
-          <div className="flex justify-between items-center w-full text-xs">
-            <span>余力: {formatCurrency(buyingPower)}</span>
-            {pnlDisplay}
-          </div>
-        </div>
+        <SessionHeader
+          sessionStore={sessionStore}
+          currentDate={currentDate}
+          speed={speed}
+          onSpeedChange={handleSpeedChange}
+          onDateClick={handleDateClick}
+          isMobile
+        />
 
         <div className="flex shrink-0 h-9 bg-bg-panel border-b border-bg-elevated">
           <button
@@ -191,17 +142,13 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
             />
           </div>
           <div className={mobileTab === 'ticker' ? 'w-full h-full overflow-y-auto' : 'hidden'}>
-            <TickerTape ticks={ticks} maxDisplay={50} compact />
+            <TickerTape tickStore={tickStore} maxDisplay={50} compact />
           </div>
         </div>
 
-        <TradePanel
-          currentPrice={currentPrice}
-          availableCash={availableCash}
-          creditMargin={creditMargin}
-          buyingPower={buyingPower}
+        <SessionTradePanel
+          sessionStore={sessionStore}
           maxLeverage={maxLeverage}
-          positions={positions}
           onEntry={handleEntry}
           onClose={handleClose}
           onCloseAll={handleCloseAll}
@@ -218,19 +165,18 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
 
   return (
     <div className="flex flex-col h-dvh overflow-hidden bg-bg-deepest text-text-primary font-mono">
-      <div className="flex justify-between items-center px-4 py-2 bg-bg-panel border-b border-bg-elevated text-sm shrink-0">
-        <div className="flex items-center gap-2">
-          {dateButton}
-          <span className="text-lg font-bold">{gameTime}</span>
-        </div>
-        <span>余力: {formatCurrency(buyingPower)}</span>
-        {pnlDisplay}
-        {speedButtons}
-      </div>
+      <SessionHeader
+        sessionStore={sessionStore}
+        currentDate={currentDate}
+        speed={speed}
+        onSpeedChange={handleSpeedChange}
+        onDateClick={handleDateClick}
+        isMobile={false}
+      />
 
       <div className="flex flex-row flex-1 overflow-hidden min-h-0">
         <div className="w-45 shrink-0 overflow-y-auto overflow-x-hidden border-r border-bg-elevated">
-          <TickerTape ticks={ticks} maxDisplay={50} />
+          <TickerTape tickStore={tickStore} maxDisplay={50} />
         </div>
 
         <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
@@ -249,13 +195,9 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
         </div>
 
         <div className="w-75 shrink-0 overflow-y-auto overflow-x-hidden border-l border-bg-elevated">
-          <TradePanel
-            currentPrice={currentPrice}
-            availableCash={availableCash}
-            creditMargin={creditMargin}
-            buyingPower={buyingPower}
+          <SessionTradePanel
+            sessionStore={sessionStore}
             maxLeverage={maxLeverage}
-            positions={positions}
             onEntry={handleEntry}
             onClose={handleClose}
             onCloseAll={handleCloseAll}

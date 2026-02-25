@@ -8,7 +8,7 @@ export type {
 } from './market'
 export type {
   GamePhase, GameState, GameAction, ActionType,
-  TickUpdatePayload,
+  SetDayContextPayload, SetWeekendDataPayload, SetReportDataPayload, SyncSessionEndPayload,
 } from './game'
 export { ACTIONS } from './game'
 export type { DayRecord, DayHistoryEntry, MonthlyStats, YearlyStats } from './calendar'

@@ -49,7 +49,7 @@ export interface GameState {
   consecutiveLosses: number
   bestTrade: number
   worstTrade: number
-  // useGameFlow の TICK_UPDATE 経由で設定される追加フィールド
+  // SET_DAY_CONTEXT / SET_WEEKEND_DATA 経由で設定される追加フィールド
   dailyCondition?: DailyCondition
   regimeParams?: RegimeParams
   anomalyParams?: AnomalyParams
@@ -60,7 +60,7 @@ export interface GameState {
   monthPreview?: MonthPreview
   yearlyStats?: YearlyStats
   yearPreview?: YearPreviewEntry[]
-  // セッション中の余力情報（TICK_UPDATE経由）
+  // セッション中の余力情報（SYNC_SESSION_END経由）
   availableCash?: number
   creditMargin?: number
   buyingPower?: number
@@ -83,7 +83,10 @@ export const ACTIONS = {
   INIT_NEW_GAME: 'INIT_NEW_GAME',
   LOAD_GAME: 'LOAD_GAME',
   START_SESSION: 'START_SESSION',
-  TICK_UPDATE: 'TICK_UPDATE',
+  SET_DAY_CONTEXT: 'SET_DAY_CONTEXT',
+  SET_WEEKEND_DATA: 'SET_WEEKEND_DATA',
+  SET_REPORT_DATA: 'SET_REPORT_DATA',
+  SYNC_SESSION_END: 'SYNC_SESSION_END',
   END_SESSION: 'END_SESSION',
   OPEN_POSITION: 'OPEN_POSITION',
   CLOSE_POSITION: 'CLOSE_POSITION',
@@ -108,7 +111,10 @@ export type GameAction =
   | { type: typeof ACTIONS.INIT_NEW_GAME; payload?: { speed?: number } }
   | { type: typeof ACTIONS.LOAD_GAME; payload: { gameState: Partial<GameState> } }
   | { type: typeof ACTIONS.START_SESSION }
-  | { type: typeof ACTIONS.TICK_UPDATE; payload: TickUpdatePayload }
+  | { type: typeof ACTIONS.SET_DAY_CONTEXT; payload: SetDayContextPayload }
+  | { type: typeof ACTIONS.SET_WEEKEND_DATA; payload: SetWeekendDataPayload }
+  | { type: typeof ACTIONS.SET_REPORT_DATA; payload: SetReportDataPayload }
+  | { type: typeof ACTIONS.SYNC_SESSION_END; payload: SyncSessionEndPayload }
   | { type: typeof ACTIONS.END_SESSION; payload?: Record<string, unknown> }
   | { type: typeof ACTIONS.OPEN_POSITION; payload: { position: Position } }
   | { type: typeof ACTIONS.CLOSE_POSITION; payload: { positionId: string; pnl: number } }
@@ -125,24 +131,38 @@ export type GameAction =
   | { type: typeof ACTIONS.BILLIONAIRE }
   | { type: typeof ACTIONS.ENTER_ENDLESS }
 
-export interface TickUpdatePayload {
+export interface SetDayContextPayload {
   currentPrice: number
-  unrealizedPnL: number
-  availableCash?: number
-  creditMargin?: number
-  buyingPower?: number
-  positions?: Position[]
+  unrealizedPnL: 0
   dailyCondition?: DailyCondition
   regimeParams?: RegimeParams
   anomalyParams?: AnomalyParams
   anomalyInfo?: AnomalyParams | null
   previewEvent?: PreviewEvent | null
-  weekendNews?: WeekendNews[]
-  monthlyStats?: MonthlyStats
-  monthPreview?: MonthPreview
-  yearlyStats?: YearlyStats
-  yearPreview?: YearPreviewEntry[]
   gapResult?: GapResult | null
   overnightSettled?: boolean
   overnightPnL?: number
+}
+
+export interface SetWeekendDataPayload {
+  currentPrice: number
+  unrealizedPnL: 0
+  weekendNews: WeekendNews[]
+}
+
+export interface SetReportDataPayload {
+  monthlyStats?: MonthlyStats
+  monthPreview?: MonthPreview
+  anomalyInfo?: AnomalyParams | null
+  yearlyStats?: YearlyStats
+  yearPreview?: YearPreviewEntry[]
+}
+
+export interface SyncSessionEndPayload {
+  currentPrice: number
+  unrealizedPnL: number
+  positions: Position[]
+  availableCash: number
+  creditMargin: number
+  buyingPower: number
 }

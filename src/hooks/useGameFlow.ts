@@ -164,7 +164,7 @@ export function useGameFlow(): UseGameFlowReturn {
         payload: { phase: 'morning' },
       })
       dispatch({
-        type: ACTIONS.TICK_UPDATE,
+        type: ACTIONS.SET_DAY_CONTEXT,
         payload: {
           currentPrice: openPrice,
           unrealizedPnL: 0,
@@ -191,7 +191,7 @@ export function useGameFlow(): UseGameFlowReturn {
         payload: { phase: 'weekend' },
       })
       dispatch({
-        type: ACTIONS.TICK_UPDATE,
+        type: ACTIONS.SET_WEEKEND_DATA,
         payload: {
           currentPrice: gameState.currentPrice || 30000,
           unrealizedPnL: 0,
@@ -286,10 +286,8 @@ export function useGameFlow(): UseGameFlowReturn {
       )
 
       dispatch({
-        type: ACTIONS.TICK_UPDATE,
+        type: ACTIONS.SET_REPORT_DATA,
         payload: {
-          currentPrice: gameState.currentPrice,
-          unrealizedPnL: 0,
           monthlyStats: monthStats,
           monthPreview,
           anomalyInfo,
@@ -314,10 +312,8 @@ export function useGameFlow(): UseGameFlowReturn {
       regimeRef.current?.transitionQuarter()
 
       dispatch({
-        type: ACTIONS.TICK_UPDATE,
+        type: ACTIONS.SET_REPORT_DATA,
         payload: {
-          currentPrice: gameState.currentPrice,
-          unrealizedPnL: 0,
           yearlyStats: yearStats,
           yearPreview,
         },

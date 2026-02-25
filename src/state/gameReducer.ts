@@ -66,49 +66,56 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         sessionActive: true,
       }
 
-    case ACTIONS.TICK_UPDATE: {
-      const p = payload as NonNullable<typeof payload> & {
-        currentPrice: number
-        unrealizedPnL: number
-        availableCash?: number
-        creditMargin?: number
-        buyingPower?: number
-        positions?: GameState['positions']
-        dailyCondition?: GameState['dailyCondition']
-        regimeParams?: GameState['regimeParams']
-        anomalyParams?: GameState['anomalyParams']
-        anomalyInfo?: GameState['anomalyInfo']
-        previewEvent?: GameState['previewEvent']
-        weekendNews?: GameState['weekendNews']
-        monthlyStats?: GameState['monthlyStats']
-        monthPreview?: GameState['monthPreview']
-        yearlyStats?: GameState['yearlyStats']
-        yearPreview?: GameState['yearPreview']
-        gapResult?: GameState['gapResult']
-        overnightSettled?: GameState['overnightSettled']
-        overnightPnL?: GameState['overnightPnL']
-      }
+    case ACTIONS.SET_DAY_CONTEXT: {
+      const p = payload as import('../types/game').SetDayContextPayload
       return {
         ...state,
         currentPrice: p.currentPrice,
-        unrealizedPnL: p.unrealizedPnL,
-        ...(p.availableCash !== undefined && { availableCash: p.availableCash }),
-        ...(p.creditMargin !== undefined && { creditMargin: p.creditMargin }),
-        ...(p.buyingPower !== undefined && { buyingPower: p.buyingPower }),
-        ...(p.positions !== undefined && { positions: p.positions }),
+        unrealizedPnL: 0,
         ...(p.dailyCondition !== undefined && { dailyCondition: p.dailyCondition }),
         ...(p.regimeParams !== undefined && { regimeParams: p.regimeParams }),
         ...(p.anomalyParams !== undefined && { anomalyParams: p.anomalyParams }),
         ...(p.anomalyInfo !== undefined && { anomalyInfo: p.anomalyInfo }),
         ...(p.previewEvent !== undefined && { previewEvent: p.previewEvent }),
-        ...(p.weekendNews !== undefined && { weekendNews: p.weekendNews }),
-        ...(p.monthlyStats !== undefined && { monthlyStats: p.monthlyStats }),
-        ...(p.monthPreview !== undefined && { monthPreview: p.monthPreview }),
-        ...(p.yearlyStats !== undefined && { yearlyStats: p.yearlyStats }),
-        ...(p.yearPreview !== undefined && { yearPreview: p.yearPreview }),
         ...(p.gapResult !== undefined && { gapResult: p.gapResult }),
         ...(p.overnightSettled !== undefined && { overnightSettled: p.overnightSettled }),
         ...(p.overnightPnL !== undefined && { overnightPnL: p.overnightPnL }),
+      }
+    }
+
+    case ACTIONS.SET_WEEKEND_DATA: {
+      const p = payload as import('../types/game').SetWeekendDataPayload
+      return {
+        ...state,
+        currentPrice: p.currentPrice,
+        unrealizedPnL: 0,
+        weekendNews: p.weekendNews,
+      }
+    }
+
+    case ACTIONS.SET_REPORT_DATA: {
+      const p = payload as import('../types/game').SetReportDataPayload
+      return {
+        ...state,
+        unrealizedPnL: 0,
+        ...(p.monthlyStats !== undefined && { monthlyStats: p.monthlyStats }),
+        ...(p.monthPreview !== undefined && { monthPreview: p.monthPreview }),
+        ...(p.anomalyInfo !== undefined && { anomalyInfo: p.anomalyInfo }),
+        ...(p.yearlyStats !== undefined && { yearlyStats: p.yearlyStats }),
+        ...(p.yearPreview !== undefined && { yearPreview: p.yearPreview }),
+      }
+    }
+
+    case ACTIONS.SYNC_SESSION_END: {
+      const p = payload as import('../types/game').SyncSessionEndPayload
+      return {
+        ...state,
+        currentPrice: p.currentPrice,
+        unrealizedPnL: p.unrealizedPnL,
+        positions: p.positions,
+        availableCash: p.availableCash,
+        creditMargin: p.creditMargin,
+        buyingPower: p.buyingPower,
       }
     }
 
