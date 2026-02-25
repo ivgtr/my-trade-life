@@ -197,27 +197,24 @@ describe('Chart 動的ラベル間隔（ハンドラ経路）', () => {
     expect(typeof mockSubscribeVisibleLogicalRangeChange.mock.calls[0][0]).toBe('function')
   })
 
-  it('ハンドラ実行(50bars相当, tf=1) → applyOptionsとsetIntervalが呼ばれる', () => {
+  it('ハンドラ実行(50bars相当, tf=1) → gridSetIntervalが呼ばれる', () => {
     const handler = mockSubscribeVisibleLogicalRangeChange.mock.calls[0][0]
-    mockApplyOptions.mockClear()
     mockGridSetInterval.mockClear()
 
     act(() => {
       handler({ from: 0, to: 49 })
     })
 
-    expect(mockApplyOptions).toHaveBeenCalled()
     expect(mockGridSetInterval).toHaveBeenCalledWith(5)
   })
 
-  it('ハンドラ実行で同一interval → applyOptions/setIntervalが呼ばれない（スキップ）', () => {
+  it('ハンドラ実行で同一interval → setIntervalが呼ばれない（スキップ）', () => {
     const handler = mockSubscribeVisibleLogicalRangeChange.mock.calls[0][0]
 
     // 初回: intervalを確定
     act(() => {
       handler({ from: 0, to: 49 })
     })
-    mockApplyOptions.mockClear()
     mockGridSetInterval.mockClear()
 
     // 2回目: 同じintervalになるrange
@@ -225,20 +222,17 @@ describe('Chart 動的ラベル間隔（ハンドラ経路）', () => {
       handler({ from: 5, to: 54 })
     })
 
-    expect(mockApplyOptions).not.toHaveBeenCalled()
     expect(mockGridSetInterval).not.toHaveBeenCalled()
   })
 
-  it('nullレンジ → applyOptions/setIntervalが呼ばれない', () => {
+  it('nullレンジ → setIntervalが呼ばれない', () => {
     const handler = mockSubscribeVisibleLogicalRangeChange.mock.calls[0][0]
-    mockApplyOptions.mockClear()
     mockGridSetInterval.mockClear()
 
     act(() => {
       handler(null)
     })
 
-    expect(mockApplyOptions).not.toHaveBeenCalled()
     expect(mockGridSetInterval).not.toHaveBeenCalled()
   })
 })
@@ -267,10 +261,9 @@ describe('Chart setTimeframe経路', () => {
     })
   })
 
-  it('setTimeframe(5, history) → rangeが返る場合applyOptionsとsetIntervalが呼ばれる', () => {
+  it('setTimeframe(5, history) → rangeが返る場合setIntervalが呼ばれる', () => {
     // 初期interval=30（tf=1, 332bars）。range指定で異なるintervalにする
     mockGetVisibleLogicalRange.mockReturnValue({ from: 0, to: 9 })
-    mockApplyOptions.mockClear()
     mockGridSetInterval.mockClear()
 
     const history = [makeTick(540, 100), makeTick(545, 105)]
@@ -280,7 +273,6 @@ describe('Chart setTimeframe経路', () => {
     })
 
     // computeGridInterval(5, 10) = 5 ≠ 30 → 更新される
-    expect(mockApplyOptions).toHaveBeenCalled()
     expect(mockGridSetInterval).toHaveBeenCalledWith(5)
   })
 

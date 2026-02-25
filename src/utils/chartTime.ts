@@ -58,11 +58,6 @@ export function computeGridInterval(tf: Timeframe, visibleBars: number): number 
   return 60
 }
 
-/** 指定間隔の境界上かを判定する純関数 */
-export function isLabelBoundary(chartSeconds: number, intervalMinutes: number): boolean {
-  return chartSeconds % (intervalMinutes * 60) === 0
-}
-
 /** セッション範囲内の指定間隔境界時刻を全生成（秒単位） */
 export function generateBoundaryTimes(intervalMinutes: number): number[] {
   const stepSeconds = intervalMinutes * 60
@@ -74,14 +69,11 @@ export function generateBoundaryTimes(intervalMinutes: number): number[] {
   return times
 }
 
-/** tickMarkFormatter: intervalMinutesを受け取るファクトリ関数 */
-export function createTickMarkFormatter(intervalMinutes: number) {
-  return (time: Time, _tickMarkType: TickMarkType, _locale: string): string | null => {
-    const seconds = normalizeChartTime(time)
-    if (seconds === null) return null
-    if (!isLabelBoundary(seconds, intervalMinutes)) return ''
-    return formatChartTime(seconds)
-  }
+/** tickMarkFormatter: 秒値→HH:MM変換のみ（ラベル密度はLW chartsに委任） */
+export function tickMarkFormatter(time: Time, _tickMarkType: TickMarkType, _locale: string): string | null {
+  const seconds = normalizeChartTime(time)
+  if (seconds === null) return null
+  return formatChartTime(seconds)
 }
 
 /** timeFormatter: クロスヘア表示用アダプタ（TimeFormatterFn<Time>準拠） */

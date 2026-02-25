@@ -3,7 +3,7 @@ import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts'
 import type { AutoscaleInfo, CandlestickData, ISeriesApi, LineData } from 'lightweight-charts'
 import type { TickData, Timeframe } from '../types'
 import { ConfigManager } from '../systems/ConfigManager'
-import { asGameMinutes, toBarTime, createTickMarkFormatter, chartTimeFormatter, computeGridInterval, toVisibleBarCount } from '../utils/chartTime'
+import { asGameMinutes, toBarTime, tickMarkFormatter, chartTimeFormatter, computeGridInterval, toVisibleBarCount } from '../utils/chartTime'
 import { buildBars, mergeTickIntoBar, generateSessionTimeline } from '../utils/chartBarBuilder'
 import { SESSION_START_MINUTES, SESSION_END_MINUTES, isDuringLunch } from '../constants/sessionTime'
 import { IntervalGridPrimitive } from './GridPrimitive'
@@ -50,6 +50,7 @@ const CHART_OPTIONS = {
     secondsVisible: false,
     borderColor: '#2a2a3e',
     uniformDistribution: true,
+    tickMarkFormatter,
   },
   rightPriceScale: {
     borderColor: '#2a2a3e',
@@ -78,9 +79,6 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
   function applyInterval(newInterval: number) {
     if (newInterval === intervalRef.current) return
     intervalRef.current = newInterval
-    chartRef.current?.applyOptions({
-      timeScale: { tickMarkFormatter: createTickMarkFormatter(newInterval) },
-    })
     gridPrimitiveRef.current?.setInterval(newInterval)
   }
 
@@ -214,9 +212,6 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
       : generateSessionTimeline(timeframeRef.current).length
     const initialInterval = computeGridInterval(timeframeRef.current, initialBars)
     intervalRef.current = initialInterval
-    chart.applyOptions({
-      timeScale: { tickMarkFormatter: createTickMarkFormatter(initialInterval) },
-    })
 
     const gridPrimitive = new IntervalGridPrimitive(initialInterval)
     series.attachPrimitive(gridPrimitive)

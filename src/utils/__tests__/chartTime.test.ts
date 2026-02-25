@@ -6,9 +6,8 @@ import {
   toBarTime,
   formatChartTime,
   normalizeChartTime,
-  createTickMarkFormatter,
+  tickMarkFormatter,
   chartTimeFormatter,
-  isLabelBoundary,
   generateBoundaryTimes,
   toVisibleBarCount,
   computeGridInterval,
@@ -190,43 +189,6 @@ describe('computeGridInterval', () => {
   })
 })
 
-describe('isLabelBoundary', () => {
-  it('32400(09:00), 15 → true', () => {
-    expect(isLabelBoundary(32400, 15)).toBe(true)
-  })
-
-  it('33300(09:15), 15 → true', () => {
-    expect(isLabelBoundary(33300, 15)).toBe(true)
-  })
-
-  it('32460(09:01), 15 → false', () => {
-    expect(isLabelBoundary(32460, 15)).toBe(false)
-  })
-
-  it('32700(09:05), 15 → false', () => {
-    expect(isLabelBoundary(32700, 15)).toBe(false)
-  })
-
-  it('32700(09:05), 5 → true', () => {
-    expect(isLabelBoundary(32700, 5)).toBe(true)
-  })
-
-  it('34200(09:30), 30 → true', () => {
-    expect(isLabelBoundary(34200, 30)).toBe(true)
-  })
-
-  it('33300(09:15), 30 → false', () => {
-    expect(isLabelBoundary(33300, 30)).toBe(false)
-  })
-
-  it('36000(10:00), 60 → true', () => {
-    expect(isLabelBoundary(36000, 60)).toBe(true)
-  })
-
-  it('34200(09:30), 60 → false', () => {
-    expect(isLabelBoundary(34200, 60)).toBe(false)
-  })
-})
 
 describe('generateBoundaryTimes', () => {
   it('interval=15 → 24個（09:00〜15:30の15分刻み、昼休み除外）', () => {
@@ -255,40 +217,21 @@ describe('generateBoundaryTimes', () => {
   })
 })
 
-describe('createTickMarkFormatter', () => {
-  it('interval=15: 32400(09:00) → "09:00"（境界）', () => {
-    const formatter = createTickMarkFormatter(15)
-    expect(formatter(32400 as UTCTimestamp, TickMarkType.Time, 'ja')).toBe('09:00')
+describe('tickMarkFormatter', () => {
+  it('32400(09:00) → "09:00"', () => {
+    expect(tickMarkFormatter(32400 as UTCTimestamp, TickMarkType.Time, 'ja')).toBe('09:00')
   })
 
-  it('interval=15: 32700(09:05) → ""（非境界）', () => {
-    const formatter = createTickMarkFormatter(15)
-    expect(formatter(32700 as UTCTimestamp, TickMarkType.Time, 'ja')).toBe('')
+  it('32700(09:05) → "09:05"', () => {
+    expect(tickMarkFormatter(32700 as UTCTimestamp, TickMarkType.Time, 'ja')).toBe('09:05')
   })
 
-  it('interval=15: 33300(09:15) → "09:15"（境界）', () => {
-    const formatter = createTickMarkFormatter(15)
-    expect(formatter(33300 as UTCTimestamp, TickMarkType.Time, 'ja')).toBe('09:15')
-  })
-
-  it('interval=30: 34200(09:30) → "09:30"（境界）', () => {
-    const formatter = createTickMarkFormatter(30)
-    expect(formatter(34200 as UTCTimestamp, TickMarkType.Time, 'ja')).toBe('09:30')
-  })
-
-  it('interval=30: 33300(09:15) → ""（非境界）', () => {
-    const formatter = createTickMarkFormatter(30)
-    expect(formatter(33300 as UTCTimestamp, TickMarkType.Time, 'ja')).toBe('')
-  })
-
-  it('interval=60: 36000(10:00) → "10:00"（境界）', () => {
-    const formatter = createTickMarkFormatter(60)
-    expect(formatter(36000 as UTCTimestamp, TickMarkType.Time, 'ja')).toBe('10:00')
+  it('36000(10:00) → "10:00"', () => {
+    expect(tickMarkFormatter(36000 as UTCTimestamp, TickMarkType.Time, 'ja')).toBe('10:00')
   })
 
   it('BusinessDay → null（非数値入力）', () => {
-    const formatter = createTickMarkFormatter(15)
-    expect(formatter({ year: 2026, month: 1, day: 1 }, TickMarkType.Time, 'ja')).toBeNull()
+    expect(tickMarkFormatter({ year: 2026, month: 1, day: 1 }, TickMarkType.Time, 'ja')).toBeNull()
   })
 })
 
