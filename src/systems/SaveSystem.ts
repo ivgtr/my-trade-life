@@ -1,4 +1,5 @@
 import type { ImportResult, SaveData, SaveProgress, SaveStats, SaveSettings } from '../types/save'
+import type { DayHistoryEntry } from '../types/calendar'
 import type { Position } from '../types/trading'
 import { generateHash, verifyHash } from '../utils/hashUtils'
 
@@ -6,7 +7,7 @@ const SAVE_KEY = 'daytraderlife_save'
 const CURRENT_VERSION = '1.0'
 const DAILY_HISTORY_LIMIT = 366
 
-interface GameStateInput {
+export interface GameStateInput {
   balance?: number
   day?: number
   year?: number
@@ -17,7 +18,7 @@ interface GameStateInput {
   debtLimit?: number
   interestRate?: number
   debtCount?: number
-  dailyHistory?: Record<string, unknown>[]
+  dailyHistory?: DayHistoryEntry[]
   totalTrades?: number
   totalWins?: number
   totalPnL?: number

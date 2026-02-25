@@ -1,3 +1,4 @@
+import type { DayHistoryEntry } from './calendar'
 import type { Position } from './trading'
 
 export interface ImportResult {
@@ -38,7 +39,7 @@ export interface SaveStats {
   totalTrades: number
   totalWins: number
   lifetimePnl: number
-  dailyHistory: Array<Record<string, unknown>>
+  dailyHistory: DayHistoryEntry[]
 }
 
 export interface SaveSettings {

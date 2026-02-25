@@ -1,9 +1,9 @@
 import { useRef, useCallback, useEffect } from 'react'
 import { useGameContext } from './useGameContext'
+import { useAutoSave, computeDailyCloseState } from './useAutoSave'
 import { ACTIONS } from '../state/actions'
 import { CalendarSystem } from '../engine/CalendarSystem'
 import { MacroRegimeManager } from '../engine/MacroRegimeManager'
-import { calculateDailyBonus, checkLevelUp, getMaxLeverage } from '../engine/GrowthSystem'
 import { NewsSystem } from '../engine/NewsSystem'
 import { TradingEngine } from '../engine/TradingEngine'
 import { calcGap } from '../engine/marketParams'
@@ -37,6 +37,7 @@ interface UseGameFlowReturn {
 
 export function useGameFlow(): UseGameFlowReturn {
   const { gameState, dispatch } = useGameContext()
+  const { saveAndTransition } = useAutoSave(dispatch, gameState)
 
   const calendarRef = useRef<CalendarSystem | null>(null)
   const regimeRef = useRef<MacroRegimeManager | null>(null)
@@ -233,29 +234,29 @@ export function useGameFlow(): UseGameFlowReturn {
     if (checkTerminalConditions()) return
     if (handleEndOfMonth(cal)) return
 
-    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
+    saveAndTransition('calendar', { commitDailyResult: true })
 
     function recordDailyResult() {
-      const trades = gameState.sessionTrades ?? 0
-      const wins = gameState.sessionWins ?? 0
+      const closedState = computeDailyCloseState(gameState)
+
       dispatch({ type: ACTIONS.RECORD_DAY })
 
-      const bonusExp = calculateDailyBonus(trades, wins)
+      const bonusExp = closedState.exp - gameState.exp
       if (bonusExp > 0) {
         dispatch({ type: ACTIONS.ADD_EXP, payload: { amount: bonusExp } })
       }
 
-      const updatedExp = gameState.exp + bonusExp
-      const levelResult = checkLevelUp(gameState.level, updatedExp)
-      if (levelResult) {
-        const newFeatures = levelResult.unlocks.flatMap(e => e.features)
+      if (closedState.level !== gameState.level) {
+        const newFeatures = closedState.unlockedFeatures.filter(
+          f => !gameState.unlockedFeatures.includes(f),
+        )
         dispatch({
           type: ACTIONS.LEVEL_UP,
           payload: {
-            level: levelResult.newLevel,
+            level: closedState.level,
             newFeatures,
-            maxLeverage: getMaxLeverage(levelResult.newLevel),
-            lastLevelUp: levelResult,
+            maxLeverage: closedState.maxLeverage,
+            lastLevelUp: closedState.lastLevelUp!,
           },
         })
       }
@@ -294,18 +295,16 @@ export function useGameFlow(): UseGameFlowReturn {
           anomalyInfo,
         },
       })
-      dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'monthlyReport' } })
+      saveAndTransition('monthlyReport', { commitDailyResult: true })
       return true
     }
-  }, [dispatch, gameState])
+  }, [dispatch, gameState, saveAndTransition])
 
   const closeWeekend = useCallback(() => {
-    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
-  }, [dispatch])
+    saveAndTransition('calendar')
+  }, [saveAndTransition])
 
   const closeMonthlyReport = useCallback(() => {
-    SaveSystem.save(gameState as any)
-
     const date = gameState.currentDate ? parseLocalDate(gameState.currentDate) : null
     if (date && date.getMonth() === 11) {
       const cal = calendarRef.current
@@ -323,16 +322,15 @@ export function useGameFlow(): UseGameFlowReturn {
           yearPreview,
         },
       })
-      dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'yearlyReport' } })
+      saveAndTransition('yearlyReport')
     } else {
-      dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
+      saveAndTransition('calendar')
     }
-  }, [dispatch, gameState])
+  }, [dispatch, gameState, saveAndTransition])
 
   const closeYearlyReport = useCallback(() => {
-    SaveSystem.save(gameState as any)
-    dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'calendar' } })
-  }, [dispatch, gameState])
+    saveAndTransition('calendar')
+  }, [saveAndTransition])
 
   const returnToTitle = useCallback(() => {
     dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'title' } })
@@ -385,7 +383,7 @@ function flattenSaveData(data: SaveData): Partial<GameState> {
     totalTrades: data.stats?.totalTrades ?? 0,
     totalWins: data.stats?.totalWins ?? 0,
     totalPnL: data.stats?.lifetimePnl ?? 0,
-    dailyHistory: (data.stats?.dailyHistory ?? []) as any,
+    dailyHistory: data.stats?.dailyHistory ?? [],
     speed: data.settings?.speed ?? 1,
     timeframe: (data.settings?.timeframe ?? 1) as GameState['timeframe'],
   }
