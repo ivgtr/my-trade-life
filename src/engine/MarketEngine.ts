@@ -201,7 +201,6 @@ export class MarketEngine {
    * 全ショック成分は現在価格に比例する。
    */
   #updatePrice(): void {
-    const prevPrice = this.#currentPrice
     const timeZone = this.#getTimeZone(this.#gameTime)
     const todParams = TIME_OF_DAY[timeZone]
     const phase = this.#getCurrentPhase()
@@ -250,7 +249,7 @@ export class MarketEngine {
 
     // tick内high/low推定
     const effectiveVol = this.#currentPrice * PRICE_MOVE.sdPct * combinedVolMult
-    const { high, low } = this.#estimateTickHighLow(prevPrice, newPrice, effectiveVol)
+    const { high, low } = this.#estimateTickHighLow(newPrice, effectiveVol)
     this.#lastTickHigh = high
     this.#lastTickLow = low
 
@@ -260,14 +259,12 @@ export class MarketEngine {
     this.#momentum = Math.max(-maxMom, Math.min(maxMom, this.#momentum))
   }
 
-  /** tick間の経路上の推定高値/安値をブラウンブリッジ的に推定する。 */
-  #estimateTickHighLow(prevPrice: number, newPrice: number, effectiveVol: number): { high: number; low: number } {
-    const maxP = Math.max(prevPrice, newPrice)
-    const minP = Math.min(prevPrice, newPrice)
+  /** tick内の推定高値/安値を現在価格中心に対称に生成する。 */
+  #estimateTickHighLow(newPrice: number, effectiveVol: number): { high: number; low: number } {
     const overshoot = Math.abs(gaussRandom()) * effectiveVol * 0.5
     return {
-      high: roundPrice(maxP + overshoot),
-      low: roundPrice(minP - overshoot),
+      high: roundPrice(newPrice + overshoot),
+      low: roundPrice(newPrice - overshoot),
     }
   }
 

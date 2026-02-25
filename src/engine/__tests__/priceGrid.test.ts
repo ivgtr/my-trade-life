@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { TICK_UNIT, roundToTick, floorToTick, ceilToTick, roundPrice } from '../priceGrid'
 import { MarketEngine } from '../MarketEngine'
 import { TradingEngine } from '../TradingEngine'
@@ -84,16 +84,17 @@ describe('TICK_UNIT', () => {
 // ─── MarketEngine 統合テスト ───
 
 describe('MarketEngine 5円刻み', () => {
-  beforeEach(() => {
+  const collectedTicks: TickData[] = []
+
+  beforeAll(() => {
     vi.useFakeTimers()
-  })
+    // 決定論的乱数（線形合同法）
+    let seed = 42
+    vi.spyOn(Math, 'random').mockImplementation(() => {
+      seed = (seed * 1664525 + 1013904223) >>> 0
+      return seed / 0x100000000
+    })
 
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('全tickのprice/high/lowが5の倍数である', () => {
-    const collectedTicks: TickData[] = []
     const config: MarketEngineConfig = {
       openPrice: 30000,
       regimeParams: { drift: 0, volMult: 1.0, regime: 'range' },
@@ -105,13 +106,16 @@ describe('MarketEngine 5円刻み', () => {
 
     const engine = new MarketEngine(config)
     engine.start()
-
-    // 十分な数のtickを生成する
-    for (let i = 0; i < 200; i++) {
-      vi.advanceTimersByTime(10)
-    }
+    for (let i = 0; i < 200; i++) vi.advanceTimersByTime(10)
     engine.stop()
+  })
 
+  afterAll(() => {
+    vi.restoreAllMocks()
+    vi.useRealTimers()
+  })
+
+  it('全tickのprice/high/lowが5の倍数である', () => {
     expect(collectedTicks.length).toBeGreaterThan(0)
 
     for (const tick of collectedTicks) {
@@ -120,6 +124,14 @@ describe('MarketEngine 5円刻み', () => {
       expect(tick.low % TICK_UNIT).toBe(0)
       expect(tick.price).toBeGreaterThanOrEqual(10)
       expect(tick.low).toBeGreaterThanOrEqual(10)
+    }
+  })
+
+  it('tickのhigh/lowがprice中心に対称であること（前tick依存がないことの検証）', () => {
+    for (const tick of collectedTicks) {
+      const upperWick = tick.high - tick.price
+      const lowerWick = tick.price - tick.low
+      expect(Math.abs(upperWick - lowerWick)).toBeLessThanOrEqual(TICK_UNIT)
     }
   })
 })
