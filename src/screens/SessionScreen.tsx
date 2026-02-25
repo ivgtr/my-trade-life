@@ -180,20 +180,19 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
         </div>
 
         <div className="flex-1 min-h-0 overflow-hidden relative">
-          {mobileTab === 'chart' ? (
-            <>
-              <Chart ref={chartRef} autoSize timeframe={timeframe} />
-              <ChartControls
-                layout="leftMenu"
-                timeframe={timeframe}
-                onTimeframeChange={handleTimeframeChange}
-                maVisible={maVisible}
-                onMAToggle={handleMAToggle}
-              />
-            </>
-          ) : (
+          <div className={mobileTab === 'chart' ? 'w-full h-full' : 'hidden'}>
+            <Chart ref={chartRef} autoSize timeframe={timeframe} />
+            <ChartControls
+              layout="leftMenu"
+              timeframe={timeframe}
+              onTimeframeChange={handleTimeframeChange}
+              maVisible={maVisible}
+              onMAToggle={handleMAToggle}
+            />
+          </div>
+          <div className={mobileTab === 'ticker' ? 'w-full h-full overflow-y-auto' : 'hidden'}>
             <TickerTape ticks={ticks} maxDisplay={50} compact />
-          )}
+          </div>
         </div>
 
         <TradePanel
