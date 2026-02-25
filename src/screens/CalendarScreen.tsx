@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { useGameContext } from '../hooks/useGameContext'
+import { ACTIONS } from '../state/actions'
 import { AudioSystem } from '../systems/AudioSystem'
 import MonthlyPnLChart from '../components/MonthlyPnLChart'
+import LevelUpOverlay from '../components/LevelUpOverlay'
 import { formatDate, formatCurrency, parseLocalDate } from '../utils/formatUtils'
 import { buildMonthlySummary } from '../utils/calendarSummary'
 import { EXP_TABLE, MAX_LEVEL } from '../engine/GrowthSystem'
@@ -11,7 +13,12 @@ interface CalendarScreenProps {
 }
 
 export default function CalendarScreen({ onAdvance }: CalendarScreenProps) {
-  const { gameState } = useGameContext()
+  const { gameState, dispatch } = useGameContext()
+  const lastLevelUp = gameState.lastLevelUp ?? null
+
+  const handleDismissLevelUp = () => {
+    dispatch({ type: ACTIONS.CLEAR_LEVEL_UP })
+  }
 
   useEffect(() => {
     AudioSystem.playSE('calendarFlip')
@@ -94,6 +101,8 @@ export default function CalendarScreen({ onAdvance }: CalendarScreenProps) {
           </button>
         </>
       )}
+
+      {lastLevelUp && <LevelUpOverlay levelUp={lastLevelUp} onDismiss={handleDismissLevelUp} />}
     </div>
   )
 }

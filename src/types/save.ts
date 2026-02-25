@@ -52,5 +52,4 @@ export interface SaveData {
   stats: SaveStats
   settings: SaveSettings
   _regimeState?: Record<string, unknown> | null
-  _growthState?: { level: number; exp: number; unlockedFeatures: string[] } | null
 }

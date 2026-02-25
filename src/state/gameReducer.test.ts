@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { gameReducer, initialState } from './gameReducer'
 import { ACTIONS } from '../types/game'
 import type { GameState } from '../types/game'
+import type { LevelUpResult } from '../types/growth'
 
 function makeState(overrides: Partial<GameState> = {}): GameState {
   return { ...initialState, balance: 1_000_000, currentDate: '2025-04-07', ...overrides }
@@ -95,5 +96,77 @@ describe('gameReducer — 損益集計の整合性', () => {
     expect(state.sessionPnL).toBe(0)
     expect(state.sessionTrades).toBe(0)
     expect(state.sessionWins).toBe(0)
+  })
+})
+
+describe('gameReducer — LEVEL_UP / CLEAR_LEVEL_UP', () => {
+  const sampleLevelUp: LevelUpResult = {
+    newLevel: 3,
+    unlocks: [
+      { level: 2, features: ['dailySentimentIcon'], leverage: null, label: '地合いアイコン表示' },
+      { level: 3, features: ['dailySentimentValue'], leverage: 2, label: '地合い実強度数値' },
+    ],
+  }
+
+  it('LEVEL_UP で newFeatures が既存 unlockedFeatures にマージされる', () => {
+    const state = makeState({ unlockedFeatures: ['existingFeature'], level: 1, maxLeverage: 1 })
+    const result = gameReducer(state, {
+      type: ACTIONS.LEVEL_UP,
+      payload: {
+        level: 3,
+        newFeatures: ['dailySentimentIcon', 'dailySentimentValue'],
+        maxLeverage: 2,
+        lastLevelUp: sampleLevelUp,
+      },
+    })
+    expect(result.level).toBe(3)
+    expect(result.unlockedFeatures).toContain('existingFeature')
+    expect(result.unlockedFeatures).toContain('dailySentimentIcon')
+    expect(result.unlockedFeatures).toContain('dailySentimentValue')
+    expect(result.maxLeverage).toBe(2)
+  })
+
+  it('LEVEL_UP で lastLevelUp が保存される', () => {
+    const state = makeState()
+    const result = gameReducer(state, {
+      type: ACTIONS.LEVEL_UP,
+      payload: {
+        level: 3,
+        newFeatures: ['dailySentimentIcon', 'dailySentimentValue'],
+        maxLeverage: 2,
+        lastLevelUp: sampleLevelUp,
+      },
+    })
+    expect(result.lastLevelUp).toEqual(sampleLevelUp)
+  })
+
+  it('LEVEL_UP で重複 features が除去される', () => {
+    const state = makeState({ unlockedFeatures: ['dailySentimentIcon'] })
+    const result = gameReducer(state, {
+      type: ACTIONS.LEVEL_UP,
+      payload: {
+        level: 2,
+        newFeatures: ['dailySentimentIcon'],
+        maxLeverage: 1,
+        lastLevelUp: { newLevel: 2, unlocks: [] },
+      },
+    })
+    const count = result.unlockedFeatures.filter(f => f === 'dailySentimentIcon').length
+    expect(count).toBe(1)
+  })
+
+  it('CLEAR_LEVEL_UP で lastLevelUp が null になる', () => {
+    const state = makeState({ lastLevelUp: sampleLevelUp })
+    const result = gameReducer(state, { type: ACTIONS.CLEAR_LEVEL_UP })
+    expect(result.lastLevelUp).toBeNull()
+  })
+
+  it('LOAD_GAME で lastLevelUp がクリアされる', () => {
+    const state = makeState({ lastLevelUp: sampleLevelUp })
+    const result = gameReducer(state, {
+      type: ACTIONS.LOAD_GAME,
+      payload: { gameState: { balance: 2000000 } },
+    })
+    expect(result.lastLevelUp).toBeNull()
   })
 })

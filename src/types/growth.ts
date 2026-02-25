@@ -1,15 +1,11 @@
-export interface LevelUpResult {
-  newLevel: number
-  newFeatures: string[]
-  newLeverage: number | null
+export interface LevelUpEntry {
+  level: number
+  features: string[]
+  leverage: number | null
   label: string
 }
 
-export interface ExpBonus {
-  baseExp: number
-  bonusExp: number
-  totalExp: number
-  winRate: number
-  trades: number
-  wins: number
+export interface LevelUpResult {
+  newLevel: number
+  unlocks: LevelUpEntry[]
 }

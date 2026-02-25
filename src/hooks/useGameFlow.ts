@@ -3,7 +3,7 @@ import { useGameContext } from './useGameContext'
 import { ACTIONS } from '../state/actions'
 import { CalendarSystem } from '../engine/CalendarSystem'
 import { MacroRegimeManager } from '../engine/MacroRegimeManager'
-import { GrowthSystem } from '../engine/GrowthSystem'
+import { calculateDailyBonus, checkLevelUp, getMaxLeverage } from '../engine/GrowthSystem'
 import { NewsSystem } from '../engine/NewsSystem'
 import { TradingEngine } from '../engine/TradingEngine'
 import { calcGap } from '../engine/marketParams'
@@ -40,7 +40,6 @@ export function useGameFlow(): UseGameFlowReturn {
 
   const calendarRef = useRef<CalendarSystem | null>(null)
   const regimeRef = useRef<MacroRegimeManager | null>(null)
-  const growthRef = useRef<GrowthSystem | null>(null)
   const newsRef = useRef<NewsSystem | null>(null)
 
   const startNewGame = useCallback(() => {
@@ -51,9 +50,6 @@ export function useGameFlow(): UseGameFlowReturn {
     const regime = new MacroRegimeManager()
     regime.initializeFirstQuarter()
     regimeRef.current = regime
-
-    const growth = new GrowthSystem()
-    growthRef.current = growth
 
     const newsSystem = new NewsSystem({
       currentRegime: regime.getRegimeParams().regime,
@@ -83,9 +79,6 @@ export function useGameFlow(): UseGameFlowReturn {
     const regime = new MacroRegimeManager((data._regimeState as any) ?? null)
     if (!data._regimeState) regime.initializeFirstQuarter()
     regimeRef.current = regime
-
-    const growth = new GrowthSystem((data._growthState as any) ?? null)
-    growthRef.current = growth
 
     const newsSystem = new NewsSystem({
       currentRegime: regime.getRegimeParams().regime,
@@ -125,8 +118,7 @@ export function useGameFlow(): UseGameFlowReturn {
 
     function handleWeekday(d: Date) {
       const regime = regimeRef.current
-      const growth = growthRef.current
-      const level = growth?.getLevel?.() ?? gameState.level ?? 1
+      const level = gameState.level ?? 1
 
       const dailyCondition = regime?.generateDailyCondition(level)
       const regimeParams = regime?.getRegimeParams()
@@ -248,23 +240,24 @@ export function useGameFlow(): UseGameFlowReturn {
       const wins = gameState.sessionWins ?? 0
       dispatch({ type: ACTIONS.RECORD_DAY })
 
-      const growth = growthRef.current
-      if (growth) {
-        const bonus = growth.addDailyBonus(trades, wins)
-        if (bonus.totalExp > 0) {
-          dispatch({ type: ACTIONS.ADD_EXP, payload: { amount: bonus.totalExp } })
-        }
-        const levelResult = growth.checkLevelUp()
-        if (levelResult) {
-          dispatch({
-            type: ACTIONS.LEVEL_UP,
-            payload: {
-              level: levelResult.newLevel,
-              unlockedFeatures: levelResult.newFeatures,
-              maxLeverage: levelResult.newLeverage ?? gameState.maxLeverage,
-            },
-          })
-        }
+      const bonusExp = calculateDailyBonus(trades, wins)
+      if (bonusExp > 0) {
+        dispatch({ type: ACTIONS.ADD_EXP, payload: { amount: bonusExp } })
+      }
+
+      const updatedExp = gameState.exp + bonusExp
+      const levelResult = checkLevelUp(gameState.level, updatedExp)
+      if (levelResult) {
+        const newFeatures = levelResult.unlocks.flatMap(e => e.features)
+        dispatch({
+          type: ACTIONS.LEVEL_UP,
+          payload: {
+            level: levelResult.newLevel,
+            newFeatures,
+            maxLeverage: getMaxLeverage(levelResult.newLevel),
+            lastLevelUp: levelResult,
+          },
+        })
       }
     }
 

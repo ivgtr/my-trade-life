@@ -2,6 +2,7 @@ import type { Position } from './trading'
 import type { Timeframe, DailyCondition, RegimeParams, AnomalyParams, MonthPreview, YearPreviewEntry, GapResult } from './market'
 import type { DayHistoryEntry, MonthlyStats, YearlyStats } from './calendar'
 import type { PreviewEvent, WeekendNews } from './news'
+import type { LevelUpResult } from './growth'
 
 export type GamePhase =
   | 'title'
@@ -67,6 +68,8 @@ export interface GameState {
   gapResult?: GapResult | null
   overnightSettled?: boolean
   overnightPnL?: number
+  // レベルアップ結果（UI表示用、永続化不要）
+  lastLevelUp?: LevelUpResult | null
   // LOAD_GAME で復元される追加フィールド
   year?: number
   debt?: number
@@ -95,6 +98,7 @@ export const ACTIONS = {
   GAME_OVER: 'GAME_OVER',
   BILLIONAIRE: 'BILLIONAIRE',
   ENTER_ENDLESS: 'ENTER_ENDLESS',
+  CLEAR_LEVEL_UP: 'CLEAR_LEVEL_UP',
 } as const
 
 export type ActionType = typeof ACTIONS[keyof typeof ACTIONS]
@@ -113,7 +117,8 @@ export type GameAction =
   | { type: typeof ACTIONS.ADVANCE_DAY; payload: { date: string } }
   | { type: typeof ACTIONS.RECORD_DAY }
   | { type: typeof ACTIONS.ADD_EXP; payload: { amount: number } }
-  | { type: typeof ACTIONS.LEVEL_UP; payload: { level: number; unlockedFeatures: string[]; maxLeverage: number } }
+  | { type: typeof ACTIONS.LEVEL_UP; payload: { level: number; newFeatures: string[]; maxLeverage: number; lastLevelUp: LevelUpResult } }
+  | { type: typeof ACTIONS.CLEAR_LEVEL_UP }
   | { type: typeof ACTIONS.SET_SPEED; payload: { speed: number } }
   | { type: typeof ACTIONS.SET_TIMEFRAME; payload: { timeframe: Timeframe } }
   | { type: typeof ACTIONS.GAME_OVER }

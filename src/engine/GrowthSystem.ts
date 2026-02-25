@@ -1,7 +1,4 @@
-import type { LevelUpResult, ExpBonus } from '../types/growth'
-
-/** 1トレード完了ごとに付与する基礎経験値 */
-const BASE_EXP_PER_TRADE = 10
+import type { LevelUpResult, LevelUpEntry } from '../types/growth'
 
 /** 日次ボーナスの取引回数逓減しきい値（これを超えると1回あたりのボーナスが減少） */
 const DIMINISHING_THRESHOLD = 10
@@ -73,158 +70,73 @@ const UNLOCK_TABLE: Record<number, UnlockEntry> = {
   },
 }
 
-/** レベルごとの最大信用倍率（UNLOCK_TABLEから算出済み） */
-const LEVERAGE_BY_LEVEL: Record<number, number> = { 1: 1, 2: 1, 3: 2, 4: 3, 5: 3.3, 6: 3.3, 7: 3.3, 8: 3.3 }
+/** レベルごとの最大信用倍率（UNLOCK_TABLEから自動導出） */
+const DEFAULT_LEVERAGE = 1
+const LEVERAGE_BY_LEVEL: Record<number, number> = (() => {
+  const map: Record<number, number> = { 1: DEFAULT_LEVERAGE }
+  let current = DEFAULT_LEVERAGE
+  for (let lv = 2; lv <= MAX_LEVEL; lv++) {
+    const entry = UNLOCK_TABLE[lv]
+    if (entry?.leverage != null) current = entry.leverage
+    map[lv] = current
+  }
+  return map
+})()
 
-interface GrowthState {
-  level: number
-  exp: number
-  unlockedFeatures: string[]
+/**
+ * 日次ボーナス経験値を計算する。
+ * 勝率 × 取引回数から算出し、回数逓減を適用する。
+ */
+export function calculateDailyBonus(trades: number, wins: number): number {
+  const winRate = trades > 0 ? wins / trades : 0
+
+  let effectiveTrades: number
+  if (trades <= DIMINISHING_THRESHOLD) {
+    effectiveTrades = trades
+  } else {
+    effectiveTrades = DIMINISHING_THRESHOLD + Math.sqrt(trades - DIMINISHING_THRESHOLD)
+  }
+
+  return Math.floor(winRate * effectiveTrades * BONUS_EXP_PER_TRADE)
 }
 
 /**
- * プレイヤーの成長（経験値・レベル・機能解放）を管理するクラス。
- * トレード完了時の基礎経験値付与、日次ボーナス経験値、
- * レベルアップ判定・機能解放・レバレッジ段階解放を担う。
+ * レベルアップ判定を行う。
+ * 複数レベル同時に上がる場合は全てのレベルの解放情報を返す。
+ * レベル変化なしの場合は null を返す。
  */
-export class GrowthSystem {
-  #level: number
-  #exp: number
-  #unlockedFeatures: Set<string>
-  #dailyBaseExp: number
+export function checkLevelUp(currentLevel: number, currentExp: number): LevelUpResult | null {
+  if (currentLevel >= MAX_LEVEL) return null
 
-  constructor(state: GrowthState | null = null) {
-    if (state) {
-      this.#level = state.level
-      this.#exp = state.exp
-      this.#unlockedFeatures = new Set(state.unlockedFeatures || [])
-    } else {
-      this.#level = 1
-      this.#exp = 0
-      this.#unlockedFeatures = new Set()
-    }
-    this.#dailyBaseExp = 0
-  }
+  let level = currentLevel
+  const unlocks: LevelUpEntry[] = []
 
-  /** トレード完了時に基礎経験値を付与する（勝敗問わず）。 */
-  addTradeExp(): number {
-    this.#exp += BASE_EXP_PER_TRADE
-    this.#dailyBaseExp += BASE_EXP_PER_TRADE
-    return BASE_EXP_PER_TRADE
-  }
-
-  /**
-   * 日次ボーナス経験値を計算・付与する。
-   * 勝率 × 取引回数から算出し、回数逓減を適用する。
-   */
-  addDailyBonus(trades: number, wins: number): ExpBonus {
-    const winRate = trades > 0 ? wins / trades : 0
-
-    let effectiveTrades: number
-    if (trades <= DIMINISHING_THRESHOLD) {
-      effectiveTrades = trades
-    } else {
-      // しきい値超過分は平方根で逓減
-      const excess = trades - DIMINISHING_THRESHOLD
-      effectiveTrades = DIMINISHING_THRESHOLD + Math.sqrt(excess)
-    }
-
-    const bonusExp = Math.floor(winRate * effectiveTrades * BONUS_EXP_PER_TRADE)
-    this.#exp += bonusExp
-
-    const result: ExpBonus = {
-      baseExp: this.#dailyBaseExp,
-      bonusExp,
-      totalExp: this.#dailyBaseExp + bonusExp,
-      winRate,
-      trades,
-      wins,
-    }
-
-    // 日次カウンタをリセット
-    this.#dailyBaseExp = 0
-
-    return result
-  }
-
-  /**
-   * レベルアップ判定を行い、条件を満たしていればレベルを上げて機能を解放する。
-   * 複数レベル同時に上がる場合は最終レベルの結果を返す。
-   */
-  checkLevelUp(): LevelUpResult | null {
-    if (this.#level >= MAX_LEVEL) {
-      return null
-    }
-
-    let result: LevelUpResult | null = null
-
-    while (this.#level < MAX_LEVEL) {
-      const nextLevel = this.#level + 1
-      const requiredExp = EXP_TABLE[nextLevel]
-
-      if (this.#exp < requiredExp) {
-        break
-      }
-
-      this.#level = nextLevel
-      const unlock = UNLOCK_TABLE[nextLevel]
-
-      if (unlock) {
-        for (const feature of unlock.features) {
-          this.#unlockedFeatures.add(feature)
-        }
-
-        result = {
-          newLevel: nextLevel,
-          newFeatures: [...unlock.features],
-          newLeverage: unlock.leverage,
-          label: unlock.label,
-        }
-      }
-    }
-
-    return result
-  }
-
-  /** 現在のレベルを返す。 */
-  getLevel(): number {
-    return this.#level
-  }
-
-  /** 現在の累計経験値を返す。 */
-  getExp(): number {
-    return this.#exp
-  }
-
-  /** 次のレベルに必要な経験値を返す。最大レベルの場合はnull。 */
-  getExpToNextLevel(): number | null {
-    if (this.#level >= MAX_LEVEL) {
-      return null
-    }
-    return EXP_TABLE[this.#level + 1]
-  }
-
-  /** 現在のレベルに応じた最大レバレッジ倍率を返す。 */
-  getMaxLeverage(): number {
-    return LEVERAGE_BY_LEVEL[this.#level] || 1
-  }
-
-  /** 解放済み機能ID一覧を返す。 */
-  getUnlockedFeatures(): string[] {
-    return [...this.#unlockedFeatures]
-  }
-
-  /** 指定機能が解放済みかチェックする。 */
-  isUnlocked(featureId: string): boolean {
-    return this.#unlockedFeatures.has(featureId)
-  }
-
-  /** 状態をシリアライズして返す。復元用。 */
-  serialize(): GrowthState {
-    return {
-      level: this.#level,
-      exp: this.#exp,
-      unlockedFeatures: [...this.#unlockedFeatures],
+  while (level < MAX_LEVEL) {
+    const next = level + 1
+    if (currentExp < EXP_TABLE[next]) break
+    level = next
+    const entry = UNLOCK_TABLE[next]
+    if (entry) {
+      unlocks.push({
+        level: next,
+        features: [...entry.features],
+        leverage: entry.leverage,
+        label: entry.label,
+      })
     }
   }
+
+  if (level === currentLevel) return null
+  return { newLevel: level, unlocks }
+}
+
+/** 指定レベルに応じた最大レバレッジ倍率を返す。 */
+export function getMaxLeverage(level: number): number {
+  return LEVERAGE_BY_LEVEL[level] ?? DEFAULT_LEVERAGE
+}
+
+/** 次のレベルに必要な経験値を返す。最大レベルの場合はnull。 */
+export function getExpToNextLevel(level: number): number | null {
+  if (level >= MAX_LEVEL) return null
+  return EXP_TABLE[level + 1]
 }

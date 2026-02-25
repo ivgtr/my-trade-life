@@ -1,5 +1,6 @@
 import { ACTIONS } from '../types/game'
 import type { GameState, GameAction } from '../types/game'
+import type { LevelUpResult } from '../types/growth'
 
 export const initialState: GameState = {
   phase: 'title',
@@ -33,6 +34,7 @@ export const initialState: GameState = {
   gapResult: null,
   overnightSettled: false,
   overnightPnL: 0,
+  lastLevelUp: null,
 }
 
 const MAX_HISTORY = 366
@@ -56,7 +58,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case ACTIONS.LOAD_GAME:
-      return { ...state, ...(payload as { gameState: Partial<GameState> }).gameState }
+      return { ...state, ...(payload as { gameState: Partial<GameState> }).gameState, lastLevelUp: null }
 
     case ACTIONS.START_SESSION:
       return {
@@ -203,14 +205,18 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, exp: state.exp + (payload as { amount: number }).amount }
 
     case ACTIONS.LEVEL_UP: {
-      const p = payload as { level: number; unlockedFeatures: string[]; maxLeverage: number }
+      const p = payload as { level: number; newFeatures: string[]; maxLeverage: number; lastLevelUp: LevelUpResult }
       return {
         ...state,
         level: p.level,
-        unlockedFeatures: p.unlockedFeatures,
+        unlockedFeatures: [...new Set([...state.unlockedFeatures, ...p.newFeatures])],
         maxLeverage: p.maxLeverage,
+        lastLevelUp: p.lastLevelUp,
       }
     }
+
+    case ACTIONS.CLEAR_LEVEL_UP:
+      return { ...state, lastLevelUp: null }
 
     case ACTIONS.SET_SPEED:
       return { ...state, speed: (payload as { speed: number }).speed === 2 ? 2 : 1 }

@@ -13,6 +13,6 @@ export type {
 export { ACTIONS } from './game'
 export type { DayRecord, DayHistoryEntry, MonthlyStats, YearlyStats } from './calendar'
 export type { NewsEvent, PreviewEvent, WeekendNews } from './news'
-export type { LevelUpResult, ExpBonus } from './growth'
+export type { LevelUpResult, LevelUpEntry } from './growth'
 export type { ImportResult, SaveData, SaveProgress, SaveStats, SaveSettings, SaveMeta } from './save'
 export type { BGMSceneId, SEId } from './audio'
