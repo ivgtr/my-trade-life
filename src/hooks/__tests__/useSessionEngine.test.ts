@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createElement, useEffect, useRef } from 'react'
+import { createElement, useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import { ACTIONS } from '../../state/actions'
@@ -173,7 +173,7 @@ describe('useSessionEngine — re-render でエンジン再初期化されない
     const rerenderRef = { current: () => {} }
 
     function WrapperComponent() {
-      const [, setState] = require('react').useState(0)
+      const [, setState] = useState(0)
       useEffect(() => {
         rerenderRef.current = () => setState((c: number) => c + 1)
       })
