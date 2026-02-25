@@ -44,6 +44,23 @@ function ArrowsIcon() {
   )
 }
 
+function ScaleIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v18" />
+      <path d="M5 7l7-4 7 4" />
+      <path d="M3 13a4 4 0 0 0 4 4" />
+      <path d="M7 17a4 4 0 0 0 4-4" />
+      <circle cx="5" cy="13" r="4" fill="none" />
+      <path d="M17 13a4 4 0 0 0-4 4" />
+      <path d="M21 13a4 4 0 0 1-4 4" />
+      <circle cx="19" cy="13" r="4" fill="none" />
+      <path d="M2 11l6 4" />
+      <path d="M16 11l6 4" />
+    </svg>
+  )
+}
+
 function MusicIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -129,6 +146,14 @@ export default function TitleScreen({ onNewGame, onLoadGame }: TitleScreenProps)
         >
           <span className="text-text-secondary"><MusicIcon /></span>
           <span className="text-base">BGM Theater</span>
+        </button>
+        <div className="h-px bg-bg-button" />
+        <button
+          className={`${menuItemBase} text-text-primary hover:bg-bg-elevated`}
+          onClick={() => dispatch({ type: ACTIONS.SET_PHASE, payload: { phase: 'license' } })}
+        >
+          <span className="text-text-secondary"><ScaleIcon /></span>
+          <span className="text-base">License</span>
         </button>
       </div>
 

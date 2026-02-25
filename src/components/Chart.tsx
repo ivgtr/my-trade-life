@@ -30,6 +30,7 @@ export interface ChartHandle {
 
 const CHART_OPTIONS = {
   layout: {
+    attributionLogo: false,
     background: { color: '#1a1a2e' },
     textColor: '#a0a0b0',
   },

@@ -19,6 +19,7 @@ export type GamePhase =
   | 'gameOver'
   | 'billionaire'
   | 'bgmTheater'
+  | 'license'
 
 export interface GameState {
   phase: GamePhase

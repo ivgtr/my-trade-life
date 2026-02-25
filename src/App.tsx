@@ -19,6 +19,7 @@ import GameOverScreen from './screens/GameOverScreen'
 import BillionaireScreen from './screens/BillionaireScreen'
 import ClosingScreen from './screens/ClosingScreen'
 import BGMTheaterScreen from './screens/BGMTheaterScreen'
+import LicenseScreen from './screens/LicenseScreen'
 import ImportExportModal from './components/ImportExportModal'
 import AudioPermissionModal from './components/AudioPermissionModal'
 
@@ -74,6 +75,9 @@ function AppContent() {
 
       case 'bgmTheater':
         return <BGMTheaterScreen />
+
+      case 'license':
+        return <LicenseScreen />
 
       case 'calendar':
         return <CalendarScreen onAdvance={flow.advanceFromCalendar} />
