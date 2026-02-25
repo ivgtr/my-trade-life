@@ -179,7 +179,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
 
         <div className="flex-1 min-h-0 overflow-hidden">
           {mobileTab === 'chart' ? (
-            <Chart ref={chartRef} autoSize />
+            <Chart ref={chartRef} autoSize timeframe={timeframe} />
           ) : (
             <TickerTape ticks={ticks} maxDisplay={50} compact />
           )}
@@ -227,7 +227,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
         </div>
 
         <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
-          <Chart ref={chartRef} autoSize />
+          <Chart ref={chartRef} autoSize timeframe={timeframe} />
         </div>
 
         <div className="w-75 shrink-0 overflow-y-auto overflow-x-hidden border-l border-bg-elevated">

@@ -13,6 +13,7 @@ interface ChartProps {
   autoSize?: boolean
   width?: number | string
   height?: number | string
+  timeframe: Timeframe
 }
 
 export interface ChartHandle {
@@ -47,12 +48,12 @@ const CHART_OPTIONS = {
   },
 }
 
-const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = true, width, height }, ref) {
+const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = true, width, height, timeframe }, ref) {
   const containerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null)
   const seriesRef = useRef<ReturnType<ReturnType<typeof createChart>['addSeries']> | null>(null)
   const currentBarRef = useRef<CandlestickData | null>(null)
-  const timeframeRef = useRef<Timeframe>(1)
+  const timeframeRef = useRef<Timeframe>(timeframe)
   const intervalRef = useRef<number>(0)
   const gridPrimitiveRef = useRef<IntervalGridPrimitive | null>(null)
 

@@ -92,7 +92,7 @@ describe('Chart updateTick', () => {
     document.body.appendChild(container)
 
     await act(() => {
-      createRoot(container).render(<Chart ref={ref} autoSize={false} width={800} height={400} />)
+      createRoot(container).render(<Chart ref={ref} autoSize={false} width={800} height={400} timeframe={1} />)
     })
   })
 
@@ -171,7 +171,7 @@ describe('Chart 動的ラベル間隔（ハンドラ経路）', () => {
     document.body.appendChild(container)
 
     await act(() => {
-      createRoot(container).render(<Chart ref={ref} autoSize={false} width={800} height={400} />)
+      createRoot(container).render(<Chart ref={ref} autoSize={false} width={800} height={400} timeframe={1} />)
     })
   })
 
@@ -246,7 +246,7 @@ describe('Chart setTimeframe経路', () => {
     document.body.appendChild(container)
 
     await act(() => {
-      createRoot(container).render(<Chart ref={ref} autoSize={false} width={800} height={400} />)
+      createRoot(container).render(<Chart ref={ref} autoSize={false} width={800} height={400} timeframe={1} />)
     })
   })
 
@@ -285,5 +285,28 @@ describe('Chart setTimeframe経路', () => {
 
     // tf=15 totalBars=24 → computeGridInterval(15, 24) = 30 ≠ 5 → 更新される
     expect(mockGridSetInterval).toHaveBeenCalledWith(30)
+  })
+})
+
+describe('Chart 初期timeframe props反映', () => {
+  it('timeframe=5で初期化 → 5分足タイムラインでsetDataが呼ばれる', async () => {
+    mockSetData.mockClear()
+
+    const { default: Chart } = await import('../Chart')
+    const ref = createRef<ChartHandle>()
+    const container = document.createElement('div')
+    Object.defineProperty(container, 'clientWidth', { value: 800 })
+    Object.defineProperty(container, 'clientHeight', { value: 400 })
+    document.body.appendChild(container)
+
+    await act(() => {
+      createRoot(container).render(<Chart ref={ref} autoSize={false} width={800} height={400} timeframe={5} />)
+    })
+
+    const data = mockSetData.mock.calls[mockSetData.mock.calls.length - 1][0]
+    // 5分足: 09:00(32400), 09:05(32700), ... → 間隔300秒
+    expect(data[1].time - data[0].time).toBe(300)
+    // 5分足のbar数はtf=1の332本より大幅に少ない
+    expect(data.length).toBeLessThan(332)
   })
 })
