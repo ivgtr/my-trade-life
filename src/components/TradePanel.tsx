@@ -188,13 +188,14 @@ function DesktopTradePanel({
   onCloseAll,
   onSetSLTP,
 }: DesktopTradePanelProps) {
-  const addShares = (amount: number) => setShares((prev) => Math.max(1, prev + amount))
+  const addShares = (amount: number) => setShares((prev) => Math.max(0, prev + amount))
   const maxShares = currentPrice > 0 ? Math.floor(buyingPower / currentPrice) : 0
 
   const orderAmount = shares * currentPrice
   const requiredMargin = maxLeverage > 0 ? shares * currentPrice / maxLeverage : orderAmount
   const remainingCash = availableCash - requiredMargin
   const isInsufficient = requiredMargin > availableCash
+  const canOrder = shares > 0 && !isInsufficient
 
   const totalPositionPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnL ?? 0), 0)
 
@@ -224,9 +225,9 @@ function DesktopTradePanel({
         <span className="text-xs text-text-secondary min-w-[52px]">株数</span>
         <input
           type="number"
-          min="1"
+          min="0"
           value={shares}
-          onChange={(e) => setShares(Math.max(1, parseInt(e.target.value, 10) || 1))}
+          onChange={(e) => setShares(Math.max(0, parseInt(e.target.value, 10) || 0))}
           className="bg-bg-elevated text-text-primary border border-bg-button rounded py-1.5 px-2 text-sm w-20 text-right"
         />
       </div>
@@ -237,7 +238,7 @@ function DesktopTradePanel({
         <button className="py-1 px-2.5 bg-bg-elevated text-text-primary border border-bg-button rounded text-xs cursor-pointer" onClick={() => addShares(10)}>+10</button>
         <button className="py-1 px-2.5 bg-bg-elevated text-text-primary border border-bg-button rounded text-xs cursor-pointer" onClick={() => addShares(100)}>+100</button>
         <button className="py-1 px-2.5 bg-accent text-white border border-accent rounded text-xs cursor-pointer" onClick={() => setShares(Math.max(1, maxShares))}>MAX</button>
-        <button className="py-1 px-2.5 bg-bg-danger text-loss border border-border-danger rounded text-xs cursor-pointer" onClick={() => setShares(1)}>C</button>
+        <button className="py-1 px-2.5 bg-bg-danger text-loss border border-border-danger rounded text-xs cursor-pointer" onClick={() => setShares(0)}>C</button>
       </div>
 
       <div className="border-b border-bg-elevated mb-2" />
@@ -267,14 +268,14 @@ function DesktopTradePanel({
         <button
           className="flex-1 p-2.5 bg-profit text-white border-none rounded-md text-base font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           onClick={() => onEntry('LONG', shares)}
-          disabled={isInsufficient}
+          disabled={!canOrder}
         >
           LONG
         </button>
         <button
           className="flex-1 p-2.5 bg-loss text-white border-none rounded-md text-base font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
           onClick={() => onEntry('SHORT', shares)}
-          disabled={isInsufficient}
+          disabled={!canOrder}
         >
           SHORT
         </button>
@@ -431,13 +432,14 @@ function OrderModal({
   const isLong = direction === 'LONG'
   const label = isLong ? 'ロング注文' : 'ショート注文'
 
-  const addShares = (amount: number) => setShares((prev) => Math.max(1, prev + amount))
+  const addShares = (amount: number) => setShares((prev) => Math.max(0, prev + amount))
   const maxShares = currentPrice > 0 ? Math.floor(buyingPower / currentPrice) : 0
 
   const orderAmount = shares * currentPrice
   const requiredMargin = maxLeverage > 0 ? shares * currentPrice / maxLeverage : orderAmount
   const remainingCash = availableCash - requiredMargin
   const isInsufficient = requiredMargin > availableCash
+  const canOrder = shares > 0 && !isInsufficient
 
   return (
     <div
@@ -457,9 +459,9 @@ function OrderModal({
           <span className="text-[13px] text-text-secondary min-w-15">株数</span>
           <input
             type="number"
-            min="1"
+            min="0"
             value={shares}
-            onChange={(e) => setShares(Math.max(1, parseInt(e.target.value, 10) || 1))}
+            onChange={(e) => setShares(Math.max(0, parseInt(e.target.value, 10) || 0))}
             className="bg-bg-elevated text-text-primary border border-bg-button rounded py-2.5 px-3 text-base flex-1 text-right min-h-11"
           />
         </div>
@@ -469,7 +471,7 @@ function OrderModal({
           <button className="flex-1 py-2.5 bg-bg-elevated text-text-primary border border-bg-button rounded-md text-sm cursor-pointer min-h-11" onClick={() => addShares(10)}>+10</button>
           <button className="flex-1 py-2.5 bg-bg-elevated text-text-primary border border-bg-button rounded-md text-sm cursor-pointer min-h-11" onClick={() => addShares(100)}>+100</button>
           <button className="flex-1 py-2.5 bg-accent text-white border border-accent rounded-md text-sm cursor-pointer min-h-11" onClick={() => setShares(Math.max(1, maxShares))}>MAX</button>
-          <button className="flex-1 py-2.5 bg-bg-danger text-loss border border-border-danger rounded-md text-sm cursor-pointer min-h-11" onClick={() => setShares(1)}>C</button>
+          <button className="flex-1 py-2.5 bg-bg-danger text-loss border border-border-danger rounded-md text-sm cursor-pointer min-h-11" onClick={() => setShares(0)}>C</button>
         </div>
 
         {/* 注文プレビュー */}
@@ -495,7 +497,7 @@ function OrderModal({
             isLong ? 'bg-profit' : 'bg-loss'
           }`}
           onClick={() => onConfirm(shares)}
-          disabled={isInsufficient}
+          disabled={!canOrder}
         >
           注文確定 ({direction})
         </button>
@@ -517,7 +519,7 @@ export default function TradePanel({
   onSetSLTP,
   compact = false,
 }: TradePanelProps) {
-  const [shares, setShares] = useState(1)
+  const [shares, setShares] = useState(0)
   const [modalDirection, setModalDirection] = useState<Direction | null>(null)
   const [showPositionSheet, setShowPositionSheet] = useState(false)
 

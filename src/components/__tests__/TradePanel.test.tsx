@@ -36,16 +36,33 @@ describe('TradePanel onEntry コールバック', () => {
     container.remove()
   })
 
-  it('デスクトップ版: LONGボタンクリック → onEntry("LONG", shares) が呼ばれる', () => {
+  it('デスクトップ版: 初期状態(0株)ではLONG/SHORTがdisabled', () => {
+    act(() => {
+      root.render(createElement(TradePanel, { ...baseProps, compact: false }))
+    })
+
+    const buttons = container.querySelectorAll('button')
+    const longButton = Array.from(buttons).find((btn) => btn.textContent === 'LONG')
+    const shortButton = Array.from(buttons).find((btn) => btn.textContent === 'SHORT')
+    expect(longButton!.disabled).toBe(true)
+    expect(shortButton!.disabled).toBe(true)
+  })
+
+  it('デスクトップ版: +1で株数設定後、LONGボタンクリック → onEntry("LONG", 1) が呼ばれる', () => {
     const onEntry = vi.fn()
     act(() => {
       root.render(createElement(TradePanel, { ...baseProps, onEntry, compact: false }))
     })
 
     const buttons = container.querySelectorAll('button')
-    const longButton = Array.from(buttons).find((btn) => btn.textContent === 'LONG')
-    expect(longButton).toBeDefined()
+    const plusOneButton = Array.from(buttons).find((btn) => btn.textContent === '+1')
+    expect(plusOneButton).toBeDefined()
+    act(() => {
+      plusOneButton!.click()
+    })
 
+    const longButton = Array.from(container.querySelectorAll('button')).find((btn) => btn.textContent === 'LONG')
+    expect(longButton!.disabled).toBe(false)
     act(() => {
       longButton!.click()
     })
@@ -53,16 +70,20 @@ describe('TradePanel onEntry コールバック', () => {
     expect(onEntry).toHaveBeenCalledWith('LONG', 1)
   })
 
-  it('デスクトップ版: SHORTボタンクリック → onEntry("SHORT", shares) が呼ばれる', () => {
+  it('デスクトップ版: +1で株数設定後、SHORTボタンクリック → onEntry("SHORT", 1) が呼ばれる', () => {
     const onEntry = vi.fn()
     act(() => {
       root.render(createElement(TradePanel, { ...baseProps, onEntry, compact: false }))
     })
 
     const buttons = container.querySelectorAll('button')
-    const shortButton = Array.from(buttons).find((btn) => btn.textContent === 'SHORT')
-    expect(shortButton).toBeDefined()
+    const plusOneButton = Array.from(buttons).find((btn) => btn.textContent === '+1')
+    act(() => {
+      plusOneButton!.click()
+    })
 
+    const shortButton = Array.from(container.querySelectorAll('button')).find((btn) => btn.textContent === 'SHORT')
+    expect(shortButton!.disabled).toBe(false)
     act(() => {
       shortButton!.click()
     })
@@ -70,7 +91,7 @@ describe('TradePanel onEntry コールバック', () => {
     expect(onEntry).toHaveBeenCalledWith('SHORT', 1)
   })
 
-  it('モバイル版: LONGタップ → モーダル → 注文確定 → onEntry("LONG", shares) が呼ばれる', () => {
+  it('モバイル版: LONGタップ → モーダル → +1で株数設定 → 注文確定 → onEntry("LONG", 1) が呼ばれる', () => {
     const onEntry = vi.fn()
     act(() => {
       root.render(createElement(TradePanel, { ...baseProps, onEntry, compact: true }))
@@ -85,11 +106,21 @@ describe('TradePanel onEntry コールバック', () => {
       longTapButton!.click()
     })
 
-    // モーダルが表示される → 注文確定ボタンを押す
+    // モーダル内の+1ボタンで株数を設定
+    const plusOneButton = Array.from(document.querySelectorAll('button')).find(
+      (btn) => btn.textContent === '+1',
+    )
+    expect(plusOneButton).toBeDefined()
+    act(() => {
+      plusOneButton!.click()
+    })
+
+    // 注文確定ボタンを押す
     const confirmButton = Array.from(document.querySelectorAll('button')).find(
       (btn) => btn.textContent?.includes('注文確定'),
     )
     expect(confirmButton).toBeDefined()
+    expect(confirmButton!.disabled).toBe(false)
 
     act(() => {
       confirmButton!.click()
