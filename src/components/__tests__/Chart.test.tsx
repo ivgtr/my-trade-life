@@ -22,16 +22,30 @@ const mockSubscribeVisibleLogicalRangeChange = vi.fn()
 const mockUnsubscribeVisibleLogicalRangeChange = vi.fn()
 const mockGetVisibleLogicalRange = vi.fn().mockReturnValue(null)
 
+const mockMASetData = vi.fn()
+const mockMAUpdate = vi.fn()
+const mockMAApplyOptions = vi.fn()
+
 vi.mock('lightweight-charts', () => ({
   createChart: () => ({
-    addSeries: () => ({
-      update: mockUpdate,
-      setData: mockSetData,
-      attachPrimitive: mockAttachPrimitive,
-      detachPrimitive: mockDetachPrimitive,
-    }),
+    addSeries: (type: symbol) => {
+      if (type === Symbol.for('LineSeries')) {
+        return {
+          setData: mockMASetData,
+          update: mockMAUpdate,
+          applyOptions: mockMAApplyOptions,
+        }
+      }
+      return {
+        update: mockUpdate,
+        setData: mockSetData,
+        attachPrimitive: mockAttachPrimitive,
+        detachPrimitive: mockDetachPrimitive,
+      }
+    },
     applyOptions: mockApplyOptions,
     remove: vi.fn(),
+    removeSeries: vi.fn(),
     timeScale: () => ({
       subscribeVisibleLogicalRangeChange: mockSubscribeVisibleLogicalRangeChange,
       unsubscribeVisibleLogicalRangeChange: mockUnsubscribeVisibleLogicalRangeChange,
@@ -39,6 +53,7 @@ vi.mock('lightweight-charts', () => ({
     }),
   }),
   CandlestickSeries: Symbol('CandlestickSeries'),
+  LineSeries: Symbol.for('LineSeries'),
 }))
 
 const mockGridSetInterval = vi.fn()

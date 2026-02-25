@@ -6,6 +6,7 @@ interface GameConfig {
   defaultSpeed: number
   invertColors: boolean
   audioEnabled: boolean
+  maVisible: boolean
   [key: string]: unknown
 }
 
@@ -15,6 +16,7 @@ const DEFAULT_CONFIG: GameConfig = {
   defaultSpeed: 1,
   invertColors: false,
   audioEnabled: true,
+  maVisible: false,
 }
 
 const PROFIT_COLOR = '#26a69a'

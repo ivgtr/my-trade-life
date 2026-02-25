@@ -1,6 +1,6 @@
 import { useRef, useEffect, useImperativeHandle, forwardRef } from 'react'
-import { createChart, CandlestickSeries } from 'lightweight-charts'
-import type { CandlestickData } from 'lightweight-charts'
+import { createChart, CandlestickSeries, LineSeries } from 'lightweight-charts'
+import type { CandlestickData, ISeriesApi, LineData } from 'lightweight-charts'
 import type { TickData, Timeframe } from '../types'
 import { ConfigManager } from '../systems/ConfigManager'
 import { asGameMinutes, toBarTime, createTickMarkFormatter, chartTimeFormatter, computeGridInterval, toVisibleBarCount } from '../utils/chartTime'
@@ -8,6 +8,9 @@ import { buildBars, mergeTickIntoBar, generateSessionTimeline } from '../utils/c
 import { SESSION_START_MINUTES, SESSION_END_MINUTES, isDuringLunch } from '../constants/sessionTime'
 import { IntervalGridPrimitive } from './GridPrimitive'
 import { useChartAutoScroll } from '../hooks/useChartAutoScroll'
+import { MA_SPECS } from '../constants/maSpecs'
+import type { MAPeriod } from '../constants/maSpecs'
+import type { MALineEntry } from '../utils/maCalculator'
 
 interface ChartProps {
   autoSize?: boolean
@@ -20,6 +23,9 @@ export interface ChartHandle {
   updateTick: (tickData: TickData) => void
   setTimeframe: (tf: Timeframe, history: TickData[]) => void
   reset: () => void
+  setMAVisible: (visible: boolean) => void
+  setAllMAData: (data: Record<MAPeriod, MALineEntry[]>) => void
+  updateMAPoints: (updates: { period: MAPeriod; point: LineData }[]) => void
 }
 
 const CHART_OPTIONS = {
@@ -56,6 +62,7 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
   const timeframeRef = useRef<Timeframe>(timeframe)
   const intervalRef = useRef<number>(0)
   const gridPrimitiveRef = useRef<IntervalGridPrimitive | null>(null)
+  const maSeriesRefs = useRef<Map<MAPeriod, ISeriesApi<'Line'>>>(new Map())
 
   const { followIfNeeded, resetToFollowing, rebuildIndexMap } = useChartAutoScroll({
     chartRef,
@@ -123,7 +130,34 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
         seriesRef.current.setData(generateSessionTimeline(timeframeRef.current))
       }
       currentBarRef.current = null
+      for (const series of maSeriesRefs.current.values()) {
+        series.setData([])
+      }
       resetToFollowing()
+    },
+
+    setMAVisible(visible: boolean) {
+      for (const series of maSeriesRefs.current.values()) {
+        series.applyOptions({ visible })
+      }
+    },
+
+    setAllMAData(data: Record<MAPeriod, MALineEntry[]>) {
+      for (const spec of MA_SPECS) {
+        const series = maSeriesRefs.current.get(spec.period)
+        if (series) {
+          series.setData(data[spec.period])
+        }
+      }
+    },
+
+    updateMAPoints(updates: { period: MAPeriod; point: LineData }[]) {
+      for (const { period, point } of updates) {
+        const series = maSeriesRefs.current.get(period)
+        if (series) {
+          series.update(point)
+        }
+      }
     },
   }))
 
@@ -152,6 +186,20 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
     })
     seriesRef.current = series
     series.setData(generateSessionTimeline(timeframeRef.current))
+
+    const maMap = new Map<MAPeriod, ISeriesApi<'Line'>>()
+    for (const spec of MA_SPECS) {
+      const maSeries = chart.addSeries(LineSeries, {
+        color: spec.color,
+        lineWidth: 1,
+        crosshairMarkerVisible: false,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        visible: false,
+      })
+      maMap.set(spec.period, maSeries)
+    }
+    maSeriesRefs.current = maMap
 
     const range = chart.timeScale().getVisibleLogicalRange()
     const initialBars = range
@@ -194,6 +242,10 @@ const Chart = forwardRef<ChartHandle, ChartProps>(function Chart({ autoSize = tr
       if (ro) ro.disconnect()
       series.detachPrimitive(gridPrimitive)
       gridPrimitiveRef.current = null
+      for (const maSeries of maMap.values()) {
+        chart.removeSeries(maSeries)
+      }
+      maSeriesRefs.current.clear()
       chart.remove()
       chartRef.current = null
       seriesRef.current = null

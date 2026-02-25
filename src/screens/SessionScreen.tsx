@@ -1,12 +1,15 @@
 import { useRef, useState, useCallback, useMemo } from 'react'
 import { useGameContext } from '../hooks/useGameContext'
 import { useSessionEngine } from '../hooks/useSessionEngine'
+import { useMAOverlay } from '../hooks/useMAOverlay'
 import { useResponsive } from '../hooks/useMediaQuery'
 import Chart from '../components/Chart'
+import ChartControls from '../components/ChartControls'
 import TradePanel from '../components/TradePanel'
 import TickerTape from '../components/TickerTape'
 import NewsOverlay from '../components/NewsOverlay'
 import SessionCalendarPopup from '../components/SessionCalendarPopup'
+import { ConfigManager } from '../systems/ConfigManager'
 import { ACTIONS } from '../state/actions'
 import { formatCurrency, parseLocalDate, formatDateShort } from '../utils/formatUtils'
 import type { ChartHandle } from '../components/Chart'
@@ -22,12 +25,23 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
   const chartRef = useRef<ChartHandle | null>(null)
   const [mobileTab, setMobileTab] = useState('chart')
   const [timeframe, setTimeframe] = useState<Timeframe>(gameState.timeframe ?? 1)
+  const [maVisible, setMAVisible] = useState(() => {
+    const config = ConfigManager.getAll()
+    return config.maVisible ?? false
+  })
   const [showCalendar, setShowCalendar] = useState(false)
 
   const currentDate = useMemo(
     () => gameState.currentDate ? parseLocalDate(gameState.currentDate) : new Date(),
     [gameState.currentDate],
   )
+
+  const { handleTick } = useMAOverlay({
+    chartRef,
+    getTickHistory: () => getTickHistory(),
+    timeframe,
+    maVisible,
+  })
 
   const {
     ticks,
@@ -42,7 +56,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     handleSpeedChange,
     handleNewsComplete,
     getTickHistory,
-  } = useSessionEngine({ gameState, dispatch, chartRef, onEndSession })
+  } = useSessionEngine({ gameState, dispatch, chartRef, onEndSession, onTickCallback: handleTick })
 
   const unrealizedPnL = gameState.unrealizedPnL ?? 0
   const positions = gameState.positions ?? []
@@ -58,21 +72,10 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
     chartRef.current?.setTimeframe(tf, getTickHistory())
   }, [dispatch, getTickHistory])
 
-  const timeframeButtons = (
-    <div className="flex gap-1">
-      {([1, 5, 15] as const).map((tf) => (
-        <button
-          key={tf}
-          className={`sm:py-1.5 sm:px-3 py-1 px-2 border-none rounded cursor-pointer font-mono sm:text-[13px] text-xs ${
-            timeframe === tf ? 'bg-accent text-white' : 'bg-bg-button text-text-primary'
-          }`}
-          onClick={() => handleTimeframeChange(tf)}
-        >
-          {tf}分
-        </button>
-      ))}
-    </div>
-  )
+  const handleMAToggle = useCallback((visible: boolean) => {
+    setMAVisible(visible)
+    ConfigManager.set('maVisible', visible)
+  }, [])
 
   const speedButtons = (
     <div className="flex gap-1">
@@ -144,7 +147,6 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
               <span className="text-base font-bold">{gameTime}</span>
             </div>
             <div className="flex gap-2">
-              {timeframeButtons}
               {speedButtons}
             </div>
           </div>
@@ -177,9 +179,18 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden relative">
           {mobileTab === 'chart' ? (
-            <Chart ref={chartRef} autoSize timeframe={timeframe} />
+            <>
+              <Chart ref={chartRef} autoSize timeframe={timeframe} />
+              <ChartControls
+                layout="leftMenu"
+                timeframe={timeframe}
+                onTimeframeChange={handleTimeframeChange}
+                maVisible={maVisible}
+                onMAToggle={handleMAToggle}
+              />
+            </>
           ) : (
             <TickerTape ticks={ticks} maxDisplay={50} compact />
           )}
@@ -215,10 +226,7 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
         </div>
         <span>余力: {formatCurrency(buyingPower)}</span>
         {pnlDisplay}
-        <div className="flex gap-2">
-          {timeframeButtons}
-          {speedButtons}
-        </div>
+        {speedButtons}
       </div>
 
       <div className="flex flex-row flex-1 overflow-hidden min-h-0">
@@ -226,8 +234,19 @@ export default function SessionScreen({ onEndSession }: SessionScreenProps) {
           <TickerTape ticks={ticks} maxDisplay={50} />
         </div>
 
-        <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
-          <Chart ref={chartRef} autoSize timeframe={timeframe} />
+        <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
+          <div className="flex items-center px-2 py-1 bg-bg-panel border-b border-bg-elevated shrink-0">
+            <ChartControls
+              layout="header"
+              timeframe={timeframe}
+              onTimeframeChange={handleTimeframeChange}
+              maVisible={maVisible}
+              onMAToggle={handleMAToggle}
+            />
+          </div>
+          <div className="flex-1 min-h-0">
+            <Chart ref={chartRef} autoSize timeframe={timeframe} />
+          </div>
         </div>
 
         <div className="w-75 shrink-0 overflow-y-auto overflow-x-hidden border-l border-bg-elevated">

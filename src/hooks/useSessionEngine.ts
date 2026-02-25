@@ -13,6 +13,7 @@ interface UseSessionEngineConfig {
   dispatch: React.Dispatch<GameAction>
   chartRef: React.RefObject<ChartHandle | null>
   onEndSession?: (data: { results: unknown; summary: unknown }) => void
+  onTickCallback?: (tick: TickData) => void
 }
 
 interface UseSessionEngineReturn {
@@ -35,6 +36,7 @@ export function useSessionEngine({
   dispatch,
   chartRef,
   onEndSession,
+  onTickCallback,
 }: UseSessionEngineConfig): UseSessionEngineReturn {
   const marketEngineRef = useRef<MarketEngine | null>(null)
   const tradingEngineRef = useRef<TradingEngine | null>(null)
@@ -45,6 +47,8 @@ export function useSessionEngine({
   const [speed, setSpeed] = useState(gameState.speed ?? 1)
   const [isLunchBreak, setIsLunchBreak] = useState(false)
   const lunchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const onTickCallbackRef = useRef(onTickCallback)
+  onTickCallbackRef.current = onTickCallback
 
   useEffect(() => {
     const regimeParams: RegimeParams = gameState.regimeParams ?? { drift: 0, volMult: 1.0, regime: 'range' as const }
@@ -122,6 +126,8 @@ export function useSessionEngine({
         })
 
         newsSystem.checkTriggers(tickData.timestamp)
+
+        onTickCallbackRef.current?.(tickData)
       },
       onSessionEnd: () => {
         const summary = tradingEngine.getDailySummary()
